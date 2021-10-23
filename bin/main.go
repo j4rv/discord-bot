@@ -72,6 +72,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 		for key, command := range commands {
 			if strings.HasPrefix(message, key) {
 				command(ds, mc, ctx)
+				break
 			}
 		}
 	}

@@ -10,14 +10,14 @@ import (
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context)
 
 var commands = map[string]command{
-	"!help ":                      answerHelp,
-	"!parametricTransformer ":     answerParametricTransformer,
-	"!parametricTransformerStop ": answerParametricTransformerStop,
-	"!ayayaify ":                  answerAyayaify,
-	"!hello ":                     answerHello,
-	"!ruben ":                     answerRuben,
-	"!pablo ":                     answerPablo,
-	"!drive ":                     answerDrive,
+	"!help":                      answerHelp,
+	"!parametricTransformerStop": answerParametricTransformerStop,
+	"!parametricTransformer":     answerParametricTransformer,
+	"!ayayaify":                  answerAyayaify,
+	"!hello":                     answerHello,
+	"!ruben":                     answerRuben,
+	"!pablo":                     answerPablo,
+	"!drive":                     answerDrive,
 }
 
 const helpResponse = `Available commands:

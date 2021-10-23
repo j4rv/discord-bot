@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -9,18 +10,20 @@ import (
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context)
 
 var commands = map[string]command{
-	"!help":                      answerHelp,
-	"!hello":                     answerHello,
-	"!ruben":                     answerRuben,
-	"!pablo":                     answerPablo,
-	"!drive":                     answerDrive,
-	"!parametricTransformer":     answerParametricTransformer,
-	"!parametricTransformerStop": answerParametricTransformerStop,
+	"!help ":                      answerHelp,
+	"!parametricTransformer ":     answerParametricTransformer,
+	"!parametricTransformerStop ": answerParametricTransformerStop,
+	"!ayayaify ":                  answerAyayaify,
+	"!hello ":                     answerHello,
+	"!ruben ":                     answerRuben,
+	"!pablo ":                     answerPablo,
+	"!drive ":                     answerDrive,
 }
 
 const helpResponse = `Available commands:
 - **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days
 - **!parametricTransformerStop**: The bot will stop reminding you to use the Parametric Transformer
+- **!ayayaify [message]**: Ayayaifies your message
 - **!pablo**: jijiji
 - **!ruben**: jijiji
 `
@@ -43,6 +46,13 @@ func answerRuben(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 
 func answerPablo(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	ds.ChannelMessageSend(mc.ChannelID, "gafas")
+}
+
+func answerAyayaify(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	bodyToAyayaify := strings.Replace(mc.Content, "!ayayaify ", "", 1)
+	bodyToAyayaify = strings.Replace(bodyToAyayaify, "A", "AYAYA", 1)
+	bodyToAyayaify = strings.Replace(bodyToAyayaify, "a", "ayaya", 1)
+	ds.ChannelMessageSend(mc.ChannelID, bodyToAyayaify)
 }
 
 func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -35,6 +36,6 @@ func runParametricReminder(userID string, ds *discordgo.Session, mc *discordgo.M
 		}
 		runParametricReminder(userID, ds, mc, ctx)
 	case <-ctx.Done():
-		userMessageSend(userID, "Ok, I will stop reminding you about the Parametric Trasnformer", ds, mc)
+		fmt.Println("stopped ParametricReminder for user", userID)
 	}
 }

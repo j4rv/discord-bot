@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -61,9 +62,17 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			return
 		}
 
-		command, ok := commands[mc.Content]
-		if ok {
-			command(ds, mc, ctx)
+		message := strings.TrimSpace(mc.Content)
+
+		// Ignore all messages that don't start with '!'
+		if len(message) == 0 || message[0] != '!' {
+			return
+		}
+
+		for key, command := range commands {
+			if strings.HasPrefix(message, key) {
+				command(ds, mc, ctx)
+			}
 		}
 	}
 }

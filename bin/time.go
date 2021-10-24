@@ -7,22 +7,17 @@ import (
 	"time"
 )
 
-var stringHoursRegex = regexp.MustCompile(`^(\d{1,2})h\s*`)
-var stringMinsRegex = regexp.MustCompile(`^(\d{1,2})m\s*`)
-var stringSecsRegex = regexp.MustCompile(`^(\d{1,2})s\s*`)
+var commandPrefixRegex = regexp.MustCompile(`^!\w+\s+`)
+var stringHoursRegex = regexp.MustCompile(`^(\d{1,2})h`)
+var stringMinsRegex = regexp.MustCompile(`^(\d{1,2})m`)
+var stringSecsRegex = regexp.MustCompile(`^(\d{1,2})s`)
 
-// Format: "!remindme 99h 99m 99s <body>"
+// Format: "!<command> 99h 99m 99s <body>"
 // Returns: The duration and the body
-func processTimedCommand(commandKey string, commandBody string) (time.Duration, string) {
-	if len(commandBody) < len(commandKey) {
-		return 0, ""
-	}
-
+// TODO: Extract to an utilities library?
+func processTimedCommand(commandBody string) (time.Duration, string) {
 	var result time.Duration
-
-	// remove the prefix
-	commandBody = commandBody[len(commandKey):]
-	commandBody = strings.TrimLeft(commandBody, " ")
+	commandBody = commandPrefixRegex.ReplaceAllString(commandBody, "")
 
 	n, commandBody := extractTimeUnit(commandBody, stringHoursRegex)
 	result += time.Duration(n) * time.Hour

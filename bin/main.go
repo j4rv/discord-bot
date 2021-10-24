@@ -14,16 +14,16 @@ import (
 
 var token string
 var adminID string
-var userMustBeAdminMessage = "Only the bot's admin can do that"
 
 func main() {
 	initFlags()
+	initGenshinServices()
 	startBot()
 }
 
 func initFlags() {
 	flag.StringVar(&token, "token", "", "Bot Token")
-	flag.StringVar(&adminID, "adminID", "", "The bot's admin ID")
+	flag.StringVar(&adminID, "adminID", "", "The ID of the bot's admin")
 	flag.Parse()
 	if token == "" {
 		panic("Provide a token flag!")

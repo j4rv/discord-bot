@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -10,22 +12,28 @@ import (
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context)
 
 var commands = map[string]command{
+	// public
 	"!help":                      answerHelp,
 	"!parametricTransformerStop": answerParametricTransformerStop,
 	"!parametricTransformer":     answerParametricTransformer,
 	"!ayayaify":                  answerAyayaify,
-	"!hello":                     answerHello,
-	"!ruben":                     answerRuben,
-	"!pablo":                     answerPablo,
-	"!drive":                     answerDrive,
+	"!remindme":                  answerRemindme,
+	// hidden or easter eggs
+	"!hello": answerHello,
+	"!ruben": answerRuben,
+	"!pablo": answerPablo,
+	"!drive": answerDrive,
+	// only available for the bot owner
+	"!reboot":        doReboot,
+	"!shutdown":      doShutdown,
+	"!abortShutdown": doAbortShutdown,
 }
 
 const helpResponse = `Available commands:
 - **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days
 - **!parametricTransformerStop**: The bot will stop reminding you to use the Parametric Transformer
 - **!ayayaify [message]**: Ayayaifies your message
-- **!pablo**: jijiji
-- **!ruben**: jijiji
+- **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed
 `
 
 func answerHelp(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
@@ -33,11 +41,15 @@ func answerHelp(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.
 }
 
 func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	ds.ChannelMessageSend(mc.ChannelID, "Hello!!")
+	if mc.Author.ID == adminID {
+		ds.ChannelMessageSend(mc.ChannelID, "Hewwo master uwu")
+	} else {
+		ds.ChannelMessageSend(mc.ChannelID, "Hello!")
+	}
 }
 
 func answerDrive(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	ds.ChannelMessageSend(mc.ChannelID, "[J4RV's Shared](https://drive.google.com/drive/folders/1JHlnWqoevIpZCHG4EdjQZN9vqJC0O8wA)")
+	ds.ChannelMessageSend(mc.ChannelID, "J4RV's shared drive folder: https://drive.google.com/drive/folders/1JHlnWqoevIpZCHG4EdjQZN9vqJC0O8wA")
 }
 
 func answerRuben(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
@@ -71,5 +83,48 @@ func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.Messag
 		ds.ChannelMessageSend(mc.ChannelID, "I'll stop reminding you "+mc.Author.Mention())
 	} else {
 		ds.ChannelMessageSend(mc.ChannelID, "You weren't being reminded already "+mc.Author.Mention()+" but ok")
+	}
+}
+
+func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	timeToWait, reminderBody := processTimedCommand("!remindme", mc.Content)
+	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will remind you in %v with the message '%s'", timeToWait, reminderBody))
+	time.Sleep(timeToWait)
+	userMessageSend(mc.Author.ID, reminderBody, ds, mc)
+}
+
+func doReboot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	if mc.Author.ID != adminID {
+		mc.Author.Mention()
+		ds.ChannelMessageSend(mc.ChannelID, userMustBeAdminMessage)
+		return
+	}
+	reboot()
+}
+
+func doShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	if mc.Author.ID != adminID {
+		mc.Author.Mention()
+		ds.ChannelMessageSend(mc.ChannelID, userMustBeAdminMessage)
+		return
+	}
+	timeToWait, _ := processTimedCommand("!shutdown", mc.Content)
+	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will shutdown in %v", timeToWait))
+	err := shutdown(timeToWait)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, err.Error())
+	}
+}
+
+func doAbortShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	if mc.Author.ID != adminID {
+		mc.Author.Mention()
+		ds.ChannelMessageSend(mc.ChannelID, userMustBeAdminMessage)
+		return
+	}
+	ds.ChannelMessageSend(mc.ChannelID, "Gotcha!")
+	err := abortShutdown()
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, err.Error())
 	}
 }

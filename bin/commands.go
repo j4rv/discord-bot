@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"regexp"
 	"strings"
 	"time"
 
@@ -11,6 +13,8 @@ import (
 
 const userMustBeAdminMessage = "Only the bot's admin can do that"
 const commandReceivedMessage = "Gotcha!"
+
+var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context)
 
@@ -32,6 +36,7 @@ var commands = map[string]command{
 	"!genshinDailyCheckIn":       answerGenshinDailyCheckIn,
 	"!parametricTransformerStop": answerParametricTransformerStop,
 	"!parametricTransformer":     answerParametricTransformer,
+	"!randomAbyssLineup":         answerRandomAbyssLineup,
 	"!ayayaify":                  answerAyayaify,
 	"!remindme":                  answerRemindme,
 	// hidden or easter eggs
@@ -52,6 +57,7 @@ const helpResponse = `Available commands:
 - **!genshinDailyCheckInStop**: The bot will stop reminding you to do the Genshin Daily Check-In
 - **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days
 - **!parametricTransformerStop**: The bot will stop reminding you to use the Parametric Transformer
+- **!randomAbyssLineup**: The bot will give you two random teams and some replacements. Have fun ¯\_(ツ)_/¯. Optional: Write 8+ character names separated by commas and the bot will only choose from those
 `
 
 const adminOnlyCommands = `
@@ -113,6 +119,48 @@ func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.Messag
 	} else {
 		ds.ChannelMessageSend(mc.ChannelID, "You weren't being reminded already "+mc.Author.Mention()+" but ok")
 	}
+}
+
+func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	var firstTeam, secondTeam [4]string
+	var replacements []string
+
+	// Process Input and generate the teams
+	inputString := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	if inputString != "" {
+		log.Println("inputstr", inputString)
+		inputchars := strings.Split(inputString, ",")
+		if len(inputchars) < genshinTeamSize*2 {
+			ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`Not enough characters! Please enter at least %d`, genshinTeamSize*2))
+			return
+		}
+		firstTeam, secondTeam, replacements = randomAbyssLineup(inputchars...)
+	} else {
+		log.Println("inputstr", inputString)
+		firstTeam, secondTeam, replacements = randomAbyssLineup()
+	}
+
+	// Format the teams into readable text
+	formattedFirstTeam, formattedSecondTeam, formattedReplacements := "```\n", "```\n", "```\n"
+	for _, r := range replacements {
+		formattedReplacements += r + "\n"
+	}
+	for i := 0; i < genshinTeamSize; i++ {
+		formattedFirstTeam += firstTeam[i] + "\n"
+		formattedSecondTeam += secondTeam[i] + "\n"
+	}
+	formattedFirstTeam += "```"
+	formattedSecondTeam += "```"
+	formattedReplacements += "```"
+
+	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`
+**First half:**
+%s
+**Second half:**
+%s
+**Replacements:**
+%s
+`, formattedFirstTeam, formattedSecondTeam, formattedReplacements))
 }
 
 func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {

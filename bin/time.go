@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-var commandPrefixRegex = regexp.MustCompile(`^!\w+\s+`)
 var stringHoursRegex = regexp.MustCompile(`^(\d{1,2})h`)
 var stringMinsRegex = regexp.MustCompile(`^(\d{1,2})m`)
 var stringSecsRegex = regexp.MustCompile(`^(\d{1,2})s`)

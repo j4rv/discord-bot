@@ -11,6 +11,7 @@ import (
 
 const dailyCheckInReminderCRON = "0 18 * * *"
 const dailyCheckInReminderMessage = "Remember to do the Daily Check-In! https://webstatic-sea.mihoyo.com/ys/event/signin-sea/index.html?act_id=e202102251931481"
+const genshinTeamSize = 4
 
 func initGenshinServices() {
 	dailyCheckInCRON := cron.New()
@@ -71,4 +72,72 @@ func startDailyCheckInReminder(ds *discordgo.Session, mc *discordgo.MessageCreat
 
 func stopDailyCheckInReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	delete(usersWithDailyCheckInReminder, mc.Author.ID)
+}
+
+func randomAbyssLineup(chars ...string) (firstTeam, secondTeam [genshinTeamSize]string, replacements []string) {
+	if len(chars) == 0 {
+		chars = allGenshinChars()
+	}
+
+	for i := 0; i < genshinTeamSize; i++ {
+		firstTeam[i] = extractRandomStringFromSlice(&chars)
+		secondTeam[i] = extractRandomStringFromSlice(&chars)
+	}
+
+	if len(chars) < genshinTeamSize {
+		replacements = chars
+	} else {
+		for i := 0; i < genshinTeamSize; i++ {
+			replacements = append(replacements, extractRandomStringFromSlice(&chars))
+		}
+	}
+
+	return firstTeam, secondTeam, replacements
+}
+
+func allGenshinChars() []string {
+	return []string{
+		"Albedo",
+		"Aloy",
+		"Amber",
+		"Barbara",
+		"Beidou",
+		"Bennett",
+		"Chongyun",
+		"Diluc",
+		"Diona",
+		"Eula",
+		"Fischl",
+		"Ganyu",
+		"Hu Tao",
+		"Jean",
+		"Kaeya",
+		"Kaedehara Kazuha",
+		"Kamisato Ayaka",
+		"Keqing",
+		"Klee",
+		"Kujou Sara",
+		"Lisa",
+		"Mona",
+		"Ningguang",
+		"Noelle",
+		"Qiqi",
+		"Raiden Shogun",
+		"Razor",
+		"Rosaria",
+		"Sangonomiya Kokomi",
+		"Sayu",
+		"Sucrose",
+		"Tartaglia",
+		"Thoma",
+		"Traveler",
+		"Venti",
+		"Xiangling",
+		"Xiao",
+		"Xingqiu",
+		"Xinyan",
+		"Yanfei",
+		"Yoimiya",
+		"Zhongli",
+	}
 }

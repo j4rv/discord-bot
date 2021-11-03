@@ -1,5 +1,7 @@
 # J4RV's Discord bot
 
+[Add it to your server!](https://discord.com/api/oauth2/authorize?client_id=901475699699875880&permissions=412384290880&scope=bot)
+
 ## How to run:
 
 Needs Golang 1.17+

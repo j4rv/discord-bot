@@ -13,11 +13,11 @@ const dailyCheckInReminderCRON = "0 18 * * *"
 const dailyCheckInReminderMessage = "Remember to do the Daily Check-In! https://webstatic-sea.mihoyo.com/ys/event/signin-sea/index.html?act_id=e202102251931481"
 const genshinTeamSize = 4
 
-func initGenshinServices() {
+func initGenshinServices(ds *discordgo.Session) {
 	dailyCheckInCRON := cron.New()
 	_, err := dailyCheckInCRON.AddFunc(dailyCheckInReminderCRON, func() {
-		for _, reminderFunc := range usersWithDailyCheckInReminder {
-			reminderFunc()
+		for _, userID := range genshinDS.AllDailyCheckInReminderUserIDs() {
+			userMessageSend(userID, dailyCheckInReminderMessage, ds)
 		}
 	})
 	if err != nil {
@@ -52,7 +52,7 @@ func runParametricReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, c
 	userID := mc.Author.ID
 	select {
 	case <-time.After(7 * 24 * time.Hour):
-		_, err := userMessageSend(userID, "Remember to use the Parametric Transformer!", ds, mc)
+		_, err := userMessageSend(userID, "Remember to use the Parametric Transformer!", ds)
 		if err != nil {
 			return
 		}
@@ -62,16 +62,12 @@ func runParametricReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, c
 	}
 }
 
-var usersWithDailyCheckInReminder = map[string]func(){}
-
 func startDailyCheckInReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	usersWithDailyCheckInReminder[mc.Author.ID] = func() {
-		userMessageSend(mc.Author.ID, dailyCheckInReminderMessage, ds, mc)
-	}
+	genshinDS.AddDailyCheckInReminder(mc.Author.ID)
 }
 
 func stopDailyCheckInReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	delete(usersWithDailyCheckInReminder, mc.Author.ID)
+	genshinDS.RemoveDailyCheckInReminder(mc.Author.ID)
 }
 
 func randomAbyssLineup(chars ...string) (firstTeam, secondTeam [genshinTeamSize]string, replacements []string) {

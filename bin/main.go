@@ -17,8 +17,16 @@ var adminID string
 
 func main() {
 	initFlags()
-	initGenshinServices()
-	startBot()
+	initDB()
+	ds := initDiscordSession()
+	initGenshinServices(ds)
+
+	// Wait here until CTRL-C or other term signal is received.
+	fmt.Println("Bot is now running. Press CTRL-C to exit.")
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	<-signalChan
+	ds.Close()
 }
 
 func initFlags() {
@@ -33,33 +41,26 @@ func initFlags() {
 	}
 }
 
-func startBot() {
-	dg, err := discordgo.New("Bot " + token)
+func initDiscordSession() *discordgo.Session {
+	ds, err := discordgo.New("Bot " + token)
 	if err != nil {
-		fmt.Println("error creating Discord session,", err)
-		return
+		panic("error creating Discord session: " + err.Error())
 	}
 
 	backgroundCtx := context.Background()
 
 	// Register the messageCreate func as a callback for MessageCreate events.
-	dg.AddHandler(onMessageCreated(backgroundCtx))
-	dg.Identify.Intents |= discordgo.IntentsGuildMessages
-	dg.Identify.Intents |= discordgo.IntentsDirectMessages
+	ds.AddHandler(onMessageCreated(backgroundCtx))
+	ds.Identify.Intents |= discordgo.IntentsGuildMessages
+	ds.Identify.Intents |= discordgo.IntentsDirectMessages
 
 	// Open a websocket connection to Discord and begin listening.
-	err = dg.Open()
+	err = ds.Open()
 	if err != nil {
-		fmt.Println("error opening connection,", err)
-		return
+		panic("error opening connection: " + err.Error())
 	}
 
-	// Wait here until CTRL-C or other term signal is received.
-	fmt.Println("Bot is now running. Press CTRL-C to exit.")
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-	<-signalChan
-	dg.Close()
+	return ds
 }
 
 // React to every new message
@@ -77,8 +78,9 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			return
 		}
 
+		msgCommand := strings.TrimSpace(commandPrefixRegex.FindString(message))
 		for key, command := range commands {
-			if strings.HasPrefix(message, key) {
+			if key == msgCommand {
 				command(ds, mc, ctx)
 				break
 			}
@@ -88,10 +90,10 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 
 var userChannels = map[string]*discordgo.Channel{}
 
-func getUserChannel(userID string, ds *discordgo.Session, mc *discordgo.MessageCreate) (*discordgo.Channel, error) {
+func getUserChannel(userID string, ds *discordgo.Session) (*discordgo.Channel, error) {
 	userChannel, ok := userChannels[userID]
 	if !ok {
-		createdChannel, err := ds.UserChannelCreate(mc.Author.ID)
+		createdChannel, err := ds.UserChannelCreate(userID)
 		if err != nil {
 			// If an error occurred, we failed to create the channel.
 			//
@@ -101,7 +103,6 @@ func getUserChannel(userID string, ds *discordgo.Session, mc *discordgo.MessageC
 			//    label us as abusing the endpoint, blocking us from opening
 			//    new ones.
 			fmt.Println("error creating channel:", err)
-			ds.ChannelMessageSend(mc.ChannelID, "Something went wrong while sending the DM!")
 			return nil, err
 		}
 		userChannels[userID] = createdChannel
@@ -110,17 +111,15 @@ func getUserChannel(userID string, ds *discordgo.Session, mc *discordgo.MessageC
 	return userChannel, nil
 }
 
-func userMessageSend(userID string, body string, ds *discordgo.Session, mc *discordgo.MessageCreate) (*discordgo.Message, error) {
-	userChannel, err := getUserChannel(mc.Author.ID, ds, mc)
+func userMessageSend(userID string, body string, ds *discordgo.Session) (*discordgo.Message, error) {
+	userChannel, err := getUserChannel(userID, ds)
 	if err != nil {
 		return nil, err
 	}
+	return ds.ChannelMessageSend(userChannel.ID, body)
+}
 
-	message, err := ds.ChannelMessageSend(userChannel.ID, body)
-	if err != nil {
-		fmt.Println("error sending DM message:", err)
-		ds.ChannelMessageSend(mc.ChannelID, "Failed to send you a DM. Did you disable DM in your privacy settings? "+mc.Author.Mention())
-	}
-
-	return message, err
+// for single line errors only!
+func errorMessageSend(body string, ds *discordgo.Session, mc *discordgo.MessageCreate) {
+	ds.ChannelMessageSend(mc.ChannelID, "```diff\n- "+body+"\n```")
 }

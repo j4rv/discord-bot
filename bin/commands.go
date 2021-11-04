@@ -13,6 +13,7 @@ import (
 
 const userMustBeAdminMessage = "Only the bot's admin can do that"
 const commandReceivedMessage = "Gotcha!"
+const dmNotSentError = "Failed to send you a DM. Did you disable DMs in your privacy settings?"
 
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 
@@ -103,13 +104,8 @@ func answerAyayaify(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 }
 
 func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	_, err := userMessageSend(mc.Author.ID, "I will remind you about the Parametric Transformer in 7 days!", ds, mc)
-	if err != nil {
-		return
-	}
-
 	startParametricReminder(ds, mc, ctx)
-	ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
+	ds.ChannelMessageSend(mc.ChannelID, "I will remind you about the Parametric Transformer in 7 days!")
 }
 
 func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
@@ -177,11 +173,14 @@ func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	timeToWait, reminderBody := processTimedCommand(mc.Content)
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will remind you in %v with the message '%s'", timeToWait, reminderBody))
 	time.Sleep(timeToWait)
-	userMessageSend(mc.Author.ID, reminderBody, ds, mc)
+	userMessageSend(mc.Author.ID, reminderBody, ds)
 }
 
 func answerReboot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	reboot()
+	err := reboot()
+	if err != nil {
+		errorMessageSend("Error: "+err.Error(), ds, mc)
+	}
 }
 
 func answerShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
@@ -189,7 +188,7 @@ func answerShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will shutdown in %v", timeToWait))
 	err := shutdown(timeToWait)
 	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, err.Error())
+		errorMessageSend("Error: "+err.Error(), ds, mc)
 	}
 }
 
@@ -197,6 +196,6 @@ func answerAbortShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 	ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	err := abortShutdown()
 	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, err.Error())
+		errorMessageSend("Error: "+err.Error(), ds, mc)
 	}
 }

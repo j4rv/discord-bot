@@ -1,1 +1,3 @@
 run.bat
+run-development.bat
+db.sqlite

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -22,7 +22,7 @@ func main() {
 	initGenshinServices(ds)
 
 	// Wait here until CTRL-C or other term signal is received.
-	fmt.Println("Bot is now running. Press CTRL-C to exit.")
+	log.Println("Bot is now running. Press CTRL-C to exit.")
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-signalChan
@@ -37,7 +37,7 @@ func initFlags() {
 		panic("Provide a token flag!")
 	}
 	if adminID == "" {
-		fmt.Println("Warning: Admin user ID not set")
+		log.Println("Warning: Admin user ID not set")
 	}
 }
 
@@ -102,7 +102,7 @@ func getUserChannel(userID string, ds *discordgo.Session) (*discordgo.Channel, e
 			// 2. We opened enough DM channels quickly enough for Discord to
 			//    label us as abusing the endpoint, blocking us from opening
 			//    new ones.
-			fmt.Println("error creating channel:", err)
+			log.Println("error creating user channel:", err)
 			return nil, err
 		}
 		userChannels[userID] = createdChannel
@@ -119,7 +119,15 @@ func userMessageSend(userID string, body string, ds *discordgo.Session) (*discor
 	return ds.ChannelMessageSend(userChannel.ID, body)
 }
 
-// for single line errors only!
-func errorMessageSend(body string, ds *discordgo.Session, mc *discordgo.MessageCreate) {
-	ds.ChannelMessageSend(mc.ChannelID, "```diff\n- "+body+"\n```")
+// for single line strings only!
+func errorMessage(body string) string {
+	return "```diff\n- " + body + "\n```"
+}
+
+func checkErr(context string, err error, ds *discordgo.Session) {
+	if err != nil {
+		msg := "[" + context + "] an error happened: " + err.Error()
+		log.Println(msg)
+		userMessageSend(adminID, errorMessage(msg), ds)
+	}
 }

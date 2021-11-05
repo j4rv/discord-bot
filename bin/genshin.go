@@ -2,8 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"time"
+	"log"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/robfig/cron/v3"
@@ -11,67 +10,75 @@ import (
 
 const dailyCheckInReminderCRON = "0 18 * * *"
 const dailyCheckInReminderMessage = "Remember to do the Daily Check-In! https://webstatic-sea.mihoyo.com/ys/event/signin-sea/index.html?act_id=e202102251931481"
+const parametricReminderCRON = "0 * * * *"
+const parametricReminderMessage = "Remember to use the Parametric Transformer!"
 const genshinTeamSize = 4
 
 func initGenshinServices(ds *discordgo.Session) {
 	dailyCheckInCRON := cron.New()
-	_, err := dailyCheckInCRON.AddFunc(dailyCheckInReminderCRON, func() {
-		for _, userID := range genshinDS.AllDailyCheckInReminderUserIDs() {
-			userMessageSend(userID, dailyCheckInReminderMessage, ds)
-		}
-	})
+	_, err := dailyCheckInCRON.AddFunc(dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))
 	if err != nil {
-		fmt.Println("Error while configuring Genshin's daily check-in CRON:", err)
+		checkErr("AddFunc to dailyCheckInCRON", err, ds)
 	} else {
 		dailyCheckInCRON.Start()
 	}
-}
 
-var usersWithParametricReminder = map[string]context.CancelFunc{}
-
-func startParametricReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	userID := mc.Author.ID
-	stopParametricReminder(ds, mc, ctx)
-	cancellableCtx, cancel := context.WithCancel(ctx)
-	usersWithParametricReminder[userID] = cancel
-	runParametricReminder(ds, mc, cancellableCtx)
-}
-
-func stopParametricReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	userID := mc.Author.ID
-	cancelExistingReminder, ok := usersWithParametricReminder[userID]
-	if ok {
-		cancelExistingReminder()
-		delete(usersWithParametricReminder, userID)
+	parametricCRON := cron.New()
+	_, err = parametricCRON.AddFunc(parametricReminderCRON, parametricCRONFunc(ds))
+	if err != nil {
+		checkErr("AddFunc to parametricCRON", err, ds)
+	} else {
+		parametricCRON.Start()
 	}
-	return ok
 }
 
-// could be better with a CRON library? ... ¯\_(ツ)_/¯
-func runParametricReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	userID := mc.Author.ID
-	select {
-	case <-time.After(7 * 24 * time.Hour):
-		_, err := userMessageSend(userID, "Remember to use the Parametric Transformer!", ds)
-		if err != nil {
-			return
+func dailyCheckInCRONFunc(ds *discordgo.Session) func() {
+	return func() {
+		userIDs, err := genshinDS.allDailyCheckInReminderUserIDs()
+		checkErr("allDailyCheckInReminderUserIDs", err, ds)
+		if len(userIDs) > 0 {
+			log.Printf("Reminding %d users to do the Daily CheckIn", len(userIDs))
+			for _, userID := range userIDs {
+				userMessageSend(userID, dailyCheckInReminderMessage, ds)
+			}
 		}
-		runParametricReminder(ds, mc, ctx)
-	case <-ctx.Done():
-		fmt.Println("stopped ParametricReminder for user", userID)
 	}
 }
 
-func startDailyCheckInReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	genshinDS.AddDailyCheckInReminder(mc.Author.ID)
+func parametricCRONFunc(ds *discordgo.Session) func() {
+	return func() {
+		userIDs, err := genshinDS.allParametricReminderUserIDsToBeReminded()
+		checkErr("allParametricReminderUserIDsToBeReminded", err, ds)
+		if len(userIDs) > 0 {
+			log.Printf("Reminding %d users to use the Parametric Transformer", len(userIDs))
+			for _, userID := range userIDs {
+				userMessageSend(userID, parametricReminderMessage, ds)
+				err := genshinDS.addOrUpdateParametricReminder(userID)
+				checkErr("addOrUpdateParametricReminder", err, ds)
+			}
+		}
+	}
 }
 
-func stopDailyCheckInReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	genshinDS.RemoveDailyCheckInReminder(mc.Author.ID)
+func startDailyCheckInReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
+	return genshinDS.addDailyCheckInReminder(mc.Author.ID)
 }
 
+func stopDailyCheckInReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
+	return genshinDS.removeDailyCheckInReminder(mc.Author.ID)
+}
+
+func startParametricReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
+	return genshinDS.addOrUpdateParametricReminder(mc.Author.ID)
+}
+
+func stopParametricReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
+	return genshinDS.removeParametricReminder(mc.Author.ID)
+}
+
+// chars must have either 0 or 8+ elements
 func randomAbyssLineup(chars ...string) (firstTeam, secondTeam [genshinTeamSize]string, replacements []string) {
-	if len(chars) == 0 {
+	if len(chars) == 0 || chars[0] == "" {
 		chars = allGenshinChars()
 	}
 

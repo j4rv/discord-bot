@@ -19,20 +19,29 @@ func initDB() {
 	if db.Ping() != nil {
 		panic("DB did not answer ping")
 	}
-	CreateTables(db)
+	createTables(db)
 	genshinDS = genshinDataStore{db}
 }
 
-func CreateTables(db *sqlx.DB) {
+func createTables(db *sqlx.DB) {
 	createTableDailyCheckInReminder(db)
+	createTableParametricReminder(db)
 }
 
 func createTableDailyCheckInReminder(db *sqlx.DB) {
 	createTable("DailyCheckInReminder", []string{
-		"DiscordUserID VARCHAR(18) UNIQUE",
+		"DiscordUserID VARCHAR(18) UNIQUE NOT NULL",
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
 	}, db)
-	createIndex("DailyCheckInReminder", "DiscordUserID", db)
+}
+
+func createTableParametricReminder(db *sqlx.DB) {
+	createTable("ParametricReminder", []string{
+		"DiscordUserID VARCHAR(18) UNIQUE NOT NULL",
+		"LastReminder TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL",
+		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+	}, db)
+	createIndex("ParametricReminder", "LastReminder", db)
 }
 
 // genshin
@@ -41,22 +50,40 @@ type genshinDataStore struct {
 	db *sqlx.DB
 }
 
-func (s genshinDataStore) AddDailyCheckInReminder(userID string) error {
+func (s genshinDataStore) addDailyCheckInReminder(userID string) error {
 	_, err := s.db.Exec(`INSERT INTO DailyCheckInReminder (DiscordUserID) VALUES (?)`,
 		userID)
 	return err
 }
 
-func (s genshinDataStore) RemoveDailyCheckInReminder(userID string) error {
+func (s genshinDataStore) removeDailyCheckInReminder(userID string) error {
 	_, err := s.db.Exec(`DELETE FROM DailyCheckInReminder WHERE DiscordUserID = ?`,
 		userID)
 	return err
 }
 
-func (s genshinDataStore) AllDailyCheckInReminderUserIDs() []string {
+func (s genshinDataStore) allDailyCheckInReminderUserIDs() ([]string, error) {
 	var userIDs []string
-	s.db.Select(&userIDs, `SELECT DiscordUserID FROM DailyCheckInReminder`)
-	return userIDs
+	err := s.db.Select(&userIDs, `SELECT DiscordUserID FROM DailyCheckInReminder`)
+	return userIDs, err
+}
+
+func (s genshinDataStore) addOrUpdateParametricReminder(userID string) error {
+	_, err := s.db.Exec(`INSERT OR REPLACE INTO ParametricReminder (DiscordUserID, LastReminder) VALUES (?, CURRENT_TIMESTAMP)`,
+		userID)
+	return err
+}
+
+func (s genshinDataStore) removeParametricReminder(userID string) error {
+	_, err := s.db.Exec(`DELETE FROM ParametricReminder WHERE DiscordUserID = ?`,
+		userID)
+	return err
+}
+
+func (s genshinDataStore) allParametricReminderUserIDsToBeReminded() ([]string, error) {
+	var userIDs []string
+	err := s.db.Select(&userIDs, `SELECT DiscordUserID FROM ParametricReminder WHERE LastReminder <= datetime('now', '-7 days')`)
+	return userIDs, err
 }
 
 // methods for repetitive stuff
@@ -65,14 +92,13 @@ func createTable(table string, columns []string, db *sqlx.DB) {
 	if len(columns) == 0 {
 		panic("createTable method is for tables with at least one column")
 	}
-	// Using Sprintf since this internal method does not use user inputs
-	statement := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s INTEGER PRIMARY KEY AUTOINCREMENT,%s);", table, table, strings.Join(columns, ","))
+	statement := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s INTEGER PRIMARY KEY AUTOINCREMENT,%s);",
+		table, table, strings.Join(columns, ","))
 	db.MustExec(statement)
 }
 
 func createIndex(table, column string, db *sqlx.DB) {
 	indexName := fmt.Sprintf("%s_%s", table, column)
-	// Using Sprintf since this internal method does not use user inputs
-	createIndexStatement := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s(%s);", indexName, table, column)
-	db.MustExec(createIndexStatement)
+	statement := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s(%s);", indexName, table, column)
+	db.MustExec(statement)
 }

@@ -62,7 +62,7 @@ func (a *Artifact) randomizeSubstats() {
 
 	a.SubStats = [MaxSubstats]*ArtifactSubstat{}
 	possibleStats := weightedSubstats(a.MainStat)
-	var subs [4]artifactStat
+	var subs [MaxSubstats]artifactStat
 	for i := 0; i < numRolls; i++ {
 		// First 4 rolls
 		if i < MaxSubstats {

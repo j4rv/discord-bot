@@ -19,13 +19,16 @@ env CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ CGO_ENABLED=1 GOOS=li
 
 ### Public
 
+- **!source**: Links to the bot's source code
+- **!ayayaify [message]**: Ayayaifies your message
+- **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed
 - **!genshinDailyCheckIn**: Will remind you to do the Genshin Daily Check-In
 - **!genshinDailyCheckInStop**: The bot will stop reminding you to do the Genshin Daily Check-In
 - **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days. Use it again to reset the reminder
 - **!parametricTransformerStop**: The bot will stop reminding you to use the Parametric Transformer
 - **!randomAbyssLineup**: The bot will give you two random teams and some replacements. Have fun ¯\_(ツ)_/¯. Optional: Write 8+ character names separated by commas and the bot will only choose from those
-- **!ayayaify [message]**: Ayayaifies your message
-- **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed
+- **!randomArtifact**: Generates a random Lv20 Genshin Impact artifact
+- **!randomArtifactSet**: Generates five random Lv20 Genshin Impact artifacts
 
 ### Admin only
 

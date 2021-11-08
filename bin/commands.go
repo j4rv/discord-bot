@@ -56,7 +56,7 @@ var commands = map[string]command{
 }
 
 const helpResponse = `Available commands:
-- **!source [message]**: Links to the bot's source code
+- **!source**: Links to the bot's source code
 - **!ayayaify [message]**: Ayayaifies your message
 - **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed
 - **!genshinDailyCheckIn**: Will remind you to do the Genshin Daily Check-In

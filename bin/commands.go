@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/j4rv/discord-bot/lib/genshinartis"
 )
 
 const userMustBeAdminMessage = "Only the bot's admin can do that"
@@ -33,11 +34,13 @@ func adminOnly(wrapped command) command {
 var commands = map[string]command{
 	// public
 	"!help":                      answerHelp,
+	"!source":                    answerSource,
 	"!genshinDailyCheckInStop":   answerGenshinDailyCheckInStop,
 	"!genshinDailyCheckIn":       answerGenshinDailyCheckIn,
 	"!parametricTransformerStop": answerParametricTransformerStop,
 	"!parametricTransformer":     answerParametricTransformer,
 	"!randomAbyssLineup":         answerRandomAbyssLineup,
+	"!randomArtifact":            answerRandomArtifact,
 	"!ayayaify":                  answerAyayaify,
 	"!remindme":                  answerRemindme,
 	// hidden or easter eggs
@@ -52,6 +55,7 @@ var commands = map[string]command{
 }
 
 const helpResponse = `Available commands:
+- **!source [message]**: Links to the bot's source code
 - **!ayayaify [message]**: Ayayaifies your message
 - **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed
 - **!genshinDailyCheckIn**: Will remind you to do the Genshin Daily Check-In
@@ -59,9 +63,10 @@ const helpResponse = `Available commands:
 - **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days. Use it again to reset the reminder
 - **!parametricTransformerStop**: The bot will stop reminding you to use the Parametric Transformer
 - **!randomAbyssLineup**: The bot will give you two random teams and some replacements. Have fun ¯\_(ツ)_/¯. Optional: Write 8+ character names separated by commas and the bot will only choose from those
+- **!randomArtifact**: Generates a random Lv20 Genshin Impact artifact
 `
 
-const adminOnlyCommands = `
+const helpResponseAdmin = helpResponse + `
 Admin only:
 - **!reboot**: Reboot the bot's system
 - **!shutdown** [99h 99m 99s]: Shuts down the bot's system
@@ -69,10 +74,10 @@ Admin only:
 `
 
 func answerHelp(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	if mc.Author.ID == adminID {
-		ds.ChannelMessageSend(mc.ChannelID, helpResponse+adminOnlyCommands)
-	} else {
+	if mc.Author.ID != adminID {
 		ds.ChannelMessageSend(mc.ChannelID, helpResponse)
+	} else {
+		ds.ChannelMessageSend(mc.ChannelID, helpResponseAdmin)
 	}
 }
 
@@ -86,6 +91,10 @@ func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 
 func answerDrive(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	ds.ChannelMessageSend(mc.ChannelID, "J4RV's shared drive folder: https://drive.google.com/drive/folders/1JHlnWqoevIpZCHG4EdjQZN9vqJC0O8wA")
+}
+
+func answerSource(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	ds.ChannelMessageSend(mc.ChannelID, "Source code: https://github.com/j4rv/discord-bot")
 }
 
 func answerRuben(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
@@ -160,6 +169,25 @@ func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate,
 **Replacements:**
 %s
 `, formattedFirstTeam, formattedSecondTeam, formattedReplacements))
+}
+
+// FIXME: Limit its usage by user (20 per minute?)
+func answerRandomArtifact(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	artifact := genshinartis.RandomArtifact()
+	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`
+**%s**
+**Main stat:** %s
+**Substats:**
+ 🞄 %s: %.1f
+ 🞄 %s: %.1f
+ 🞄 %s: %.1f
+ 🞄 %s: %.1f
+	`, artifact.Slot, artifact.MainStat,
+		artifact.SubStats[0].Stat, artifact.SubStats[0].Value,
+		artifact.SubStats[1].Stat, artifact.SubStats[1].Value,
+		artifact.SubStats[2].Stat, artifact.SubStats[2].Value,
+		artifact.SubStats[3].Stat, artifact.SubStats[3].Value,
+	))
 }
 
 func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {

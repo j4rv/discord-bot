@@ -4,10 +4,12 @@ import (
 	"context"
 	"flag"
 	"log"
+	"math/rand"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -16,10 +18,11 @@ var token string
 var adminID string
 
 func main() {
+	rand.Seed(time.Now().UTC().UnixNano())
 	initFlags()
 	initDB()
 	ds := initDiscordSession()
-	initGenshinServices(ds)
+	initGenshinCRONs(ds)
 
 	// Wait here until CTRL-C or other term signal is received.
 	log.Println("Bot is now running. Press CTRL-C to exit.")

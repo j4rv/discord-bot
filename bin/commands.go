@@ -34,21 +34,33 @@ func adminOnly(wrapped command) command {
 var commands = map[string]command{
 	// public
 	"!help":                      answerHelp,
-	"!source":                    answerSource,
-	"!genshinDailyCheckInStop":   answerGenshinDailyCheckInStop,
+	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshinDailyCheckIn":       answerGenshinDailyCheckIn,
-	"!parametricTransformerStop": answerParametricTransformerStop,
+	"!genshinDailyCheckInStop":   answerGenshinDailyCheckInStop,
 	"!parametricTransformer":     answerParametricTransformer,
+	"!parametricTransformerStop": answerParametricTransformerStop,
 	"!randomAbyssLineup":         answerRandomAbyssLineup,
 	"!randomArtifact":            answerRandomArtifact,
 	"!randomArtifactSet":         answerRandomArtifactSet,
 	"!ayayaify":                  answerAyayaify,
 	"!remindme":                  answerRemindme,
 	// hidden or easter eggs
-	"!hello": answerHello,
-	"!ruben": answerRuben,
-	"!pablo": answerPablo,
-	"!drive": answerDrive,
+	"!hello":   answerHello,
+	"!jarv":    simpleTextResponse("Hipster metaslave"),
+	"!naz":     simpleTextResponse("Retired whale™️"),
+	"!jam":     simpleTextResponse(":3c"),
+	"!spiwar":  simpleTextResponse("C1 bedo"),
+	"!kono":    simpleTextResponse("Adorable"),
+	"!rosb":    simpleTextResponse(":BASED:"),
+	"!twns":    simpleTextResponse("Do your own math"),
+	"!vins":    simpleTextResponse("Gold albedolympics medalist"),
+	"!moona":   simpleTextResponse("Bandori master!"),
+	"!ossify":  simpleTextResponse("Based husbando puller"),
+	"!teatime": simpleTextResponse("Waifu dominoes master"),
+	"!bmaster": simpleTextResponse("Professional shitposter"),
+	"!ruben":   simpleTextResponse("Carbo"),
+	"!pablo":   simpleTextResponse("Gafas"),
+	"!gura":    simpleTextResponse("A"),
 	// only available for the bot owner
 	"!reboot":        adminOnly(answerReboot),
 	"!shutdown":      adminOnly(answerShutdown),
@@ -91,20 +103,10 @@ func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	}
 }
 
-func answerDrive(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	ds.ChannelMessageSend(mc.ChannelID, "J4RV's shared drive folder: https://drive.google.com/drive/folders/1JHlnWqoevIpZCHG4EdjQZN9vqJC0O8wA")
-}
-
-func answerSource(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	ds.ChannelMessageSend(mc.ChannelID, "Source code: https://github.com/j4rv/discord-bot")
-}
-
-func answerRuben(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	ds.ChannelMessageSend(mc.ChannelID, "carbo")
-}
-
-func answerPablo(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	ds.ChannelMessageSend(mc.ChannelID, "gafas")
+func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+		ds.ChannelMessageSend(mc.ChannelID, body)
+	}
 }
 
 func answerAyayaify(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
@@ -130,7 +132,7 @@ func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.Messag
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, errorMessage(commandErrorHappened))
 	} else {
-		ds.ChannelMessageSend(mc.ChannelID, "I'll stop reminding you "+mc.Author.Mention())
+		ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
 	}
 }
 
@@ -173,7 +175,6 @@ func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate,
 `, formattedFirstTeam, formattedSecondTeam, formattedReplacements))
 }
 
-// FIXME: Limit its usage by user (20 per minute?)
 func answerRandomArtifact(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	artifact := genshinartis.RandomArtifact()
 	ds.ChannelMessageSend(mc.ChannelID, formatGenshinArtifact(artifact))
@@ -200,7 +201,7 @@ func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreat
 
 func answerGenshinDailyCheckInStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	stopDailyCheckInReminder(ds, mc, ctx)
-	ds.ChannelMessageSend(mc.ChannelID, "I'll stop reminding you "+mc.Author.Mention())
+	ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
 }
 
 // FIXME: Limit its usage by user (max 3 active reminders?)

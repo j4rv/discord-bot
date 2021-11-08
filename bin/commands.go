@@ -193,23 +193,6 @@ func answerRandomArtifactSet(ds *discordgo.Session, mc *discordgo.MessageCreate,
 	ds.ChannelMessageSend(mc.ChannelID, msg)
 }
 
-func formatGenshinArtifact(artifact *genshinartis.Artifact) string {
-	return fmt.Sprintf(`
-**%s**
-**Main stat:** %s
-**Substats:**
- 🞄 %s: %.1f
- 🞄 %s: %.1f
- 🞄 %s: %.1f
- 🞄 %s: %.1f
-		`, artifact.Slot, artifact.MainStat,
-		artifact.SubStats[0].Stat, artifact.SubStats[0].Value,
-		artifact.SubStats[1].Stat, artifact.SubStats[1].Value,
-		artifact.SubStats[2].Stat, artifact.SubStats[2].Value,
-		artifact.SubStats[3].Stat, artifact.SubStats[3].Value,
-	)
-}
-
 func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	startDailyCheckInReminder(ds, mc, ctx)
 	ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)

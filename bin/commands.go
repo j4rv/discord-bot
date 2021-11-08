@@ -41,6 +41,7 @@ var commands = map[string]command{
 	"!parametricTransformer":     answerParametricTransformer,
 	"!randomAbyssLineup":         answerRandomAbyssLineup,
 	"!randomArtifact":            answerRandomArtifact,
+	"!randomArtifactSet":         answerRandomArtifactSet,
 	"!ayayaify":                  answerAyayaify,
 	"!remindme":                  answerRemindme,
 	// hidden or easter eggs
@@ -64,6 +65,7 @@ const helpResponse = `Available commands:
 - **!parametricTransformerStop**: The bot will stop reminding you to use the Parametric Transformer
 - **!randomAbyssLineup**: The bot will give you two random teams and some replacements. Have fun ¯\_(ツ)_/¯. Optional: Write 8+ character names separated by commas and the bot will only choose from those
 - **!randomArtifact**: Generates a random Lv20 Genshin Impact artifact
+- **!randomArtifactSet**: Generates five random Lv20 Genshin Impact artifacts
 `
 
 const helpResponseAdmin = helpResponse + `
@@ -174,7 +176,25 @@ func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate,
 // FIXME: Limit its usage by user (20 per minute?)
 func answerRandomArtifact(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	artifact := genshinartis.RandomArtifact()
-	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`
+	ds.ChannelMessageSend(mc.ChannelID, formatGenshinArtifact(artifact))
+}
+
+func answerRandomArtifactSet(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	flower := genshinartis.RandomArtifactOfSlot(genshinartis.SlotFlower)
+	plume := genshinartis.RandomArtifactOfSlot(genshinartis.SlotPlume)
+	sands := genshinartis.RandomArtifactOfSlot(genshinartis.SlotSands)
+	goblet := genshinartis.RandomArtifactOfSlot(genshinartis.SlotGoblet)
+	circlet := genshinartis.RandomArtifactOfSlot(genshinartis.SlotCirclet)
+	msg := formatGenshinArtifact(flower)
+	msg += formatGenshinArtifact(plume)
+	msg += formatGenshinArtifact(sands)
+	msg += formatGenshinArtifact(goblet)
+	msg += formatGenshinArtifact(circlet)
+	ds.ChannelMessageSend(mc.ChannelID, msg)
+}
+
+func formatGenshinArtifact(artifact *genshinartis.Artifact) string {
+	return fmt.Sprintf(`
 **%s**
 **Main stat:** %s
 **Substats:**
@@ -182,12 +202,12 @@ func answerRandomArtifact(ds *discordgo.Session, mc *discordgo.MessageCreate, ct
  🞄 %s: %.1f
  🞄 %s: %.1f
  🞄 %s: %.1f
-	`, artifact.Slot, artifact.MainStat,
+		`, artifact.Slot, artifact.MainStat,
 		artifact.SubStats[0].Stat, artifact.SubStats[0].Value,
 		artifact.SubStats[1].Stat, artifact.SubStats[1].Value,
 		artifact.SubStats[2].Stat, artifact.SubStats[2].Value,
 		artifact.SubStats[3].Stat, artifact.SubStats[3].Value,
-	))
+	)
 }
 
 func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {

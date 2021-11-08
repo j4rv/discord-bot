@@ -51,8 +51,8 @@ func (a *Artifact) ranzomizeMainStat() {
 
 func (a *Artifact) randomizeSubstats() {
 	numRolls := 3 + 5 // starts with 3 subs by default
-	if rand.Float32() <= 0.25 {
-		numRolls++ // starts with 4 subs (25% chance)
+	if rand.Float32() <= 0.5 {
+		numRolls++ // starts with 4 subs (50% chance)
 	}
 
 	a.SubStats = [MaxSubstats]*ArtifactSubstat{}

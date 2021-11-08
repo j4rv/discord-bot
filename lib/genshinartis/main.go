@@ -7,12 +7,6 @@ import (
 
 const MaxSubstats = 4
 
-type Artifact struct {
-	Slot     artifactSlot
-	MainStat artifactStat
-	SubStats [MaxSubstats]*ArtifactSubstat
-}
-
 type ArtifactSubstat struct {
 	Stat  artifactStat
 	Rolls int
@@ -30,7 +24,18 @@ func (s *ArtifactSubstat) String() string {
 	return fmt.Sprintf("%s: %.1f", s.Stat, s.Value)
 }
 
-func (a *Artifact) randomizeType() {
+type Artifact struct {
+	Set      artifactSet
+	Slot     artifactSlot
+	MainStat artifactStat
+	SubStats [MaxSubstats]*ArtifactSubstat
+}
+
+func (a *Artifact) randomizeSet() {
+	a.Set = allArtifactSets[rand.Intn(len(allArtifactSets))]
+}
+
+func (a *Artifact) randomizeSlot() {
 	a.Slot = artifactSlot(rand.Intn(5))
 }
 
@@ -79,7 +84,8 @@ func (a *Artifact) randomizeSubstats() {
 
 func RandomArtifact() *Artifact {
 	var artifact Artifact
-	artifact.randomizeType()
+	artifact.randomizeSet()
+	artifact.randomizeSlot()
 	artifact.ranzomizeMainStat()
 	artifact.randomizeSubstats()
 	return &artifact
@@ -87,6 +93,7 @@ func RandomArtifact() *Artifact {
 
 func RandomArtifactOfSlot(slot artifactSlot) *Artifact {
 	var artifact Artifact
+	artifact.randomizeSet()
 	artifact.Slot = slot
 	artifact.ranzomizeMainStat()
 	artifact.randomizeSubstats()

@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/j4rv/discord-bot/lib/genshinartis"
 	"github.com/robfig/cron/v3"
 )
 
@@ -96,6 +98,22 @@ func randomAbyssLineup(chars ...string) (firstTeam, secondTeam [genshinTeamSize]
 	}
 
 	return firstTeam, secondTeam, replacements
+}
+
+func formatGenshinArtifact(artifact *genshinartis.Artifact) string {
+	return fmt.Sprintf(`
+**%s**
+**%s (%s)**
+ 🞄 %s: %.1f
+ 🞄 %s: %.1f
+ 🞄 %s: %.1f
+ 🞄 %s: %.1f
+		`, artifact.Set, artifact.Slot, artifact.MainStat,
+		artifact.SubStats[0].Stat, artifact.SubStats[0].Value,
+		artifact.SubStats[1].Stat, artifact.SubStats[1].Value,
+		artifact.SubStats[2].Stat, artifact.SubStats[2].Value,
+		artifact.SubStats[3].Stat, artifact.SubStats[3].Value,
+	)
 }
 
 func allGenshinChars() []string {

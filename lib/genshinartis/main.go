@@ -31,8 +31,8 @@ type Artifact struct {
 	SubStats [MaxSubstats]*ArtifactSubstat
 }
 
-func (a *Artifact) randomizeSet() {
-	a.Set = allArtifactSets[rand.Intn(len(allArtifactSets))]
+func (a *Artifact) randomizeSet(options ...artifactSet) {
+	a.Set = options[rand.Intn(len(options))]
 }
 
 func (a *Artifact) randomizeSlot() {
@@ -84,7 +84,7 @@ func (a *Artifact) randomizeSubstats() {
 
 func RandomArtifact() *Artifact {
 	var artifact Artifact
-	artifact.randomizeSet()
+	artifact.randomizeSet(allArtifactSets...)
 	artifact.randomizeSlot()
 	artifact.ranzomizeMainStat()
 	artifact.randomizeSubstats()
@@ -93,8 +93,17 @@ func RandomArtifact() *Artifact {
 
 func RandomArtifactOfSlot(slot artifactSlot) *Artifact {
 	var artifact Artifact
-	artifact.randomizeSet()
+	artifact.randomizeSet(allArtifactSets...)
 	artifact.Slot = slot
+	artifact.ranzomizeMainStat()
+	artifact.randomizeSubstats()
+	return &artifact
+}
+
+func RandomArtifactFromDomain(setA, setB string) *Artifact {
+	var artifact Artifact
+	artifact.randomizeSet(artifactSet(setA), artifactSet(setB))
+	artifact.randomizeSlot()
 	artifact.ranzomizeMainStat()
 	artifact.randomizeSubstats()
 	return &artifact

@@ -29,6 +29,7 @@ env CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ CGO_ENABLED=1 GOOS=li
 - **!randomAbyssLineup**: The bot will give you two random teams and some replacements. Have fun ¯\_(ツ)_/¯. Optional: Write 8+ character names separated by commas and the bot will only choose from those
 - **!randomArtifact**: Generates a random Lv20 Genshin Impact artifact
 - **!randomArtifactSet**: Generates five random Lv20 Genshin Impact artifacts
+- **!randomDomainRun (set A) (set B)**: Generates two random Lv20 Genshin Impact artifacts from the input sets
 
 ### Admin only
 

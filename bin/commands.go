@@ -15,8 +15,10 @@ const userMustBeAdminMessage = "Only the bot's admin can do that"
 const commandReceivedMessage = "Gotcha!"
 const commandErrorHappened = "I could not do that :( sorry"
 const dmNotSentError = "Could not send you a DM. Did you disable DMs in your privacy settings?"
+const commandWithTwoArgumentsError = "Something went wrong, please make sure that the command has two arguments with the following format: '!command (...) (...)'"
 
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
+var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))\s*`)
 
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context)
 
@@ -42,6 +44,7 @@ var commands = map[string]command{
 	"!randomAbyssLineup":         answerRandomAbyssLineup,
 	"!randomArtifact":            answerRandomArtifact,
 	"!randomArtifactSet":         answerRandomArtifactSet,
+	"!randomDomainRun":           answerRandomDomainRun,
 	"!ayayaify":                  answerAyayaify,
 	"!remindme":                  answerRemindme,
 	// hidden or easter eggs
@@ -61,6 +64,8 @@ var commands = map[string]command{
 	"!ruben":   simpleTextResponse("Carbo"),
 	"!pablo":   simpleTextResponse("Gafas"),
 	"!gura":    simpleTextResponse("A"),
+	// TODO soup command
+	// TODO raider command
 	// only available for the bot owner
 	"!reboot":        adminOnly(answerReboot),
 	"!shutdown":      adminOnly(answerShutdown),
@@ -78,6 +83,7 @@ const helpResponse = `Available commands:
 - **!randomAbyssLineup**: The bot will give you two random teams and some replacements. Have fun ¯\_(ツ)_/¯. Optional: Write 8+ character names separated by commas and the bot will only choose from those
 - **!randomArtifact**: Generates a random Lv20 Genshin Impact artifact
 - **!randomArtifactSet**: Generates five random Lv20 Genshin Impact artifacts
+- **!randomDomainRun (set A) (set B)**: Generates two random Lv20 Genshin Impact artifacts from the input sets
 `
 
 const helpResponseAdmin = helpResponse + `
@@ -191,6 +197,23 @@ func answerRandomArtifactSet(ds *discordgo.Session, mc *discordgo.MessageCreate,
 	msg += formatGenshinArtifact(sands)
 	msg += formatGenshinArtifact(goblet)
 	msg += formatGenshinArtifact(circlet)
+	ds.ChannelMessageSend(mc.ChannelID, msg)
+}
+
+func answerRandomDomainRun(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	match := commandWithTwoArguments.FindStringSubmatch(mc.Content)
+	if match == nil || len(match) != 3 {
+		ds.ChannelMessageSend(mc.ChannelID, commandWithTwoArgumentsError)
+		return
+	}
+
+	// we also remove the "(" and ")" chars
+	set1 := match[1][1 : len(match[1])-1]
+	set2 := match[2][1 : len(match[2])-1]
+	art1 := genshinartis.RandomArtifactFromDomain(set1, set2)
+	art2 := genshinartis.RandomArtifactFromDomain(set1, set2)
+	msg := formatGenshinArtifact(art1)
+	msg += formatGenshinArtifact(art2)
 	ds.ChannelMessageSend(mc.ChannelID, msg)
 }
 

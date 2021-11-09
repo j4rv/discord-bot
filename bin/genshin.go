@@ -104,10 +104,10 @@ func formatGenshinArtifact(artifact *genshinartis.Artifact) string {
 	return fmt.Sprintf(`
 **%s**
 **%s (%s)**
- 🞄 %s: %.1f
- 🞄 %s: %.1f
- 🞄 %s: %.1f
- 🞄 %s: %.1f
+ • %s: %.1f
+ • %s: %.1f
+ • %s: %.1f
+ • %s: %.1f
 		`, artifact.Set, artifact.Slot, artifact.MainStat,
 		artifact.SubStats[0].Stat, artifact.SubStats[0].Value,
 		artifact.SubStats[1].Stat, artifact.SubStats[1].Value,

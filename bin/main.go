@@ -82,11 +82,9 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 		}
 
 		msgCommand := strings.TrimSpace(commandPrefixRegex.FindString(message))
-		for key, command := range commands {
-			if key == msgCommand {
-				command(ds, mc, ctx)
-				break
-			}
+		command, ok := commands[msgCommand]
+		if ok {
+			command(ds, mc, ctx)
 		}
 	}
 }

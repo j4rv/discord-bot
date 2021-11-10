@@ -13,6 +13,7 @@ import (
 
 const userMustBeAdminMessage = "Only the bot's admin can do that"
 const commandReceivedMessage = "Gotcha!"
+const commandSuccessMessage = "Successfully donette!"
 const commandErrorHappened = "I could not do that :( sorry"
 const dmNotSentError = "Could not send you a DM. Did you disable DMs in your privacy settings?"
 const commandWithTwoArgumentsError = "Something went wrong, please make sure that the command has two arguments with the following format: '!command (...) (...)'"
@@ -48,25 +49,11 @@ var commands = map[string]command{
 	"!ayayaify":                  answerAyayaify,
 	"!remindme":                  answerRemindme,
 	// hidden or easter eggs
-	"!hello":   answerHello,
-	"!jarv":    simpleTextResponse("Hipster metaslave"),
-	"!naz":     simpleTextResponse("Retired whale™️"),
-	"!jam":     simpleTextResponse(":3c"),
-	"!spiwar":  simpleTextResponse("C1 bedo"),
-	"!kono":    simpleTextResponse("Adorable"),
-	"!rosb":    simpleTextResponse(":BASED:"),
-	"!twns":    simpleTextResponse("Do your own math"),
-	"!vins":    simpleTextResponse("Gold albedolympics medalist"),
-	"!moona":   simpleTextResponse("Bandori master!"),
-	"!ossify":  simpleTextResponse("Based husbando puller"),
-	"!teatime": simpleTextResponse("Waifu dominoes master"),
-	"!bmaster": simpleTextResponse("Professional shitposter"),
-	"!ruben":   simpleTextResponse("Carbo"),
-	"!pablo":   simpleTextResponse("Gafas"),
-	"!gura":    simpleTextResponse("A"),
-	// TODO soup command
-	// TODO raider command
+	"!hello": answerHello,
 	// only available for the bot owner
+	"!addCommand":    adminOnly(answerAddCommand),
+	"!removeCommand": adminOnly(answerRemoveCommand),
+	"!listCommands":  adminOnly(answerListCommands),
 	"!reboot":        adminOnly(answerReboot),
 	"!shutdown":      adminOnly(answerShutdown),
 	"!abortShutdown": adminOnly(answerAbortShutdown),
@@ -88,6 +75,9 @@ const helpResponse = `Available commands:
 
 const helpResponseAdmin = helpResponse + `
 Admin only:
+- **!addCommand [!key] [response]**: Adds a simple command
+- **!removeCommand [!key]**: Removes a simple command
+- **!listCommands**: Lists all current simple commands
 - **!reboot**: Reboot the bot's system
 - **!shutdown** [99h 99m 99s]: Shuts down the bot's system
 - **!abortShutdown**: Aborts the bot's system shutdown
@@ -233,6 +223,38 @@ func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will remind you in %v with the message '%s'", timeToWait, reminderBody))
 	time.Sleep(timeToWait)
 	userMessageSend(mc.Author.ID, reminderBody, ds)
+}
+
+func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
+	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
+	if key == "" {
+		ds.ChannelMessageSend(mc.ChannelID, errorMessage("Could not get the key from the command body"))
+		return
+	}
+	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
+	err := commandDS.addSimpleCommand(key, response)
+	checkErr("addSimpleCommand", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
+	}
+}
+
+func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	err := commandDS.removeSimpleCommand(commandBody)
+	checkErr("removeSimpleCommand", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
+	}
+}
+
+func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	keys, err := commandDS.allSimpleCommandKeys()
+	checkErr("removeSimpleCommand", err, ds)
+	if len(keys) != 0 {
+		ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Current commands: %v", keys))
+	}
 }
 
 func answerReboot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {

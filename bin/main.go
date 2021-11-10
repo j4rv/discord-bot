@@ -81,10 +81,16 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			return
 		}
 
-		msgCommand := strings.TrimSpace(commandPrefixRegex.FindString(message))
-		command, ok := commands[msgCommand]
+		commandKey := strings.TrimSpace(commandPrefixRegex.FindString(message))
+		command, ok := commands[commandKey]
 		if ok {
 			command(ds, mc, ctx)
+		} else {
+			response, err := commandDS.simpleCommandResponse(commandKey)
+			checkErr("simpleCommandResponse", err, ds)
+			if err == nil {
+				ds.ChannelMessageSend(mc.ChannelID, response)
+			}
 		}
 	}
 }

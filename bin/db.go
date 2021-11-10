@@ -13,6 +13,7 @@ import (
 const dbFilename = "db.sqlite"
 
 var genshinDS genshinDataStore
+var commandDS commandDataStore
 
 func initDB() {
 	db := sqlx.MustOpen("sqlite3", dbFilename)
@@ -21,11 +22,13 @@ func initDB() {
 	}
 	createTables(db)
 	genshinDS = genshinDataStore{db}
+	commandDS = commandDataStore{db}
 }
 
 func createTables(db *sqlx.DB) {
 	createTableDailyCheckInReminder(db)
 	createTableParametricReminder(db)
+	createTableSimpleCommand(db)
 }
 
 func createTableDailyCheckInReminder(db *sqlx.DB) {
@@ -42,6 +45,48 @@ func createTableParametricReminder(db *sqlx.DB) {
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
 	}, db)
 	createIndex("ParametricReminder", "LastReminder", db)
+}
+
+func createTableSimpleCommand(db *sqlx.DB) {
+	createTable("SimpleCommand", []string{
+		"Key VARCHAR(36) UNIQUE NOT NULL",
+		"Response TEXT NOT NULL",
+		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+	}, db)
+	createIndex("SimpleCommand", "Key", db)
+}
+
+// commands
+
+type commandDataStore struct {
+	db *sqlx.DB
+}
+
+func (c commandDataStore) addSimpleCommand(key, response string) error {
+	_, err := c.db.Exec(`INSERT INTO SimpleCommand (Key, Response) VALUES (?, ?)`,
+		key, response)
+	return err
+}
+
+func (c commandDataStore) removeSimpleCommand(key string) error {
+	_, err := c.db.Exec(`DELETE FROM SimpleCommand WHERE Key = ?`,
+		key)
+	return err
+}
+
+func (c commandDataStore) simpleCommandResponse(key string) (string, error) {
+	var response []string
+	err := c.db.Select(&response, `SELECT Response FROM SimpleCommand WHERE Key = ?`, key)
+	if len(response) != 1 {
+		return "", err
+	}
+	return response[0], err
+}
+
+func (c commandDataStore) allSimpleCommandKeys() ([]string, error) {
+	var keys []string
+	err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand`)
+	return keys, err
 }
 
 // genshin

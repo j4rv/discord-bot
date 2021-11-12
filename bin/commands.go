@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"regexp"
 	"strings"
 	"time"
@@ -49,7 +50,8 @@ var commands = map[string]command{
 	"!ayayaify":                  answerAyayaify,
 	"!remindme":                  answerRemindme,
 	// hidden or easter eggs
-	"!hello": answerHello,
+	"!hello":  answerHello,
+	"!liquid": answerLiquid,
 	// only available for the bot owner
 	"!addCommand":    adminOnly(answerAddCommand),
 	"!removeCommand": adminOnly(answerRemoveCommand),
@@ -97,6 +99,10 @@ func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	} else {
 		ds.ChannelMessageSend(mc.ChannelID, "Hello!")
 	}
+}
+
+func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%06d, you know what to do with this. ", rand.Intn(1000000)))
 }
 
 func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) {
@@ -162,6 +168,8 @@ func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate,
 	formattedReplacements += "```"
 
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`
+You can only replace one character on each team with one of the replacements.
+
 **First half:**
 %s
 **Second half:**

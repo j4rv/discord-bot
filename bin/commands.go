@@ -35,30 +35,31 @@ func adminOnly(wrapped command) command {
 	}
 }
 
+// the command key must be lowercased
 var commands = map[string]command{
 	// public
 	"!help":                      answerHelp,
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
-	"!genshinDailyCheckIn":       answerGenshinDailyCheckIn,
-	"!genshinDailyCheckInStop":   answerGenshinDailyCheckInStop,
-	"!parametricTransformer":     answerParametricTransformer,
-	"!parametricTransformerStop": answerParametricTransformerStop,
-	"!randomAbyssLineup":         answerRandomAbyssLineup,
-	"!randomArtifact":            answerRandomArtifact,
-	"!randomArtifactSet":         answerRandomArtifactSet,
-	"!randomDomainRun":           answerRandomDomainRun,
+	"!genshindailycheckin":       answerGenshinDailyCheckIn,
+	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
+	"!parametrictransformer":     answerParametricTransformer,
+	"!parametrictransformerstop": answerParametricTransformerStop,
+	"!randomabysslineup":         answerRandomAbyssLineup,
+	"!randomartifact":            answerRandomArtifact,
+	"!randomartifactset":         answerRandomArtifactSet,
+	"!randomdomainrun":           answerRandomDomainRun,
 	"!ayayaify":                  answerAyayaify,
 	"!remindme":                  answerRemindme,
 	// hidden or easter eggs
 	"!hello":  answerHello,
 	"!liquid": answerLiquid,
 	// only available for the bot owner
-	"!addCommand":    adminOnly(answerAddCommand),
-	"!removeCommand": adminOnly(answerRemoveCommand),
-	"!listCommands":  adminOnly(answerListCommands),
+	"!addcommand":    adminOnly(answerAddCommand),
+	"!removecommand": adminOnly(answerRemoveCommand),
+	"!listcommands":  adminOnly(answerListCommands),
 	"!reboot":        adminOnly(answerReboot),
 	"!shutdown":      adminOnly(answerShutdown),
-	"!abortShutdown": adminOnly(answerAbortShutdown),
+	"!abortshutdown": adminOnly(answerAbortShutdown),
 }
 
 const helpResponse = `Available commands:

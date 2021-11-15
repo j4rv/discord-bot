@@ -10,7 +10,7 @@ import (
 func TestRandomArtifactFromDomain(t *testing.T) {
 	rand.Seed(time.Now().UTC().UnixNano())
 	var set1Count, set2Count int
-	set1, set2 := "A", "B"
+	set1, set2 := "Emblem", "Shimenawa"
 
 	// Generate 1000 artifacts from two sets
 	for i := 0; i < 1000; i++ {
@@ -34,26 +34,45 @@ func TestRandomArtifactFromDomain(t *testing.T) {
 }
 
 // Just for theorycrafting
-func TestRandomArtifact(t *testing.T) {
+func TestTheorycrafting(t *testing.T) {
 	rand.Seed(time.Now().UTC().UnixNano())
-	var count int
-	for i := 0; i < 1000000; i++ {
-		art := RandomArtifact()
-		var cv float32
-		for _, sub := range art.SubStats {
-			if sub.Stat == CritRate {
-				cv += sub.Value * 2
-			}
-			if sub.Stat == CritDmg {
-				cv += sub.Value
-			}
-		}
-		if cv >= 50 {
-			t.Log("------------")
-			t.Log(art)
-			t.Log(cv)
-			count++
-		}
+
+	set1, set2 := "DEF", "Heals"
+	iterations := 5000
+	artifactsAmount := 96
+	wantedSet := set1
+	wantedSlot := SlotCirclet
+	wantedMainStat1, wantedMainStat2 := CritDmg, CritDmg
+	subValue := map[artifactStat]float32{
+		CritRate:       1,
+		CritDmg:        1,
+		DEFP:           0.9,
+		ATKP:           0.8,
+		EnergyRecharge: 0.4,
+		DEF:            0.2,
+		ATK:            0.1,
 	}
-	t.Log("total:", count)
+
+	var avg float32
+	for j := 0; j < iterations; j++ {
+		var best *Artifact
+		for i := 0; i < artifactsAmount; i++ {
+			art := RandomArtifactFromDomain(set1, set2)
+			if art.Set != artifactSet(wantedSet) {
+				continue
+			}
+			if !(art.MainStat == wantedMainStat1 || art.MainStat == wantedMainStat2) || art.Slot != wantedSlot {
+				continue
+			}
+			if best == nil || best.subsQuality(subValue) < art.subsQuality(subValue) {
+				best = art
+			}
+		}
+		if best == nil {
+			continue
+		}
+		avg += float32(best.subsQuality(subValue))
+	}
+	t.Log(wantedSlot, wantedMainStat1, wantedMainStat2)
+	t.Log("Average:", avg/float32(iterations))
 }

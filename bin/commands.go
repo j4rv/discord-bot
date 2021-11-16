@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,36 +36,39 @@ func adminOnly(wrapped command) command {
 	}
 }
 
+// the command key must be lowercased
 var commands = map[string]command{
 	// public
 	"!help":                      answerHelp,
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
-	"!genshinDailyCheckIn":       answerGenshinDailyCheckIn,
-	"!genshinDailyCheckInStop":   answerGenshinDailyCheckInStop,
-	"!parametricTransformer":     answerParametricTransformer,
-	"!parametricTransformerStop": answerParametricTransformerStop,
-	"!randomAbyssLineup":         answerRandomAbyssLineup,
-	"!randomArtifact":            answerRandomArtifact,
-	"!randomArtifactSet":         answerRandomArtifactSet,
-	"!randomDomainRun":           answerRandomDomainRun,
+	"!genshindailycheckin":       answerGenshinDailyCheckIn,
+	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
+	"!parametrictransformer":     answerParametricTransformer,
+	"!parametrictransformerstop": answerParametricTransformerStop,
+	"!randomabysslineup":         answerRandomAbyssLineup,
+	"!randomartifact":            answerRandomArtifact,
+	"!randomartifactset":         answerRandomArtifactSet,
+	"!randomdomainrun":           answerRandomDomainRun,
 	"!ayayaify":                  answerAyayaify,
 	"!remindme":                  answerRemindme,
+	"!roll":                      answerRoll,
 	// hidden or easter eggs
 	"!hello":  answerHello,
 	"!liquid": answerLiquid,
 	// only available for the bot owner
-	"!addCommand":    adminOnly(answerAddCommand),
-	"!removeCommand": adminOnly(answerRemoveCommand),
-	"!listCommands":  adminOnly(answerListCommands),
+	"!addcommand":    adminOnly(answerAddCommand),
+	"!removecommand": adminOnly(answerRemoveCommand),
+	"!listcommands":  adminOnly(answerListCommands),
 	"!reboot":        adminOnly(answerReboot),
 	"!shutdown":      adminOnly(answerShutdown),
-	"!abortShutdown": adminOnly(answerAbortShutdown),
+	"!abortshutdown": adminOnly(answerAbortShutdown),
 }
 
 const helpResponse = `Available commands:
 - **!source**: Links to the bot's source code
 - **!ayayaify [message]**: Ayayaifies your message
 - **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed
+- **!roll [99]**: Rolls a dice with the specified sides amount
 - **!genshinDailyCheckIn**: Will remind you to do the Genshin Daily Check-In
 - **!genshinDailyCheckInStop**: The bot will stop reminding you to do the Genshin Daily Check-In
 - **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days. Use it again to reset the reminder
@@ -231,6 +235,21 @@ func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will remind you in %v with the message '%s'", timeToWait, reminderBody))
 	time.Sleep(timeToWait)
 	userMessageSend(mc.Author.ID, reminderBody, ds)
+}
+
+func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	diceSides, err := strconv.Atoi(commandBody)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "This command needs a numeric argument")
+		return
+	}
+	if diceSides <= 0 {
+		ds.ChannelMessageSend(mc.ChannelID, "Dice sides amount must be positive!")
+		return
+	}
+	result := rand.Intn(diceSides) + 1
+	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("You rolled a %d!", result))
 }
 
 func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {

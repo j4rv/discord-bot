@@ -49,7 +49,7 @@ func createTableParametricReminder(db *sqlx.DB) {
 
 func createTableSimpleCommand(db *sqlx.DB) {
 	createTable("SimpleCommand", []string{
-		"Key VARCHAR(36) UNIQUE NOT NULL",
+		"Key VARCHAR(36) UNIQUE NOT NULL COLLATE NOCASE",
 		"Response TEXT NOT NULL",
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
 	}, db)
@@ -76,7 +76,7 @@ func (c commandDataStore) removeSimpleCommand(key string) error {
 
 func (c commandDataStore) simpleCommandResponse(key string) (string, error) {
 	var response []string
-	err := c.db.Select(&response, `SELECT Response FROM SimpleCommand WHERE Key = ?`, key)
+	err := c.db.Select(&response, `SELECT Response FROM SimpleCommand WHERE Key = ? COLLATE NOCASE`, key)
 	if len(response) != 1 {
 		return "", err
 	}

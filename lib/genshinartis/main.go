@@ -31,6 +31,14 @@ type Artifact struct {
 	SubStats [MaxSubstats]*ArtifactSubstat
 }
 
+func (a Artifact) subsQuality(subValue map[artifactStat]float32) float32 {
+	var quality float32
+	for _, sub := range a.SubStats {
+		quality += float32(sub.Rolls) * subValue[sub.Stat]
+	}
+	return quality
+}
+
 func (a *Artifact) randomizeSet(options ...artifactSet) {
 	a.Set = options[rand.Intn(len(options))]
 }

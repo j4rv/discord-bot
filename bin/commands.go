@@ -20,6 +20,8 @@ const commandErrorHappened = "I could not do that :( sorry"
 const dmNotSentError = "Could not send you a DM. Did you disable DMs in your privacy settings?"
 const commandWithTwoArgumentsError = "Something went wrong, please make sure that the command has two arguments with the following format: '!command (...) (...)'"
 
+const bunkerGuildID = "807055417120129085"
+
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))\s*`)
 
@@ -55,7 +57,9 @@ var commands = map[string]command{
 	// hidden or easter eggs
 	"!hello":  answerHello,
 	"!liquid": answerLiquid,
+	"!don":    answerDon,
 	// only available for the bot owner
+	"!roleids":       adminOnly(answerRoleIDs),
 	"!addcommand":    adminOnly(answerAddCommand),
 	"!removecommand": adminOnly(answerRemoveCommand),
 	"!listcommands":  adminOnly(answerListCommands),
@@ -107,6 +111,23 @@ func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 
 func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%06d, you know what to do with this. ", rand.Intn(1000000)))
+}
+
+func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	if mc.GuildID != bunkerGuildID {
+		return
+	}
+	role, err := guildRoleByName(ds, bunkerGuildID, "Shadow Realm")
+	checkErr("answerDon", err, ds)
+	if err != nil {
+		return
+	}
+	err = ds.GuildMemberRoleAdd(bunkerGuildID, mc.Author.ID, role.ID)
+	checkErr("answerDon", err, ds)
+	if err != nil {
+		return
+	}
+	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("To the Shadow Realm you go %s", mc.Author.Mention()))
 }
 
 func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) {
@@ -250,6 +271,18 @@ func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.
 	}
 	result := rand.Intn(diceSides) + 1
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("You rolled a %d!", result))
+}
+
+func answerRoleIDs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	guild, err := ds.Guild(mc.GuildID)
+	if err != nil {
+		return
+	}
+	var response string
+	for _, role := range guild.Roles {
+		response += fmt.Sprintf("%s: %s\n", role.Name, role.ID)
+	}
+	ds.ChannelMessageSend(mc.ChannelID, response)
 }
 
 func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {

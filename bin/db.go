@@ -77,8 +77,11 @@ func (c commandDataStore) removeSimpleCommand(key string) error {
 func (c commandDataStore) simpleCommandResponse(key string) (string, error) {
 	var response []string
 	err := c.db.Select(&response, `SELECT Response FROM SimpleCommand WHERE Key = ? COLLATE NOCASE`, key)
-	if len(response) != 1 {
+	if err != nil {
 		return "", err
+	}
+	if len(response) == 0 {
+		return "", nil
 	}
 	return response[0], err
 }

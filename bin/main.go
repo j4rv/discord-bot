@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -128,6 +129,20 @@ func userMessageSend(userID string, body string, ds *discordgo.Session) (*discor
 		return nil, err
 	}
 	return ds.ChannelMessageSend(userChannel.ID, body)
+}
+
+func guildRoleByName(ds *discordgo.Session, guildID string, roleName string) (*discordgo.Role, error) {
+	roles, err := ds.GuildRoles(guildID)
+	checkErr("GuildRoleByName", err, ds)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range roles {
+		if r.Name == roleName {
+			return r, nil
+		}
+	}
+	return nil, fmt.Errorf("role with name %s not found in guild with id %s", roleName, guildID)
 }
 
 // for single line strings only!

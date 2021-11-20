@@ -274,13 +274,13 @@ func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.
 }
 
 func answerRoleIDs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	guild, err := ds.Guild(bunkerGuildID)
+	roles, err := ds.GuildRoles(bunkerGuildID)
 	checkErr("answerRoleIDs", err, ds)
 	if err != nil {
 		return
 	}
 	var response string
-	for _, role := range guild.Roles {
+	for _, role := range roles {
 		response += fmt.Sprintf("%s: %s\n", role.Name, role.ID)
 	}
 	ds.ChannelMessageSend(mc.ChannelID, response)

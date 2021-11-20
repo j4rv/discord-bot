@@ -274,7 +274,8 @@ func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.
 }
 
 func answerRoleIDs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	guild, err := ds.Guild(mc.GuildID)
+	guild, err := ds.Guild(bunkerGuildID)
+	checkErr("answerRoleIDs", err, ds)
 	if err != nil {
 		return
 	}

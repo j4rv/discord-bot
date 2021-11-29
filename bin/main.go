@@ -150,8 +150,13 @@ func isUserInRole(ds *discordgo.Session, userID, guildID, roleName string) (bool
 	if err != nil {
 		return false, err
 	}
-	for _, role := range member.Roles {
-		if role == roleName {
+	role, err := guildRoleByName(ds, guildID, roleName)
+	notifyIfErr("isUserInRole: get role by name", err, ds)
+	if err != nil {
+		return false, err
+	}
+	for _, r := range member.Roles {
+		if r == role.ID {
 			return true, nil
 		}
 	}

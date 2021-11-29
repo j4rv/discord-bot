@@ -10,72 +10,62 @@ import (
 
 const shadowRealmRoleName = "Shadow Realm"
 const shootMisfireChance = 0.2
-const timeoutDurationWhenShot = 2 * time.Minute
+const nuclearCatastropheChance = 0.006
+const timeoutDurationWhenShot = 1 * time.Minute
 const timeoutDurationWhenMisfire = 10 * time.Minute
+const timeoutDurationWhenNuclearCatastrophe = 30 * time.Second
 
-// FIXME: Stop getting the Shadow Realm role by name, or implement a cache
-
-func sendAuthorToShadowRealm(ds *discordgo.Session, mc *discordgo.MessageCreate) error {
-	err := sendToShadowRealm(ds, mc.GuildID, mc.Author.ID)
-	if err != nil {
-		return err
-	}
-	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("To the Shadow Realm you go %s", mc.Author.Mention()))
-	return nil
-}
-
-func sendToShadowRealm(ds *discordgo.Session, guildID, userID string) error {
-	role, err := guildRoleByName(ds, guildID, shadowRealmRoleName)
-	if err != nil {
-		return err
-	}
-	err = ds.GuildMemberRoleAdd(guildID, userID, role.ID)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func removeShadowRealmRoleAfterDuration(ds *discordgo.Session, guildID, userID string, duration time.Duration) {
-	role, err := guildRoleByName(ds, guildID, shadowRealmRoleName)
-	notifyIfErr("removeShadowRealmRoleAfterDuration, user: "+userID, err, ds)
-	if err != nil {
-		return
-	}
+func removeRoleAfterDuration(ds *discordgo.Session, guildID string, memberID string, roleID string, duration time.Duration) {
 	go func() {
 		time.Sleep(duration)
-		ds.GuildMemberRoleRemove(guildID, userID, role.ID)
+		ds.GuildMemberRoleRemove(guildID, memberID, roleID)
 	}()
 }
 
-func shoot(ds *discordgo.Session, mc *discordgo.MessageCreate, userID string) error {
-	authorIsShadowRealmed, err := isUserInRole(ds, mc.Author.ID, mc.GuildID, shadowRealmRoleName)
+func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *discordgo.Member, target *discordgo.Member, timeoutRoleID string) error {
+	shooterHasRoleAlready, err := isMemberInRole(shooter, timeoutRoleID)
 	if err != nil {
 		return err
 	}
-	if authorIsShadowRealmed {
-		ds.ChannelMessageSend(mc.ChannelID, "Shadow Realmed people can't shoot dummy")
+	if shooterHasRoleAlready {
+		ds.ChannelMessageSend(channelID, "Shadow Realmed people can't shoot dummy")
 		return nil
 	}
 
-	targetIsShadowRealmed, err := isUserInRole(ds, userID, mc.GuildID, shadowRealmRoleName)
+	targetHasRoleAlready, err := isMemberInRole(target, timeoutRoleID)
 	if err != nil {
 		return err
 	}
-	if targetIsShadowRealmed {
-		ds.ChannelMessageSend(mc.ChannelID, "https://giphy.com/gifs/the-simpsons-stop-hes-already-dead-JCAZQKoMefkoX6TyTb")
+	if targetHasRoleAlready {
+		ds.ChannelMessageSend(channelID, "https://giphy.com/gifs/the-simpsons-stop-hes-already-dead-JCAZQKoMefkoX6TyTb")
 		return nil
 	}
 
-	if rand.Float32() <= shootMisfireChance || userID == ds.State.User.ID {
-		ds.ChannelMessageSend(mc.ChannelID, "OOPS! You missed :3c")
-		sendToShadowRealm(ds, mc.GuildID, mc.Author.ID)
-		removeShadowRealmRoleAfterDuration(ds, mc.GuildID, mc.Author.ID, timeoutDurationWhenMisfire)
+	if rand.Float32() <= nuclearCatastropheChance {
+		ds.ChannelMessageSend(channelID, "https://c.tenor.com/fxSZIUDpQIMAAAAC/explosion-nichijou.gif")
+		members, err := ds.GuildMembers(guildID, "0", 1000)
+		if err != nil {
+			return fmt.Errorf("guild members: %w", err)
+		}
+		for _, member := range members {
+			if member.User.ID == ds.State.User.ID {
+				continue
+			}
+			ds.GuildMemberRoleAdd(guildID, member.User.ID, timeoutRoleID)
+			removeRoleAfterDuration(ds, guildID, member.User.ID, timeoutRoleID, timeoutDurationWhenNuclearCatastrophe)
+		}
 		return nil
 	}
 
-	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("<@%s> got shot!", userID))
-	sendToShadowRealm(ds, mc.GuildID, userID)
-	removeShadowRealmRoleAfterDuration(ds, mc.GuildID, userID, timeoutDurationWhenShot)
+	if rand.Float32() <= shootMisfireChance || target.User.ID == ds.State.User.ID {
+		ds.ChannelMessageSend(channelID, "OOPS! You missed :3c")
+		ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID)
+		removeRoleAfterDuration(ds, guildID, shooter.User.ID, timeoutRoleID, timeoutDurationWhenMisfire)
+		return nil
+	}
+
+	ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got shot!", target.User.Mention()))
+	ds.GuildMemberRoleAdd(guildID, target.User.ID, timeoutRoleID)
+	removeRoleAfterDuration(ds, guildID, target.User.ID, timeoutRoleID, timeoutDurationWhenShot)
 	return nil
 }

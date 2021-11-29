@@ -117,8 +117,17 @@ func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx contex
 }
 
 func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	err := sendAuthorToShadowRealm(ds, mc)
+	timeoutRole, err := guildRoleByName(ds, mc.GuildID, shadowRealmRoleName)
 	notifyIfErr("answerDon", err, ds)
+	if err != nil {
+		return
+	}
+	err = ds.GuildMemberRoleAdd(mc.GuildID, mc.Author.ID, timeoutRole.ID)
+	notifyIfErr("answerDon", err, ds)
+	if err != nil {
+		return
+	}
+	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("To the Shadow Realm you go %s", mc.Author.Mention()))
 }
 
 func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
@@ -127,8 +136,27 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 		ds.ChannelMessageSend(mc.ChannelID, commandWithMentionError)
 		return
 	}
-	err := shoot(ds, mc, match[1])
-	notifyIfErr("answerShoot", err, ds)
+
+	timeoutRole, err := guildRoleByName(ds, mc.GuildID, shadowRealmRoleName)
+	notifyIfErr("answerShoot: get timeout role", err, ds)
+	if err != nil {
+		return
+	}
+
+	shooter, err := ds.GuildMember(mc.GuildID, mc.Author.ID)
+	notifyIfErr("answerShoot: get shooter member", err, ds)
+	if err != nil {
+		return
+	}
+
+	target, err := ds.GuildMember(mc.GuildID, match[1])
+	notifyIfErr("answerShoot: get target member", err, ds)
+	if err != nil {
+		return
+	}
+
+	err = shoot(ds, mc.ChannelID, mc.GuildID, shooter, target, timeoutRole.ID)
+	notifyIfErr("answerShoot: shoot", err, ds)
 }
 
 func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) {

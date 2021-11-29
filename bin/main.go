@@ -144,19 +144,9 @@ func guildRoleByName(ds *discordgo.Session, guildID string, roleName string) (*d
 	return nil, fmt.Errorf("role with name %s not found in guild with id %s", roleName, guildID)
 }
 
-func isUserInRole(ds *discordgo.Session, userID, guildID, roleName string) (bool, error) {
-	member, err := ds.GuildMember(guildID, userID)
-	notifyIfErr("isUserInRole: get guild member", err, ds)
-	if err != nil {
-		return false, err
-	}
-	role, err := guildRoleByName(ds, guildID, roleName)
-	notifyIfErr("isUserInRole: get role by name", err, ds)
-	if err != nil {
-		return false, err
-	}
+func isMemberInRole(member *discordgo.Member, roleID string) (bool, error) {
 	for _, r := range member.Roles {
-		if r == role.ID {
+		if r == roleID {
 			return true, nil
 		}
 	}

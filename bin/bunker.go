@@ -53,9 +53,17 @@ func shoot(ds *discordgo.Session, mc *discordgo.MessageCreate, userID string) er
 	if err != nil {
 		return err
 	}
-
 	if authorIsShadowRealmed {
 		ds.ChannelMessageSend(mc.ChannelID, "Shadow Realmed people can't shoot dummy")
+		return nil
+	}
+
+	targetIsShadowRealmed, err := isUserInRole(ds, userID, mc.GuildID, shadowRealmRoleName)
+	if err != nil {
+		return err
+	}
+	if targetIsShadowRealmed {
+		ds.ChannelMessageSend(mc.ChannelID, "https://giphy.com/gifs/the-simpsons-stop-hes-already-dead-JCAZQKoMefkoX6TyTb")
 		return nil
 	}
 

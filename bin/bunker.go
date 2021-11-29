@@ -9,9 +9,11 @@ import (
 )
 
 const shadowRealmRoleName = "Shadow Realm"
-const shootMisfireChance = 0.1
+const shootMisfireChance = 0.2
 const timeoutDurationWhenShot = 2 * time.Minute
 const timeoutDurationWhenMisfire = 10 * time.Minute
+
+// FIXME: Stop getting the Shadow Realm role by name, or implement a cache
 
 func sendAuthorToShadowRealm(ds *discordgo.Session, mc *discordgo.MessageCreate) error {
 	err := sendToShadowRealm(ds, mc.GuildID, mc.Author.ID)
@@ -57,7 +59,7 @@ func shoot(ds *discordgo.Session, mc *discordgo.MessageCreate, userID string) er
 		return nil
 	}
 
-	if rand.Float32() <= shootMisfireChance {
+	if rand.Float32() <= shootMisfireChance || userID == ds.State.User.ID {
 		ds.ChannelMessageSend(mc.ChannelID, "OOPS! You missed :3c")
 		sendToShadowRealm(ds, mc.GuildID, mc.Author.ID)
 		removeShadowRealmRoleAfterDuration(ds, mc.GuildID, mc.Author.ID, timeoutDurationWhenMisfire)

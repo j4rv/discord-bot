@@ -93,7 +93,7 @@ func processCommand(fullCommand string, ds *discordgo.Session, mc *discordgo.Mes
 		command(ds, mc, ctx)
 	} else {
 		response, err := commandDS.simpleCommandResponse(commandKey)
-		checkErr("simpleCommandResponse", err, ds)
+		notifyIfErr("simpleCommandResponse", err, ds)
 		if err == nil {
 			ds.ChannelMessageSend(mc.ChannelID, response)
 		}
@@ -133,7 +133,6 @@ func userMessageSend(userID string, body string, ds *discordgo.Session) (*discor
 
 func guildRoleByName(ds *discordgo.Session, guildID string, roleName string) (*discordgo.Role, error) {
 	roles, err := ds.GuildRoles(guildID)
-	checkErr("GuildRoleByName", err, ds)
 	if err != nil {
 		return nil, err
 	}
@@ -145,12 +144,26 @@ func guildRoleByName(ds *discordgo.Session, guildID string, roleName string) (*d
 	return nil, fmt.Errorf("role with name %s not found in guild with id %s", roleName, guildID)
 }
 
+func isUserInRole(ds *discordgo.Session, userID, guildID, roleName string) (bool, error) {
+	member, err := ds.GuildMember(guildID, userID)
+	notifyIfErr("isUserInRole: get guild member", err, ds)
+	if err != nil {
+		return false, err
+	}
+	for _, role := range member.Roles {
+		if role == roleName {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // for single line strings only!
 func errorMessage(body string) string {
 	return "```diff\n- " + body + "\n```"
 }
 
-func checkErr(context string, err error, ds *discordgo.Session) {
+func notifyIfErr(context string, err error, ds *discordgo.Session) {
 	if err != nil {
 		msg := "[" + context + "] an error happened: " + err.Error()
 		log.Println(msg)

@@ -22,4 +22,6 @@ var allArtifactSets = []artifactSet{
 	"Pale Flame",
 	"Emblem of Severed Fate",
 	"Shimenawa's Reminiscence",
+	"Husk of Opulent Dreams",
+	"Ocean-Hued Clam",
 }

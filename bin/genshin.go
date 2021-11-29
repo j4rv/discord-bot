@@ -20,7 +20,7 @@ func initGenshinCRONs(ds *discordgo.Session) {
 	dailyCheckInCRON := cron.New()
 	_, err := dailyCheckInCRON.AddFunc(dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))
 	if err != nil {
-		checkErr("AddFunc to dailyCheckInCRON", err, ds)
+		notifyIfErr("AddFunc to dailyCheckInCRON", err, ds)
 	} else {
 		dailyCheckInCRON.Start()
 	}
@@ -28,7 +28,7 @@ func initGenshinCRONs(ds *discordgo.Session) {
 	parametricCRON := cron.New()
 	_, err = parametricCRON.AddFunc(parametricReminderCRON, parametricCRONFunc(ds))
 	if err != nil {
-		checkErr("AddFunc to parametricCRON", err, ds)
+		notifyIfErr("AddFunc to parametricCRON", err, ds)
 	} else {
 		parametricCRON.Start()
 	}
@@ -37,7 +37,7 @@ func initGenshinCRONs(ds *discordgo.Session) {
 func dailyCheckInCRONFunc(ds *discordgo.Session) func() {
 	return func() {
 		userIDs, err := genshinDS.allDailyCheckInReminderUserIDs()
-		checkErr("allDailyCheckInReminderUserIDs", err, ds)
+		notifyIfErr("allDailyCheckInReminderUserIDs", err, ds)
 		if len(userIDs) > 0 {
 			log.Printf("Reminding %d users to do the Daily CheckIn", len(userIDs))
 			for _, userID := range userIDs {
@@ -50,13 +50,13 @@ func dailyCheckInCRONFunc(ds *discordgo.Session) func() {
 func parametricCRONFunc(ds *discordgo.Session) func() {
 	return func() {
 		userIDs, err := genshinDS.allParametricReminderUserIDsToBeReminded()
-		checkErr("allParametricReminderUserIDsToBeReminded", err, ds)
+		notifyIfErr("allParametricReminderUserIDsToBeReminded", err, ds)
 		if len(userIDs) > 0 {
 			log.Printf("Reminding %d users to use the Parametric Transformer", len(userIDs))
 			for _, userID := range userIDs {
 				userMessageSend(userID, parametricReminderMessage, ds)
 				err := genshinDS.addOrUpdateParametricReminder(userID)
-				checkErr("addOrUpdateParametricReminder", err, ds)
+				notifyIfErr("addOrUpdateParametricReminder", err, ds)
 			}
 		}
 	}

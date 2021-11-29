@@ -19,11 +19,13 @@ const commandSuccessMessage = "Successfully donette!"
 const commandErrorHappened = "I could not do that :( sorry"
 const dmNotSentError = "Could not send you a DM. Did you disable DMs in your privacy settings?"
 const commandWithTwoArgumentsError = "Something went wrong, please make sure that the command has two arguments with the following format: '!command (...) (...)'"
+const commandWithMentionError = "Something went wrong, please make sure that the command has an user mention"
 
-const bunkerGuildID = "807055417120129085"
+const roleEveryone = "@everyone"
 
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
-var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))\s*`)
+var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
+var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d{18})>`)
 
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context)
 
@@ -58,6 +60,7 @@ var commands = map[string]command{
 	"!hello":  answerHello,
 	"!liquid": answerLiquid,
 	"!don":    answerDon,
+	"!shoot":  answerShoot,
 	// only available for the bot owner
 	"!roleids":       adminOnly(answerRoleIDs),
 	"!addcommand":    adminOnly(answerAddCommand),
@@ -114,20 +117,18 @@ func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx contex
 }
 
 func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	if mc.GuildID != bunkerGuildID {
+	err := sendAuthorToShadowRealm(ds, mc)
+	notifyIfErr("answerDon", err, ds)
+}
+
+func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	match := commandWithMention.FindStringSubmatch(mc.Content)
+	if match == nil || len(match) != 2 {
+		ds.ChannelMessageSend(mc.ChannelID, commandWithMentionError)
 		return
 	}
-	role, err := guildRoleByName(ds, bunkerGuildID, "Shadow Realm")
-	checkErr("answerDon", err, ds)
-	if err != nil {
-		return
-	}
-	err = ds.GuildMemberRoleAdd(bunkerGuildID, mc.Author.ID, role.ID)
-	checkErr("answerDon", err, ds)
-	if err != nil {
-		return
-	}
-	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("To the Shadow Realm you go %s", mc.Author.Mention()))
+	err := shoot(ds, mc, match[1])
+	notifyIfErr("answerShoot", err, ds)
 }
 
 func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) {
@@ -145,7 +146,7 @@ func answerAyayaify(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 
 func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	err := startParametricReminder(ds, mc, ctx)
-	checkErr("answerParametricTransformer", err, ds)
+	notifyIfErr("answerParametricTransformer", err, ds)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, errorMessage(commandErrorHappened))
 	} else {
@@ -155,7 +156,7 @@ func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCre
 
 func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	err := stopParametricReminder(ds, mc, ctx)
-	checkErr("answerParametricTransformerStop", err, ds)
+	notifyIfErr("answerParametricTransformerStop", err, ds)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, errorMessage(commandErrorHappened))
 	} else {
@@ -275,19 +276,21 @@ func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.
 
 func answerRoleIDs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	roles, err := ds.GuildRoles(mc.GuildID)
-	checkErr("answerRoleIDs", err, ds)
+	notifyIfErr("answerRoleIDs", err, ds)
 	if err != nil {
 		return
 	}
 	var response string
 	for _, role := range roles {
-		if role.Name == "@everyone" {
+		if role.Name == roleEveryone {
 			continue
 		}
 		response += fmt.Sprintf("%s: %s\n", role.Name, role.ID)
 	}
-	ds.ChannelMessageSend(mc.ChannelID, response)
+	userMessageSend(adminID, response, ds)
 }
+
+// ---------- Simple command stuff ----------
 
 func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
@@ -298,7 +301,7 @@ func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
 	err := commandDS.addSimpleCommand(key, response)
-	checkErr("addSimpleCommand", err, ds)
+	notifyIfErr("addSimpleCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
@@ -307,7 +310,7 @@ func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
 	err := commandDS.removeSimpleCommand(commandBody)
-	checkErr("removeSimpleCommand", err, ds)
+	notifyIfErr("removeSimpleCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
@@ -315,26 +318,28 @@ func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 
 func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	keys, err := commandDS.allSimpleCommandKeys()
-	checkErr("removeSimpleCommand", err, ds)
+	notifyIfErr("removeSimpleCommand", err, ds)
 	if len(keys) != 0 {
 		ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Current commands: %v", keys))
 	}
 }
 
+// ---------- Server commands ----------
+
 func answerReboot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	err := reboot()
-	checkErr("reboot", err, ds)
+	notifyIfErr("reboot", err, ds)
 }
 
 func answerShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	timeToWait, _ := processTimedCommand(mc.Content)
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will shutdown in %v", timeToWait))
 	err := shutdown(timeToWait)
-	checkErr("shutdown", err, ds)
+	notifyIfErr("shutdown", err, ds)
 }
 
 func answerAbortShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	err := abortShutdown()
-	checkErr("abortShutdown", err, ds)
+	notifyIfErr("abortShutdown", err, ds)
 }

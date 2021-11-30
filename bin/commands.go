@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"regexp"
 	"strconv"
@@ -17,7 +18,6 @@ const userMustBeAdminMessage = "Only the bot's admin can do that"
 const commandReceivedMessage = "Gotcha!"
 const commandSuccessMessage = "Successfully donette!"
 const commandErrorHappened = "I could not do that :( sorry"
-const dmNotSentError = "Could not send you a DM. Did you disable DMs in your privacy settings?"
 const commandWithTwoArgumentsError = "Something went wrong, please make sure that the command has two arguments with the following format: '!command (...) (...)'"
 const commandWithMentionError = "Something went wrong, please make sure that the command has an user mention"
 
@@ -62,13 +62,47 @@ var commands = map[string]command{
 	"!don":    answerDon,
 	//"!shoot":  answerShoot,
 	// only available for the bot owner
-	"!roleids":       adminOnly(answerRoleIDs),
-	"!addcommand":    adminOnly(answerAddCommand),
-	"!removecommand": adminOnly(answerRemoveCommand),
-	"!listcommands":  adminOnly(answerListCommands),
-	"!reboot":        adminOnly(answerReboot),
-	"!shutdown":      adminOnly(answerShutdown),
-	"!abortshutdown": adminOnly(answerAbortShutdown),
+	"!roleids":         adminOnly(answerRoleIDs),
+	"!addcommand":      adminOnly(answerAddCommand),
+	"!removecommand":   adminOnly(answerRemoveCommand),
+	"!listcommands":    adminOnly(answerListCommands),
+	"!allowspamming":   adminOnly(answerAllowSpamming),
+	"!preventspamming": adminOnly(answerPreventSpamming),
+	"!reboot":          adminOnly(answerReboot),
+	"!shutdown":        adminOnly(answerShutdown),
+	"!abortshutdown":   adminOnly(answerAbortShutdown),
+}
+
+func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullCommand string, ctx context.Context) {
+	channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
+	notifyIfErr("processCommand: isChannelSpammable", err, ds)
+	if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {
+		userMessageSend(mc.Author.ID, "Pls don't spam the bot commands uwu", ds)
+		ds.MessageReactionAdd(mc.ChannelID, mc.Message.ID, "❌")
+		return
+	}
+
+	commandKey := strings.TrimSpace(commandPrefixRegex.FindString(fullCommand))
+	command, ok := commands[strings.ToLower(commandKey)]
+	if ok {
+		onSuccessCommandCall(mc, channelIsSpammable)
+		command(ds, mc, ctx)
+		return
+	}
+
+	response, err := commandDS.simpleCommandResponse(commandKey)
+	notifyIfErr("simpleCommandResponse", err, ds)
+	if err == nil {
+		onSuccessCommandCall(mc, channelIsSpammable)
+		ds.ChannelMessageSend(mc.ChannelID, response)
+	}
+}
+
+func onSuccessCommandCall(mc *discordgo.MessageCreate, channelIsSpammable bool) {
+	log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, mc.Content)
+	if !channelIsSpammable {
+		resetUserCooldown(mc.Author.ID)
+	}
 }
 
 const helpResponse = `Available commands:
@@ -352,6 +386,23 @@ func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	}
 }
 
+func answerAllowSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	err := commandDS.addSpammableChannel(mc.ChannelID)
+	notifyIfErr("addSpammableChannel", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
+	}
+}
+
+func answerPreventSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	err := commandDS.removeSpammableChannel(mc.ChannelID)
+	notifyIfErr("removeSpammableChannel", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
+	}
+	notifyIfErr("MessageReactionAdd", err, ds)
+}
+
 // ---------- Server commands ----------
 
 func answerReboot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
@@ -370,4 +421,22 @@ func answerAbortShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 	ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	err := abortShutdown()
 	notifyIfErr("abortShutdown", err, ds)
+}
+
+// ---------- Cooldowns ----------
+
+var lastUserCommandTime = map[string]time.Time{}
+
+const commandCooldown = time.Minute * 15
+
+func resetUserCooldown(userID string) {
+	lastUserCommandTime[userID] = time.Now()
+}
+
+func isUserOnCooldown(userID string) bool {
+	lastTime, ok := lastUserCommandTime[userID]
+	if !ok {
+		return false
+	}
+	return time.Now().Before(lastTime.Add(commandCooldown))
 }

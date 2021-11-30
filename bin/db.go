@@ -29,6 +29,7 @@ func createTables(db *sqlx.DB) {
 	createTableDailyCheckInReminder(db)
 	createTableParametricReminder(db)
 	createTableSimpleCommand(db)
+	createTableSpammableChannel(db)
 }
 
 func createTableDailyCheckInReminder(db *sqlx.DB) {
@@ -56,6 +57,14 @@ func createTableSimpleCommand(db *sqlx.DB) {
 	createIndex("SimpleCommand", "Key", db)
 }
 
+func createTableSpammableChannel(db *sqlx.DB) {
+	createTable("SpammableChannel", []string{
+		"ChannelID VARCHAR(18) UNIQUE NOT NULL",
+		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+	}, db)
+	createIndex("SpammableChannel", "ChannelID", db)
+}
+
 // commands
 
 type commandDataStore struct {
@@ -77,11 +86,8 @@ func (c commandDataStore) removeSimpleCommand(key string) error {
 func (c commandDataStore) simpleCommandResponse(key string) (string, error) {
 	var response []string
 	err := c.db.Select(&response, `SELECT Response FROM SimpleCommand WHERE Key = ? COLLATE NOCASE`, key)
-	if err != nil {
-		return "", err
-	}
 	if len(response) == 0 {
-		return "", nil
+		return "", err
 	}
 	return response[0], err
 }
@@ -90,6 +96,27 @@ func (c commandDataStore) allSimpleCommandKeys() ([]string, error) {
 	var keys []string
 	err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand`)
 	return keys, err
+}
+
+func (c commandDataStore) addSpammableChannel(channelID string) error {
+	_, err := c.db.Exec(`INSERT INTO SpammableChannel (ChannelID) VALUES (?)`,
+		channelID)
+	return err
+}
+
+func (c commandDataStore) removeSpammableChannel(channelID string) error {
+	_, err := c.db.Exec(`DELETE FROM SpammableChannel WHERE ChannelID = ?`,
+		channelID)
+	return err
+}
+
+func (c commandDataStore) isChannelSpammable(channelID string) (bool, error) {
+	var isSpammable []uint8
+	err := c.db.Select(&isSpammable, `SELECT 1 FROM SpammableChannel WHERE ChannelID = ?`, channelID)
+	if len(isSpammable) == 0 {
+		return false, err
+	}
+	return true, err
 }
 
 // genshin

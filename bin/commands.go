@@ -60,7 +60,7 @@ var commands = map[string]command{
 	"!hello":  answerHello,
 	"!liquid": answerLiquid,
 	"!don":    answerDon,
-	"!shoot":  answerShoot,
+	//"!shoot":  answerShoot,
 	// only available for the bot owner
 	"!roleids":       adminOnly(answerRoleIDs),
 	"!addcommand":    adminOnly(answerAddCommand),
@@ -117,7 +117,7 @@ func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx contex
 }
 
 func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	timeoutRole, err := guildRoleByName(ds, mc.GuildID, shadowRealmRoleName)
+	timeoutRole, err := guildRoleByName(ds, mc.GuildID, timeoutRoleName)
 	notifyIfErr("answerDon", err, ds)
 	if err != nil {
 		return
@@ -137,7 +137,7 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 		return
 	}
 
-	timeoutRole, err := guildRoleByName(ds, mc.GuildID, shadowRealmRoleName)
+	timeoutRole, err := guildRoleByName(ds, mc.GuildID, timeoutRoleName)
 	notifyIfErr("answerShoot: get timeout role", err, ds)
 	if err != nil {
 		return

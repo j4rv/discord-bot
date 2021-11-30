@@ -8,7 +8,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-const shadowRealmRoleName = "Shadow Realm"
+const timeoutRoleName = "Shadow Realm"
 const shootMisfireChance = 0.2
 const nuclearCatastropheChance = 0.006
 const timeoutDurationWhenShot = 1 * time.Minute

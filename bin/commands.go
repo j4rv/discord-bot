@@ -17,7 +17,6 @@ import (
 const userMustBeAdminMessage = "Only the bot's admin can do that"
 const commandReceivedMessage = "Gotcha!"
 const commandSuccessMessage = "Successfully donette!"
-const commandErrorHappened = "I could not do that :( sorry"
 const commandWithTwoArgumentsError = "Something went wrong, please make sure that the command has two arguments with the following format: '!command (...) (...)'"
 const commandWithMentionError = "Something went wrong, please make sure that the command has an user mention"
 
@@ -27,40 +26,55 @@ var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
 var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d{18})>`)
 
-type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context)
+type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool
 
 func adminOnly(wrapped command) command {
-	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 		if mc.Author.ID != adminID {
 			mc.Author.Mention()
 			ds.ChannelMessageSend(mc.ChannelID, userMustBeAdminMessage)
-			return
+			return false
 		}
-		wrapped(ds, mc, ctx)
+		return wrapped(ds, mc, ctx)
+	}
+}
+
+func notSpammable(wrapped command) command {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		if mc.Author.ID != adminID {
+			channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
+			notifyIfErr("notSpammable: isChannelSpammable", err, ds)
+			if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {
+				userMessageSend(mc.Author.ID, "Pls don't spam the bot commands uwu", ds)
+				ds.MessageReactionAdd(mc.ChannelID, mc.Message.ID, "❌")
+				return false
+			}
+		}
+		return wrapped(ds, mc, ctx)
 	}
 }
 
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!help":                      answerHelp,
+	"!help":                      notSpammable(answerHelp),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
 	"!parametrictransformer":     answerParametricTransformer,
 	"!parametrictransformerstop": answerParametricTransformerStop,
-	"!randomabysslineup":         answerRandomAbyssLineup,
-	"!randomartifact":            answerRandomArtifact,
-	"!randomartifactset":         answerRandomArtifactSet,
-	"!randomdomainrun":           answerRandomDomainRun,
-	"!ayayaify":                  answerAyayaify,
-	"!remindme":                  answerRemindme,
-	"!roll":                      answerRoll,
+	"!randomabysslineup":         notSpammable(answerRandomAbyssLineup),
+	"!randomartifact":            notSpammable(answerRandomArtifact),
+	"!randomartifactset":         notSpammable(answerRandomArtifactSet),
+	"!randomdomainrun":           notSpammable(answerRandomDomainRun),
+	"!ayayaify":                  notSpammable(answerAyayaify),
+	"!remindme":                  notSpammable(answerRemindme),
+	"!roll":                      notSpammable(answerRoll),
 	// hidden or easter eggs
-	"!hello":  answerHello,
-	"!liquid": answerLiquid,
-	"!don":    answerDon,
-	//"!shoot":  answerShoot,
+	"!hello":  notSpammable(answerHello),
+	"!liquid": notSpammable(answerLiquid),
+	"!don":    notSpammable(answerDon),
+	"!shoot":  notSpammable(answerShoot),
 	// only available for the bot owner
 	"!roleids":         adminOnly(answerRoleIDs),
 	"!addcommand":      adminOnly(answerAddCommand),
@@ -74,32 +88,27 @@ var commands = map[string]command{
 }
 
 func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullCommand string, ctx context.Context) {
-	channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
-	notifyIfErr("processCommand: isChannelSpammable", err, ds)
-	if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {
-		userMessageSend(mc.Author.ID, "Pls don't spam the bot commands uwu", ds)
-		ds.MessageReactionAdd(mc.ChannelID, mc.Message.ID, "❌")
-		return
-	}
-
 	commandKey := strings.TrimSpace(commandPrefixRegex.FindString(fullCommand))
 	command, ok := commands[strings.ToLower(commandKey)]
 	if ok {
-		onSuccessCommandCall(mc, channelIsSpammable)
-		command(ds, mc, ctx)
+		if command(ds, mc, ctx) {
+			onSuccessCommandCall(mc)
+		}
 		return
 	}
 
 	response, err := commandDS.simpleCommandResponse(commandKey)
 	notifyIfErr("simpleCommandResponse", err, ds)
 	if err == nil {
-		onSuccessCommandCall(mc, channelIsSpammable)
-		ds.ChannelMessageSend(mc.ChannelID, response)
+		if notSpammable(simpleTextResponse(response))(ds, mc, ctx) {
+			onSuccessCommandCall(mc)
+		}
 	}
 }
 
-func onSuccessCommandCall(mc *discordgo.MessageCreate, channelIsSpammable bool) {
+func onSuccessCommandCall(mc *discordgo.MessageCreate) {
 	log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, mc.Content)
+	channelIsSpammable, _ := commandDS.isChannelSpammable(mc.ChannelID)
 	if !channelIsSpammable {
 		resetUserCooldown(mc.Author.ID)
 	}
@@ -130,103 +139,110 @@ Admin only:
 - **!abortShutdown**: Aborts the bot's system shutdown
 `
 
-func answerHelp(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerHelp(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	var err error
 	if mc.Author.ID != adminID {
-		ds.ChannelMessageSend(mc.ChannelID, helpResponse)
+		_, err = ds.ChannelMessageSend(mc.ChannelID, helpResponse)
 	} else {
-		ds.ChannelMessageSend(mc.ChannelID, helpResponseAdmin)
+		_, err = ds.ChannelMessageSend(mc.ChannelID, helpResponseAdmin)
 	}
+	return err == nil
 }
 
-func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	var err error
 	if mc.Author.ID == adminID {
-		ds.ChannelMessageSend(mc.ChannelID, "Hewwo master uwu")
+		_, err = ds.ChannelMessageSend(mc.ChannelID, "Hewwo master uwu")
 	} else {
-		ds.ChannelMessageSend(mc.ChannelID, "Hello!")
+		_, err = ds.ChannelMessageSend(mc.ChannelID, "Hello!")
 	}
+	return err == nil
 }
 
-func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%06d, you know what to do with this. ", rand.Intn(1000000)))
+func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	_, err := ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%06d, you know what to do with this. ", rand.Intn(1000000)))
+	return err == nil
 }
 
-func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	timeoutRole, err := guildRoleByName(ds, mc.GuildID, timeoutRoleName)
 	notifyIfErr("answerDon", err, ds)
 	if err != nil {
-		return
+		return false
 	}
 	err = ds.GuildMemberRoleAdd(mc.GuildID, mc.Author.ID, timeoutRole.ID)
 	notifyIfErr("answerDon", err, ds)
 	if err != nil {
-		return
+		return false
 	}
-	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("To the Shadow Realm you go %s", mc.Author.Mention()))
+	_, err = ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("To the Shadow Realm you go %s", mc.Author.Mention()))
+	return err == nil
 }
 
-func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	match := commandWithMention.FindStringSubmatch(mc.Content)
 	if match == nil || len(match) != 2 {
 		ds.ChannelMessageSend(mc.ChannelID, commandWithMentionError)
-		return
+		return false
 	}
 
 	timeoutRole, err := guildRoleByName(ds, mc.GuildID, timeoutRoleName)
 	notifyIfErr("answerShoot: get timeout role", err, ds)
 	if err != nil {
-		return
+		return false
 	}
 
 	shooter, err := ds.GuildMember(mc.GuildID, mc.Author.ID)
 	notifyIfErr("answerShoot: get shooter member", err, ds)
 	if err != nil {
-		return
+		return false
 	}
 
 	target, err := ds.GuildMember(mc.GuildID, match[1])
 	notifyIfErr("answerShoot: get target member", err, ds)
 	if err != nil {
-		return
+		return false
 	}
 
 	err = shoot(ds, mc.ChannelID, mc.GuildID, shooter, target, timeoutRole.ID)
 	notifyIfErr("answerShoot: shoot", err, ds)
+	return err == nil
 }
 
-func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) {
-	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-		ds.ChannelMessageSend(mc.ChannelID, body)
+func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		_, err := ds.ChannelMessageSend(mc.ChannelID, body)
+		return err == nil
 	}
 }
 
-func answerAyayaify(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerAyayaify(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	bodyToAyayaify := strings.Replace(mc.Content, "!ayayaify ", "", 1)
 	bodyToAyayaify = strings.ReplaceAll(bodyToAyayaify, "A", "AYAYA")
 	bodyToAyayaify = strings.ReplaceAll(bodyToAyayaify, "a", "ayaya")
-	ds.ChannelMessageSend(mc.ChannelID, bodyToAyayaify)
+	_, err := ds.ChannelMessageSend(mc.ChannelID, bodyToAyayaify)
+	return err == nil
 }
 
-func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := startParametricReminder(ds, mc, ctx)
 	notifyIfErr("answerParametricTransformer", err, ds)
-	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, errorMessage(commandErrorHappened))
-	} else {
-		ds.ChannelMessageSend(mc.ChannelID, "I will remind you about the Parametric Transformer in 7 days!")
+	if err == nil {
+		_, err = ds.ChannelMessageSend(mc.ChannelID, "I will remind you about the Parametric Transformer in 7 days!")
 	}
+	return err == nil
 }
 
-func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := stopParametricReminder(ds, mc, ctx)
 	notifyIfErr("answerParametricTransformerStop", err, ds)
-	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, errorMessage(commandErrorHappened))
-	} else {
-		ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
+	if err == nil {
+		_, err = ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
 	}
+	return err == nil
 }
 
-func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	var firstTeam, secondTeam [4]string
 	var replacements []string
 
@@ -235,7 +251,7 @@ func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate,
 	inputChars := strings.Split(inputString, ",")
 	if inputChars[0] != "" && len(inputChars) < genshinTeamSize*2 {
 		ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`Not enough characters! Please enter at least %d`, genshinTeamSize*2))
-		return
+		return false
 	}
 	for i := range inputChars {
 		inputChars[i] = strings.TrimSpace(inputChars[i])
@@ -255,7 +271,7 @@ func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate,
 	formattedSecondTeam += "```"
 	formattedReplacements += "```"
 
-	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`
+	_, err := ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`
 You can only replace one character on each team with one of the replacements.
 
 **First half:**
@@ -265,14 +281,16 @@ You can only replace one character on each team with one of the replacements.
 **Replacements:**
 %s
 `, formattedFirstTeam, formattedSecondTeam, formattedReplacements))
+	return err == nil
 }
 
-func answerRandomArtifact(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerRandomArtifact(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	artifact := genshinartis.RandomArtifact()
-	ds.ChannelMessageSend(mc.ChannelID, formatGenshinArtifact(artifact))
+	_, err := ds.ChannelMessageSend(mc.ChannelID, formatGenshinArtifact(artifact))
+	return err == nil
 }
 
-func answerRandomArtifactSet(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerRandomArtifactSet(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	flower := genshinartis.RandomArtifactOfSlot(genshinartis.SlotFlower)
 	plume := genshinartis.RandomArtifactOfSlot(genshinartis.SlotPlume)
 	sands := genshinartis.RandomArtifactOfSlot(genshinartis.SlotSands)
@@ -283,14 +301,15 @@ func answerRandomArtifactSet(ds *discordgo.Session, mc *discordgo.MessageCreate,
 	msg += formatGenshinArtifact(sands)
 	msg += formatGenshinArtifact(goblet)
 	msg += formatGenshinArtifact(circlet)
-	ds.ChannelMessageSend(mc.ChannelID, msg)
+	_, err := ds.ChannelMessageSend(mc.ChannelID, msg)
+	return err == nil
 }
 
-func answerRandomDomainRun(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerRandomDomainRun(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	match := commandWithTwoArguments.FindStringSubmatch(mc.Content)
 	if match == nil || len(match) != 3 {
 		ds.ChannelMessageSend(mc.ChannelID, commandWithTwoArgumentsError)
-		return
+		return false
 	}
 
 	// we also remove the "(" and ")" chars
@@ -300,47 +319,58 @@ func answerRandomDomainRun(ds *discordgo.Session, mc *discordgo.MessageCreate, c
 	art2 := genshinartis.RandomArtifactFromDomain(set1, set2)
 	msg := formatGenshinArtifact(art1)
 	msg += formatGenshinArtifact(art2)
-	ds.ChannelMessageSend(mc.ChannelID, msg)
+	_, err := ds.ChannelMessageSend(mc.ChannelID, msg)
+	return err == nil
 }
 
-func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	startDailyCheckInReminder(ds, mc, ctx)
-	ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
+func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := startDailyCheckInReminder(ds, mc, ctx)
+	if err == nil {
+		_, err = ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
+	}
+	notifyIfErr("answerGenshinDailyCheckIn", err, ds)
+	return err == nil
 }
 
-func answerGenshinDailyCheckInStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	stopDailyCheckInReminder(ds, mc, ctx)
-	ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
+func answerGenshinDailyCheckInStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := stopDailyCheckInReminder(ds, mc, ctx)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
+	}
+	notifyIfErr("answerGenshinDailyCheckInStop", err, ds)
+	return err == nil
 }
 
 // FIXME: Limit its usage by user (max 3 active reminders?)
-func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	timeToWait, reminderBody := processTimedCommand(mc.Content)
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will remind you in %v with the message '%s'", timeToWait, reminderBody))
 	time.Sleep(timeToWait)
 	userMessageSend(mc.Author.ID, reminderBody, ds)
+	return true
 }
 
-func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
 	diceSides, err := strconv.Atoi(commandBody)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, "This command needs a numeric argument")
-		return
+		return false
 	}
 	if diceSides <= 0 {
 		ds.ChannelMessageSend(mc.ChannelID, "Dice sides amount must be positive!")
-		return
+		return false
 	}
 	result := rand.Intn(diceSides) + 1
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("You rolled a %d!", result))
+	return true
 }
 
-func answerRoleIDs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerRoleIDs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	roles, err := ds.GuildRoles(mc.GuildID)
 	notifyIfErr("answerRoleIDs", err, ds)
 	if err != nil {
-		return
+		return false
 	}
 	var response string
 	for _, role := range roles {
@@ -350,16 +380,17 @@ func answerRoleIDs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx conte
 		response += fmt.Sprintf("%s: %s\n", role.Name, role.ID)
 	}
 	userMessageSend(adminID, response, ds)
+	return true
 }
 
 // ---------- Simple command stuff ----------
 
-func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
 	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
 	if key == "" {
 		ds.ChannelMessageSend(mc.ChannelID, errorMessage("Could not get the key from the command body"))
-		return
+		return false
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
 	err := commandDS.addSimpleCommand(key, response)
@@ -367,60 +398,68 @@ func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
+	return err == nil
 }
 
-func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
 	err := commandDS.removeSimpleCommand(commandBody)
 	notifyIfErr("removeSimpleCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
+	return err == nil
 }
 
-func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	keys, err := commandDS.allSimpleCommandKeys()
 	notifyIfErr("removeSimpleCommand", err, ds)
 	if len(keys) != 0 {
 		ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Current commands: %v", keys))
 	}
+	return err == nil
 }
 
-func answerAllowSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerAllowSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := commandDS.addSpammableChannel(mc.ChannelID)
 	notifyIfErr("addSpammableChannel", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	}
+	return err == nil
 }
 
-func answerPreventSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerPreventSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := commandDS.removeSpammableChannel(mc.ChannelID)
 	notifyIfErr("removeSpammableChannel", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	}
 	notifyIfErr("MessageReactionAdd", err, ds)
+	return err == nil
 }
 
 // ---------- Server commands ----------
 
-func answerReboot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerReboot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := reboot()
 	notifyIfErr("reboot", err, ds)
+	return err == nil
 }
 
-func answerShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	timeToWait, _ := processTimedCommand(mc.Content)
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will shutdown in %v", timeToWait))
 	err := shutdown(timeToWait)
 	notifyIfErr("shutdown", err, ds)
+	return err == nil
 }
 
-func answerAbortShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func answerAbortShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	err := abortShutdown()
 	notifyIfErr("abortShutdown", err, ds)
+	return err == nil
 }
 
 // ---------- Cooldowns ----------

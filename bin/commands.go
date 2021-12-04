@@ -74,7 +74,7 @@ var commands = map[string]command{
 	"!hello":  notSpammable(answerHello),
 	"!liquid": notSpammable(answerLiquid),
 	"!don":    notSpammable(answerDon),
-	//"!shoot":  notSpammable(answerShoot),
+	"!shoot":  notSpammable(answerShoot),
 	// only available for the bot owner
 	"!roleids":         adminOnly(answerRoleIDs),
 	"!addcommand":      adminOnly(answerAddCommand),

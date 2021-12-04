@@ -43,7 +43,7 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 
 	if rand.Float32() <= nuclearCatastropheChance {
 		ds.ChannelMessageSend(channelID, "https://c.tenor.com/fxSZIUDpQIMAAAAC/explosion-nichijou.gif")
-		members, err := ds.GuildMembers(guildID, "0", 1000)
+		/*members, err := ds.GuildMembers(guildID, "0", 1000)
 		if err != nil {
 			return fmt.Errorf("guild members: %w", err)
 		}
@@ -53,19 +53,19 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 			}
 			ds.GuildMemberRoleAdd(guildID, member.User.ID, timeoutRoleID)
 			removeRoleAfterDuration(ds, guildID, member.User.ID, timeoutRoleID, timeoutDurationWhenNuclearCatastrophe)
-		}
+		}*/
 		return nil
 	}
 
 	if rand.Float32() <= shootMisfireChance || target.User.ID == ds.State.User.ID {
 		ds.ChannelMessageSend(channelID, "OOPS! You missed :3c")
-		ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID)
-		removeRoleAfterDuration(ds, guildID, shooter.User.ID, timeoutRoleID, timeoutDurationWhenMisfire)
+		/*ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID)
+		removeRoleAfterDuration(ds, guildID, shooter.User.ID, timeoutRoleID, timeoutDurationWhenMisfire)*/
 		return nil
 	}
 
 	ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got shot!", target.User.Mention()))
-	ds.GuildMemberRoleAdd(guildID, target.User.ID, timeoutRoleID)
-	removeRoleAfterDuration(ds, guildID, target.User.ID, timeoutRoleID, timeoutDurationWhenShot)
+	/*ds.GuildMemberRoleAdd(guildID, target.User.ID, timeoutRoleID)
+	removeRoleAfterDuration(ds, guildID, target.User.ID, timeoutRoleID, timeoutDurationWhenShot)*/
 	return nil
 }

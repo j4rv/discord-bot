@@ -12,6 +12,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/lib/genshinartis"
+	"github.com/j4rv/discord-bot/lib/ppgen"
 )
 
 const userMustBeAdminMessage = "Only the bot's admin can do that"
@@ -75,6 +76,7 @@ var commands = map[string]command{
 	"!liquid": notSpammable(answerLiquid),
 	"!don":    notSpammable(answerDon),
 	"!shoot":  notSpammable(answerShoot),
+	"!pp":     notSpammable(answerPP),
 	// only available for the bot owner
 	"!roleids":         adminOnly(answerRoleIDs),
 	"!addcommand":      adminOnly(answerAddCommand),
@@ -209,6 +211,17 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	return err == nil
 }
 
+func answerPP(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	seed, err := strconv.ParseInt(mc.Author.ID, 10, 64)
+	notifyIfErr("answerPP: parsing user id: "+mc.Author.ID, err, ds)
+	if err != nil {
+		return false
+	}
+	pp := ppgen.NewPenisWithSeed(seed)
+	_, err = ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%s's penis: %s", mc.Author.Mention(), pp))
+	return err == nil
+}
+
 func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 		_, err := ds.ChannelMessageSend(mc.ChannelID, body)
@@ -274,9 +287,9 @@ func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate,
 	_, err := ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`
 You can only replace one character on each team with one of the replacements.
 
-**First half:**
+**Team 1:**
 %s
-**Second half:**
+**Team 2:**
 %s
 **Replacements:**
 %s

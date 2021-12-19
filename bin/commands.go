@@ -213,6 +213,7 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 
 func answerPP(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	seed, err := strconv.ParseInt(mc.Author.ID, 10, 64)
+	seed *= unixDay()
 	notifyIfErr("answerPP: parsing user id: "+mc.Author.ID, err, ds)
 	if err != nil {
 		return false

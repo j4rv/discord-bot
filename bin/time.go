@@ -11,6 +11,8 @@ var stringHoursRegex = regexp.MustCompile(`^(\d{1,2})h`)
 var stringMinsRegex = regexp.MustCompile(`^(\d{1,2})m`)
 var stringSecsRegex = regexp.MustCompile(`^(\d{1,2})s`)
 
+const secondsInADay = 60 * 60 * 24
+
 // Format: "!<command> 99h 99m 99s <body>"
 // Returns: The duration and the body
 // TODO: Extract to an utilities library?
@@ -42,4 +44,8 @@ func extractTimeUnit(s string, re *regexp.Regexp) (int, string) {
 	s = strings.TrimLeft(s, " ")
 	foundInt, _ := strconv.Atoi(found[1])
 	return foundInt, s
+}
+
+func unixDay() int64 {
+	return time.Now().Unix() / secondsInADay
 }

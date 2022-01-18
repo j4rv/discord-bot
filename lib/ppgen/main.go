@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const minLength = 2
+const minLength = 1
 const maxLength = 14
 
 // FIXME:

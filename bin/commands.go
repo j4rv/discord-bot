@@ -177,6 +177,7 @@ func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.C
 	if err != nil {
 		return false
 	}
+	removeRoleAfterDuration(ds, mc.GuildID, mc.Author.ID, timeoutRole.ID, 10*time.Minute)
 	_, err = ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("To the Shadow Realm you go %s", mc.Author.Mention()))
 	return err == nil
 }

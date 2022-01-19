@@ -172,6 +172,7 @@ func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.C
 	if err != nil {
 		return false
 	}
+	// FIXME: check if the user has the role already
 	err = ds.GuildMemberRoleAdd(mc.GuildID, mc.Author.ID, timeoutRole.ID)
 	notifyIfErr("answerDon", err, ds)
 	if err != nil {

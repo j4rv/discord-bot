@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/j4rv/discord-bot/lib/eightball"
 	"github.com/j4rv/discord-bot/lib/genshinartis"
 	"github.com/j4rv/discord-bot/lib/ppgen"
 )
@@ -71,6 +72,7 @@ var commands = map[string]command{
 	"!ayayaify":                  notSpammable(answerAyayaify),
 	"!remindme":                  notSpammable(answerRemindme),
 	"!roll":                      notSpammable(answerRoll),
+	"!8ball":                     notSpammable(answer8ball),
 	// hidden or easter eggs
 	"!hello":  notSpammable(answerHello),
 	"!liquid": notSpammable(answerLiquid),
@@ -121,6 +123,7 @@ const helpResponse = `Available commands:
 - **!ayayaify [message]**: Ayayaifies your message
 - **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed
 - **!roll [99]**: Rolls a dice with the specified sides amount
+- **!8ball [question]**: Ask the 8ball
 - **!genshinDailyCheckIn**: Will remind you to do the Genshin Daily Check-In
 - **!genshinDailyCheckInStop**: The bot will stop reminding you to do the Genshin Daily Check-In
 - **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days. Use it again to reset the reminder
@@ -379,6 +382,11 @@ func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.
 	}
 	result := rand.Intn(diceSides) + 1
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("You rolled a %d!", result))
+	return true
+}
+
+func answer8ball(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	ds.ChannelMessageSend(mc.ChannelID, eightball.Response())
 	return true
 }
 

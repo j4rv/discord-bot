@@ -22,6 +22,8 @@ env CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ CGO_ENABLED=1 GOOS=li
 - **!source**: Links to the bot's source code
 - **!ayayaify [message]**: Ayayaifies your message
 - **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed
+- **!roll [99]**: Rolls a dice with the specified sides amount
+- **!8ball [question]**: Ask the 8ball
 - **!genshinDailyCheckIn**: Will remind you to do the Genshin Daily Check-In
 - **!genshinDailyCheckInStop**: The bot will stop reminding you to do the Genshin Daily Check-In
 - **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days. Use it again to reset the reminder

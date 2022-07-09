@@ -24,4 +24,8 @@ var allArtifactSets = []artifactSet{
 	"Shimenawa's Reminiscence",
 	"Husk of Opulent Dreams",
 	"Ocean-Hued Clam",
+	"Vermillion Hereafter",
+	"Echoes of an Offering",
+	"Memories of the Deep Forest",
+	"Ornamental Gold Dream",
 }

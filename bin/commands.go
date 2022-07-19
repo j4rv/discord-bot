@@ -12,19 +12,21 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/lib/eightball"
-	"github.com/j4rv/discord-bot/lib/genshinartis"
+	artis "github.com/j4rv/discord-bot/lib/genshinartis"
 	"github.com/j4rv/discord-bot/lib/ppgen"
 )
 
 const userMustBeAdminMessage = "Only the bot's admin can do that"
 const commandReceivedMessage = "Gotcha!"
 const commandSuccessMessage = "Successfully donette!"
-const commandWithTwoArgumentsError = "Something went wrong, please make sure that the command has two arguments with the following format: '!command (...) (...)'"
+const commandWithOneArgumentError = "Something went wrong, please make sure to use the command with the following format: '!command (...)'"
+const commandWithTwoArgumentsError = "Something went wrong, please make sure to use the command with the following format: '!command (...) (...)'"
 const commandWithMentionError = "Something went wrong, please make sure that the command has an user mention"
 
 const roleEveryone = "@everyone"
 
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
+var commandWithOneArgument = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
 var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d{18})>`)
 
@@ -69,6 +71,7 @@ var commands = map[string]command{
 	"!randomartifact":            notSpammable(answerRandomArtifact),
 	"!randomartifactset":         notSpammable(answerRandomArtifactSet),
 	"!randomdomainrun":           notSpammable(answerRandomDomainRun),
+	"!randomstrongbox":           notSpammable(answerRandomStrongbox),
 	"!ayayaify":                  notSpammable(answerAyayaify),
 	"!remindme":                  notSpammable(answerRemindme),
 	"!roll":                      notSpammable(answerRoll),
@@ -132,6 +135,7 @@ const helpResponse = `Available commands:
 - **!randomArtifact**: Generates a random Lv20 Genshin Impact artifact
 - **!randomArtifactSet**: Generates five random Lv20 Genshin Impact artifacts
 - **!randomDomainRun (set A) (set B)**: Generates two random Lv20 Genshin Impact artifacts from the input sets
+- **!randomStrongbox (set)**: Generates three random artifacts from the input set
 `
 
 const helpResponseAdmin = helpResponse + `
@@ -304,17 +308,17 @@ You can only replace one character on each team with one of the replacements.
 }
 
 func answerRandomArtifact(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	artifact := genshinartis.RandomArtifact()
+	artifact := artis.RandomArtifact(artis.DomainBase4Chance)
 	_, err := ds.ChannelMessageSend(mc.ChannelID, formatGenshinArtifact(artifact))
 	return err == nil
 }
 
 func answerRandomArtifactSet(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	flower := genshinartis.RandomArtifactOfSlot(genshinartis.SlotFlower)
-	plume := genshinartis.RandomArtifactOfSlot(genshinartis.SlotPlume)
-	sands := genshinartis.RandomArtifactOfSlot(genshinartis.SlotSands)
-	goblet := genshinartis.RandomArtifactOfSlot(genshinartis.SlotGoblet)
-	circlet := genshinartis.RandomArtifactOfSlot(genshinartis.SlotCirclet)
+	flower := artis.RandomArtifactOfSlot(artis.SlotFlower, artis.DomainBase4Chance)
+	plume := artis.RandomArtifactOfSlot(artis.SlotPlume, artis.DomainBase4Chance)
+	sands := artis.RandomArtifactOfSlot(artis.SlotSands, artis.DomainBase4Chance)
+	goblet := artis.RandomArtifactOfSlot(artis.SlotGoblet, artis.DomainBase4Chance)
+	circlet := artis.RandomArtifactOfSlot(artis.SlotCirclet, artis.DomainBase4Chance)
 	msg := formatGenshinArtifact(flower)
 	msg += formatGenshinArtifact(plume)
 	msg += formatGenshinArtifact(sands)
@@ -334,10 +338,32 @@ func answerRandomDomainRun(ds *discordgo.Session, mc *discordgo.MessageCreate, c
 	// we also remove the "(" and ")" chars
 	set1 := match[1][1 : len(match[1])-1]
 	set2 := match[2][1 : len(match[2])-1]
-	art1 := genshinartis.RandomArtifactFromDomain(set1, set2)
-	art2 := genshinartis.RandomArtifactFromDomain(set1, set2)
+	art1 := artis.RandomArtifactFromDomain(set1, set2)
+	art2 := artis.RandomArtifactFromDomain(set1, set2)
 	msg := formatGenshinArtifact(art1)
 	msg += formatGenshinArtifact(art2)
+	_, err := ds.ChannelMessageSend(mc.ChannelID, msg)
+	return err == nil
+}
+
+func answerRandomStrongbox(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	match := commandWithOneArgument.FindStringSubmatch(mc.Content)
+	if match == nil || len(match) != 2 {
+		ds.ChannelMessageSend(mc.ChannelID, commandWithOneArgumentError)
+		return false
+	}
+
+	// we also remove the "(" and ")" chars
+	set := match[1][1 : len(match[1])-1]
+
+	// lets strongbox 3 artifacts
+	art := artis.RandomArtifactOfSet(set, artis.StrongboxBase4Chance)
+	msg := formatGenshinArtifact(art)
+	art = artis.RandomArtifactOfSet(set, artis.StrongboxBase4Chance)
+	msg += formatGenshinArtifact(art)
+	art = artis.RandomArtifactOfSet(set, artis.StrongboxBase4Chance)
+	msg += formatGenshinArtifact(art)
+
 	_, err := ds.ChannelMessageSend(mc.ChannelID, msg)
 	return err == nil
 }

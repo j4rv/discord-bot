@@ -6,6 +6,8 @@ import (
 )
 
 const MaxSubstats = 4
+const DomainBase4Chance = 0.2
+const StrongboxBase4Chance = 0.33333333333
 
 type ArtifactSubstat struct {
 	Stat  artifactStat
@@ -62,10 +64,10 @@ func (a *Artifact) ranzomizeMainStat() {
 	}
 }
 
-func (a *Artifact) randomizeSubstats() {
+func (a *Artifact) randomizeSubstats(base4Chance float32) {
 	numRolls := 3 + 5 // starts with 3 subs by default
-	if rand.Float32() <= 0.25 {
-		numRolls++ // starts with 4 subs (25% chance)
+	if rand.Float32() <= base4Chance {
+		numRolls++ // starts with 4 subs
 	}
 
 	a.SubStats = [MaxSubstats]*ArtifactSubstat{}
@@ -90,21 +92,30 @@ func (a *Artifact) randomizeSubstats() {
 	}
 }
 
-func RandomArtifact() *Artifact {
+func RandomArtifact(base4Chance float32) *Artifact {
 	var artifact Artifact
 	artifact.randomizeSet(allArtifactSets...)
 	artifact.randomizeSlot()
 	artifact.ranzomizeMainStat()
-	artifact.randomizeSubstats()
+	artifact.randomizeSubstats(base4Chance)
 	return &artifact
 }
 
-func RandomArtifactOfSlot(slot artifactSlot) *Artifact {
+func RandomArtifactOfSlot(slot artifactSlot, base4Chance float32) *Artifact {
 	var artifact Artifact
 	artifact.randomizeSet(allArtifactSets...)
 	artifact.Slot = slot
 	artifact.ranzomizeMainStat()
-	artifact.randomizeSubstats()
+	artifact.randomizeSubstats(base4Chance)
+	return &artifact
+}
+
+func RandomArtifactOfSet(set string, base4Chance float32) *Artifact {
+	var artifact Artifact
+	artifact.Set = artifactSet(set)
+	artifact.randomizeSlot()
+	artifact.ranzomizeMainStat()
+	artifact.randomizeSubstats(base4Chance)
 	return &artifact
 }
 
@@ -113,6 +124,6 @@ func RandomArtifactFromDomain(setA, setB string) *Artifact {
 	artifact.randomizeSet(artifactSet(setA), artifactSet(setB))
 	artifact.randomizeSlot()
 	artifact.ranzomizeMainStat()
-	artifact.randomizeSubstats()
+	artifact.randomizeSubstats(DomainBase4Chance)
 	return &artifact
 }

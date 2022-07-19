@@ -24,7 +24,7 @@ var responses = []string{
 	"Stop asking questions.",
 	"Trust me, you don't want to hear the answer.",
 	"Why do you want to know?",
-	"It's fifty fifty.",
+	"It is fifty fifty.",
 	"I don't get paid enough to answer that.",
 
 	// "no"

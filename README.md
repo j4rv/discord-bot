@@ -32,6 +32,7 @@ env CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ CGO_ENABLED=1 GOOS=li
 - **!randomArtifact**: Generates a random Lv20 Genshin Impact artifact
 - **!randomArtifactSet**: Generates five random Lv20 Genshin Impact artifacts
 - **!randomDomainRun (set A) (set B)**: Generates two random Lv20 Genshin Impact artifacts from the input sets
+- **!randomStrongbox (set)**: Generates three random artifacts from the input set
 
 ### Admin only
 

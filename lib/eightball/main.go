@@ -5,6 +5,7 @@ import "math/rand"
 var responses = []string{
 	// "yes"
 	"Yes.",
+	"Sí.",
 	"It is certain.",
 	"It is decidedly so.",
 	"Without a doubt.",
@@ -14,6 +15,7 @@ var responses = []string{
 	"Most likely.",
 	"Outlook good.",
 	"Signs point to yes.",
+	"Absolutely.",
 
 	// "neutral"
 	"Reply hazy, try again.",
@@ -26,9 +28,12 @@ var responses = []string{
 	"Why do you want to know?",
 	"It is fifty fifty.",
 	"I don't get paid enough to answer that.",
+	"Fuck you.",
 
 	// "no"
 	"No.",
+	"Nay, nope, nein, non.",
+	"Nah.",
 	"Don't count on it.",
 	"My reply is no.",
 	"My sources say no.",
@@ -37,7 +42,7 @@ var responses = []string{
 	"It is as likely as winning the lottery.",
 	"I don't think so.",
 	"The opposite of yes.",
-	"Nay, nope, nein, non.",
+	"In your dreams.",
 }
 
 func Response() string {

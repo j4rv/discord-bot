@@ -169,7 +169,7 @@ func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 }
 
 func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	_, err := ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%06d, you know what to do with this. ", rand.Intn(1000000)))
+	_, err := ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%06d, you know what to do with this. ", rand.Intn(450000)))
 	return err == nil
 }
 

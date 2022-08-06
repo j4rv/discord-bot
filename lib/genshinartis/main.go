@@ -3,6 +3,7 @@ package genshinartis
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 )
 
 const MaxSubstats = 4
@@ -126,4 +127,36 @@ func RandomArtifactFromDomain(setA, setB string) *Artifact {
 	artifact.ranzomizeMainStat()
 	artifact.randomizeSubstats(DomainBase4Chance)
 	return &artifact
+}
+
+// RemoveTrashArtifacts processes a slice of artifacts and keeps the best ones that have the correct mainstat
+// subValue: To know which artifacts are more desirable
+// n: Amount of artifacts to keep for every set, slot and main stat (example: n = 10, it will keep at most 10 gladiator atk sands)
+func RemoveTrashArtifacts(arts []*Artifact,
+	subValue map[artifactStat]float32,
+	n int) []*Artifact {
+	type SetSlotStat struct {
+		set  artifactSet
+		slot artifactSlot
+		stat artifactStat
+	}
+	processed := map[SetSlotStat][]*Artifact{}
+	for _, art := range arts {
+		sss := SetSlotStat{art.Set, art.Slot, art.MainStat}
+		processed[sss] = append(processed[sss], art)
+	}
+
+	result := []*Artifact{}
+	for _, aa := range processed {
+		// Ordering the artifacts in processed by sub quality
+		sort.Slice(aa, func(i, j int) bool {
+			return aa[i].subsQuality(subValue) > aa[j].subsQuality(subValue)
+		})
+		// Keeping the n best
+		if len(aa) > n {
+			aa = aa[0:n]
+		}
+		result = append(result, aa...)
+	}
+	return result
 }

@@ -33,6 +33,29 @@ func TestRandomArtifactFromDomain(t *testing.T) {
 	}
 }
 
+func TestRemoveTrashArtifacts(t *testing.T) {
+	rand.Seed(time.Now().UTC().UnixNano())
+	var artis []*Artifact
+	set1, set2 := "Emblem", "Shimenawa"
+
+	// Generate 1000 artifacts from two sets
+	for i := 0; i < 10000; i++ {
+		artis = append(artis, RandomArtifactFromDomain(set1, set2))
+	}
+
+	subs := map[artifactStat]float32{
+		ATKP:           1,
+		CritRate:       1,
+		CritDmg:        1,
+		EnergyRecharge: 0.5,
+		ATK:            0.25,
+	}
+	filtered := RemoveTrashArtifacts(artis, subs, 5)
+	for _, a := range filtered {
+		t.Log(*a)
+	}
+}
+
 // Just for theorycrafting
 func TestTheorycrafting(t *testing.T) {
 	rand.Seed(time.Now().UTC().UnixNano())

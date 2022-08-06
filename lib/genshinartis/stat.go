@@ -67,6 +67,48 @@ func (s artifactStat) String() string {
 	return "Unknown"
 }
 
+func (s artifactStat) goodKey() string {
+	switch s {
+	case HP:
+		return "hp"
+	case ATK:
+		return "atk"
+	case DEF:
+		return "def"
+	case HPP:
+		return "hp_"
+	case ATKP:
+		return "atk_"
+	case DEFP:
+		return "def_"
+	case EnergyRecharge:
+		return "enerRech_"
+	case ElementalMastery:
+		return "eleMas"
+	case CritRate:
+		return "critRate_"
+	case CritDmg:
+		return "critDMG_"
+	case PyroDMG:
+		return "pyro_dmg_"
+	case ElectroDMG:
+		return "electro_dmg_"
+	case CryoDMG:
+		return "cryo_dmg_"
+	case HydroDMG:
+		return "hydro_dmg_"
+	case AnemoDMG:
+		return "anemo_dmg_"
+	case GeoDMG:
+		return "geo_dmg_"
+	case PhysDMG:
+		return "physical_dmg_"
+	case HealingBonus:
+		return "heal_"
+	}
+	return "unknown"
+}
+
 // Weights from https://genshin-impact.fandom.com/wiki/Artifacts/Distribution
 // And https://genshin-impact.fandom.com/wiki/Artifacts/Stats
 

@@ -25,3 +25,19 @@ func (t artifactSlot) String() string {
 	}
 	return "Unknown"
 }
+
+func (t artifactSlot) goodKey() string {
+	switch t {
+	case SlotFlower:
+		return "flower"
+	case SlotPlume:
+		return "plume"
+	case SlotSands:
+		return "sands"
+	case SlotGoblet:
+		return "goblet"
+	case SlotCirclet:
+		return "circlet"
+	}
+	return "Unknown"
+}

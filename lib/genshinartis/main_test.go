@@ -1,7 +1,9 @@
 package genshinartis
 
 import (
+	"encoding/json"
 	"math/rand"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -54,6 +56,53 @@ func TestRemoveTrashArtifacts(t *testing.T) {
 	for _, a := range filtered {
 		t.Log(*a)
 	}
+}
+
+func TestExportToGOOD(t *testing.T) {
+	var artis []*Artifact
+	for i := 0; i < 1_000_000; i++ {
+		artis = append(artis, RandomArtifact(DomainBase4Chance))
+	}
+	subs := map[artifactStat]float32{
+		ATKP:             1,
+		CritRate:         1,
+		CritDmg:          1,
+		ElementalMastery: 0.33,
+		EnergyRecharge:   0.25,
+		ATK:              0.25,
+	}
+	artis = RemoveTrashArtifacts(artis, subs, 10)
+	export := ExportToGOOD(artis)
+	b, err := json.Marshal(export)
+	if err != nil {
+		t.Error(err)
+	}
+	os.WriteFile("goodExportTest.json", b, 0755)
+}
+
+func TestExportToGOODEmblemHell(t *testing.T) {
+	// 6 months of Emblem -> 1620 runs
+	// 6 months of Emblem -> 4320 runs if max refreshing
+	var artis []*Artifact
+	for i := 0; i < 4320; i++ {
+		artis = append(artis, RandomArtifactFromDomain("EmblemOfSeveredFate", "ShimenawasReminiscence"))
+	}
+	subs := map[artifactStat]float32{
+		CritRate:         1,
+		CritDmg:          1,
+		ATKP:             0.8,
+		EnergyRecharge:   0.8,
+		ElementalMastery: 0.5,
+		ATK:              0.25,
+	}
+	artis = RemoveTrashArtifacts(artis, subs, 10)
+	export := ExportToGOOD(artis)
+	b, err := json.Marshal(export)
+	if err != nil {
+		t.Error(err)
+	}
+	os.WriteFile("goodExportTest.json", b, 0755)
+
 }
 
 // Just for theorycrafting

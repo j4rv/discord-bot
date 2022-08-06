@@ -2,6 +2,7 @@ package genshinartis
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"sort"
 )
@@ -9,6 +10,7 @@ import (
 const MaxSubstats = 4
 const DomainBase4Chance = 0.2
 const StrongboxBase4Chance = 0.33333333333
+const AverageDropsPerDomainRun = 1.065
 
 type ArtifactSubstat struct {
 	Stat  artifactStat
@@ -25,6 +27,15 @@ func (s *ArtifactSubstat) randomizeValue() {
 
 func (s *ArtifactSubstat) String() string {
 	return fmt.Sprintf("%s: %.1f", s.Stat, s.Value)
+}
+
+func (s *ArtifactSubstat) RoundedValue() float32 {
+	switch s.Stat {
+	case ATK, DEF, HP, ElementalMastery:
+		return float32(math.Round(float64(s.Value)))
+	default:
+		return float32(math.Round(float64(s.Value)*10) / 10)
+	}
 }
 
 type Artifact struct {

@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/j4rv/discord-bot/lib/genshinartis"
+	"github.com/j4rv/genshinartis"
 	"github.com/robfig/cron/v3"
 )
 

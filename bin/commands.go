@@ -12,8 +12,8 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/lib/eightball"
-	artis "github.com/j4rv/discord-bot/lib/genshinartis"
 	"github.com/j4rv/discord-bot/lib/ppgen"
+	artis "github.com/j4rv/genshinartis"
 )
 
 const userMustBeAdminMessage = "Only the bot's admin can do that"

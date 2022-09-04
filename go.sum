@@ -4,8 +4,8 @@ github.com/go-sql-driver/mysql v1.5.0 h1:ozyZYNQW3x3HtqT1jira07DN2PArx2v7/mN66gG
 github.com/go-sql-driver/mysql v1.5.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
 github.com/gorilla/websocket v1.4.2 h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0Ufc=
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
-github.com/j4rv/genshinartis v0.0.0-20220806111356-8ab06d50d2cd h1:6z3Bk7MQ5QuF7b7WFaL4ceoo3GaQ8LkF3FxCwtKpafk=
-github.com/j4rv/genshinartis v0.0.0-20220806111356-8ab06d50d2cd/go.mod h1:NXUI4xa2rw8D2BjTBqgT6934wIJXJgn1vG9x/FGXW4E=
+github.com/j4rv/genshinartis v0.0.0-20220904214835-f0425c7c0fcb h1:V+R4Si5O3twsG/xzcDpKpR27jy5nulbQXYS63tGaA1k=
+github.com/j4rv/genshinartis v0.0.0-20220904214835-f0425c7c0fcb/go.mod h1:NXUI4xa2rw8D2BjTBqgT6934wIJXJgn1vG9x/FGXW4E=
 github.com/jmoiron/sqlx v1.3.4 h1:wv+0IJZfL5z0uZoUjlpKgHkgaFSYD+r9CfrXjEXsO7w=
 github.com/jmoiron/sqlx v1.3.4/go.mod h1:2BljVx/86SuTyjE+aPYlHCTNvZrnJXghYGpNiXLBMCQ=
 github.com/lib/pq v1.2.0 h1:LXpIM/LZ5xGFhOpXAQUIMM1HdyqzVYM13zNdjCEEcA0=

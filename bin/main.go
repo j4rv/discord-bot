@@ -24,12 +24,15 @@ func main() {
 	initDB()
 	ds := initDiscordSession()
 	initGenshinCRONs(ds)
+	removeSlashCommands := initSlashCommands(ds)
 
 	// Wait here until CTRL-C or other term signal is received.
 	log.Println("Bot is now running. Press CTRL-C to exit.")
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-signalChan
+
+	removeSlashCommands()
 	ds.Close()
 }
 
@@ -150,4 +153,14 @@ func notifyIfErr(context string, err error, ds *discordgo.Session) {
 		log.Println(msg)
 		userMessageSend(adminID, errorMessage(msg), ds)
 	}
+}
+
+func interactionUser(ic *discordgo.InteractionCreate) *discordgo.User {
+	if ic.User != nil {
+		return ic.User
+	}
+	if ic.Member != nil {
+		return ic.Member.User
+	}
+	return nil
 }

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/j4rv/discord-bot/lib/eightball"
 	"github.com/j4rv/discord-bot/lib/ppgen"
 	artis "github.com/j4rv/genshinartis"
 )
@@ -61,7 +60,6 @@ func notSpammable(wrapped command) command {
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!help":                      notSpammable(answerHelp),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -71,11 +69,9 @@ var commands = map[string]command{
 	"!randomartifact":            notSpammable(answerRandomArtifact),
 	"!randomartifactset":         notSpammable(answerRandomArtifactSet),
 	"!randomdomainrun":           notSpammable(answerRandomDomainRun),
-	"!randomstrongbox":           notSpammable(answerRandomStrongbox),
 	"!ayayaify":                  notSpammable(answerAyayaify),
 	"!remindme":                  notSpammable(answerRemindme),
 	"!roll":                      notSpammable(answerRoll),
-	"!8ball":                     notSpammable(answer8ball),
 	// hidden or easter eggs
 	"!hello":  notSpammable(answerHello),
 	"!liquid": notSpammable(answerLiquid),
@@ -119,43 +115,6 @@ func onSuccessCommandCall(mc *discordgo.MessageCreate) {
 	if !channelIsSpammable {
 		resetUserCooldown(mc.Author.ID)
 	}
-}
-
-const helpResponse = `Available commands:
-- **!source**: Links to the bot's source code
-- **!ayayaify [message]**: Ayayaifies your message
-- **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed
-- **!roll [99]**: Rolls a dice with the specified sides amount
-- **!8ball [question]**: Ask the 8ball
-- **!genshinDailyCheckIn**: Will remind you to do the Genshin Daily Check-In
-- **!genshinDailyCheckInStop**: The bot will stop reminding you to do the Genshin Daily Check-In
-- **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days. Use it again to reset the reminder
-- **!parametricTransformerStop**: The bot will stop reminding you to use the Parametric Transformer
-- **!randomAbyssLineup**: The bot will give you two random teams and some replacements. Have fun ¯\_(ツ)_/¯. Optional: Write 8+ character names separated by commas and the bot will only choose from those
-- **!randomArtifact**: Generates a random Lv20 Genshin Impact artifact
-- **!randomArtifactSet**: Generates five random Lv20 Genshin Impact artifacts
-- **!randomDomainRun (set A) (set B)**: Generates two random Lv20 Genshin Impact artifacts from the input sets
-- **!randomStrongbox (set)**: Generates three random artifacts from the input set
-`
-
-const helpResponseAdmin = helpResponse + `
-Admin only:
-- **!addCommand [!key] [response]**: Adds a simple command
-- **!removeCommand [!key]**: Removes a simple command
-- **!listCommands**: Lists all current simple commands
-- **!reboot**: Reboot the bot's system
-- **!shutdown** [99h 99m 99s]: Shuts down the bot's system
-- **!abortShutdown**: Aborts the bot's system shutdown
-`
-
-func answerHelp(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	var err error
-	if mc.Author.ID != adminID {
-		_, err = ds.ChannelMessageSend(mc.ChannelID, helpResponse)
-	} else {
-		_, err = ds.ChannelMessageSend(mc.ChannelID, helpResponseAdmin)
-	}
-	return err == nil
 }
 
 func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
@@ -346,28 +305,6 @@ func answerRandomDomainRun(ds *discordgo.Session, mc *discordgo.MessageCreate, c
 	return err == nil
 }
 
-func answerRandomStrongbox(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	match := commandWithOneArgument.FindStringSubmatch(mc.Content)
-	if match == nil || len(match) != 2 {
-		ds.ChannelMessageSend(mc.ChannelID, commandWithOneArgumentError)
-		return false
-	}
-
-	// we also remove the "(" and ")" chars
-	set := match[1][1 : len(match[1])-1]
-
-	// lets strongbox 3 artifacts
-	art := artis.RandomArtifactOfSet(set, artis.StrongboxBase4Chance)
-	msg := formatGenshinArtifact(art)
-	art = artis.RandomArtifactOfSet(set, artis.StrongboxBase4Chance)
-	msg += formatGenshinArtifact(art)
-	art = artis.RandomArtifactOfSet(set, artis.StrongboxBase4Chance)
-	msg += formatGenshinArtifact(art)
-
-	_, err := ds.ChannelMessageSend(mc.ChannelID, msg)
-	return err == nil
-}
-
 func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := startDailyCheckInReminder(ds, mc, ctx)
 	if err == nil {
@@ -408,11 +345,6 @@ func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.
 	}
 	result := rand.Intn(diceSides) + 1
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("You rolled a %d!", result))
-	return true
-}
-
-func answer8ball(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	ds.ChannelMessageSend(mc.ChannelID, eightball.Response())
 	return true
 }
 

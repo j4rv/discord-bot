@@ -12,6 +12,8 @@ import (
 var strongboxMinAmount = 1.0
 var strongboxMaxAmount = 10.0
 
+const avatarTargetSize = "1024"
+
 var slashCommands = []*discordgo.ApplicationCommand{
 	{
 		Name:        "help",
@@ -25,6 +27,18 @@ var slashCommands = []*discordgo.ApplicationCommand{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "question",
 				Description: "Your question to the 8 Ball",
+				Required:    true,
+			},
+		},
+	},
+	{
+		Name:        "avatar",
+		Description: "Check the full-sized avatar of an user",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionUser,
+				Name:        "user",
+				Description: "The discord user",
 				Required:    true,
 			},
 		},
@@ -55,6 +69,7 @@ var slashCommands = []*discordgo.ApplicationCommand{
 var slashHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 	"help":      answerHelp,
 	"8ball":     answer8ball,
+	"avatar":    answerAvatar,
 	"strongbox": answerStrongbox,
 }
 
@@ -104,6 +119,11 @@ func answer8ball(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	response := fmt.Sprintf("%s asked: %s\nThe 8 Ball says...\n'%s'",
 		interactionUser(ic).Mention(), question, eightball.Response())
 	textRespond(ds, ic, response)
+}
+
+func answerAvatar(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	user := ic.ApplicationCommandData().Options[0].UserValue(ds)
+	textRespond(ds, ic, user.AvatarURL(avatarTargetSize))
 }
 
 func answerHelp(ds *discordgo.Session, ic *discordgo.InteractionCreate) {

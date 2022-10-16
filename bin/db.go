@@ -28,6 +28,7 @@ func initDB() {
 func createTables(db *sqlx.DB) {
 	createTableDailyCheckInReminder(db)
 	createTableParametricReminder(db)
+	createTablePlayStoreReminder(db)
 	createTableSimpleCommand(db)
 	createTableSpammableChannel(db)
 }
@@ -46,6 +47,15 @@ func createTableParametricReminder(db *sqlx.DB) {
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
 	}, db)
 	createIndex("ParametricReminder", "LastReminder", db)
+}
+
+func createTablePlayStoreReminder(db *sqlx.DB) {
+	createTable("PlayStoreReminder", []string{
+		"DiscordUserID VARCHAR(18) UNIQUE NOT NULL",
+		"LastReminder TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL",
+		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+	}, db)
+	createIndex("PlayStoreReminder", "LastReminder", db)
 }
 
 func createTableSimpleCommand(db *sqlx.DB) {
@@ -158,6 +168,24 @@ func (s genshinDataStore) removeParametricReminder(userID string) error {
 func (s genshinDataStore) allParametricReminderUserIDsToBeReminded() ([]string, error) {
 	var userIDs []string
 	err := s.db.Select(&userIDs, `SELECT DiscordUserID FROM ParametricReminder WHERE LastReminder <= datetime('now', '-7 days')`)
+	return userIDs, err
+}
+
+func (s genshinDataStore) addOrUpdatePlayStoreReminder(userID string) error {
+	_, err := s.db.Exec(`INSERT OR REPLACE INTO PlayStoreReminder (DiscordUserID, LastReminder) VALUES (?, CURRENT_TIMESTAMP)`,
+		userID)
+	return err
+}
+
+func (s genshinDataStore) removePlayStoreReminder(userID string) error {
+	_, err := s.db.Exec(`DELETE FROM PlayStoreReminder WHERE DiscordUserID = ?`,
+		userID)
+	return err
+}
+
+func (s genshinDataStore) allPlayStoreReminderUserIDsToBeReminded() ([]string, error) {
+	var userIDs []string
+	err := s.db.Select(&userIDs, `SELECT DiscordUserID FROM PlayStoreReminder WHERE LastReminder <= datetime('now', '-7 days')`)
 	return userIDs, err
 }
 

@@ -65,6 +65,8 @@ var commands = map[string]command{
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
 	"!parametrictransformer":     answerParametricTransformer,
 	"!parametrictransformerstop": answerParametricTransformerStop,
+	"!playstore":                 answerPlayStore,
+	"!playstorestop":             answerPlayStoreStop,
 	"!randomabysslineup":         notSpammable(answerRandomAbyssLineup),
 	"!randomartifact":            notSpammable(answerRandomArtifact),
 	"!randomartifactset":         notSpammable(answerRandomArtifactSet),
@@ -218,6 +220,24 @@ func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCre
 func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := stopParametricReminder(ds, mc, ctx)
 	notifyIfErr("answerParametricTransformerStop", err, ds)
+	if err == nil {
+		_, err = ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
+	}
+	return err == nil
+}
+
+func answerPlayStore(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := startPlayStoreReminder(ds, mc, ctx)
+	notifyIfErr("answerPlayStore", err, ds)
+	if err == nil {
+		_, err = ds.ChannelMessageSend(mc.ChannelID, "I will remind you about the PlayStore in 7 days!")
+	}
+	return err == nil
+}
+
+func answerPlayStoreStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := stopPlayStoreReminder(ds, mc, ctx)
+	notifyIfErr("answerPlayStoreStop", err, ds)
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
 	}

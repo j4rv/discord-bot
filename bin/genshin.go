@@ -14,6 +14,8 @@ const dailyCheckInReminderCRON = "CRON_TZ=Asia/Shanghai 0 0 * * *"
 const dailyCheckInReminderMessage = "Remember to do the Daily Check-In! https://webstatic-sea.mihoyo.com/ys/event/signin-sea/index.html?act_id=e202102251931481"
 const parametricReminderCRON = "0 * * * *"
 const parametricReminderMessage = "Remember to use the Parametric Transformer!\nI will remind you again in 7 days."
+const playStoreReminderCRON = "0 * * * *"
+const playStoreReminderMessage = "Remember to get the weekly Play Store prize!\nI will remind you again in 7 days."
 const genshinTeamSize = 4
 
 func initGenshinCRONs(ds *discordgo.Session) {
@@ -31,6 +33,14 @@ func initGenshinCRONs(ds *discordgo.Session) {
 		notifyIfErr("AddFunc to parametricCRON", err, ds)
 	} else {
 		parametricCRON.Start()
+	}
+
+	playStoreCRON := cron.New()
+	_, err = playStoreCRON.AddFunc(playStoreReminderCRON, playStoreCRONFunc(ds))
+	if err != nil {
+		notifyIfErr("AddFunc to playStoreCRON", err, ds)
+	} else {
+		playStoreCRON.Start()
 	}
 }
 
@@ -62,6 +72,21 @@ func parametricCRONFunc(ds *discordgo.Session) func() {
 	}
 }
 
+func playStoreCRONFunc(ds *discordgo.Session) func() {
+	return func() {
+		userIDs, err := genshinDS.allPlayStoreReminderUserIDsToBeReminded()
+		notifyIfErr("allPlayStoreReminderUserIDsToBeReminded", err, ds)
+		if len(userIDs) > 0 {
+			log.Printf("Reminding %d users to get the Play Store prize", len(userIDs))
+			for _, userID := range userIDs {
+				userMessageSend(userID, playStoreReminderMessage, ds)
+				err := genshinDS.addOrUpdatePlayStoreReminder(userID)
+				notifyIfErr("addOrUpdatePlayStoreReminder", err, ds)
+			}
+		}
+	}
+}
+
 func startDailyCheckInReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
 	return genshinDS.addDailyCheckInReminder(mc.Author.ID)
 }
@@ -76,6 +101,14 @@ func startParametricReminder(ds *discordgo.Session, mc *discordgo.MessageCreate,
 
 func stopParametricReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
 	return genshinDS.removeParametricReminder(mc.Author.ID)
+}
+
+func startPlayStoreReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
+	return genshinDS.addOrUpdatePlayStoreReminder(mc.Author.ID)
+}
+
+func stopPlayStoreReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
+	return genshinDS.removePlayStoreReminder(mc.Author.ID)
 }
 
 // chars must have either 0 or 8+ elements

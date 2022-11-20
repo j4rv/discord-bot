@@ -33,7 +33,7 @@ var slashCommands = []*discordgo.ApplicationCommand{
 	},
 	{
 		Name:        "avatar",
-		Description: "Check the full-sized avatar of an user",
+		Description: "Check the full-sized avatar of a user",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionUser,

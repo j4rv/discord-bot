@@ -136,13 +136,22 @@ func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx contex
 
 func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	timeoutRole, err := guildRoleByName(ds, mc.GuildID, timeoutRoleName)
-	notifyIfErr("answerDon", err, ds)
+	notifyIfErr("answerDon, couldn't get timeoutRole", err, ds)
 	if err != nil {
 		return false
 	}
-	// FIXME: check if the user has the role already
+	
+	hasRoleAlready, err := isMemberInRole(mc.Member, timeoutRole.ID)
+	if err != nil {
+		return false
+	}
+	if hasRoleAlready {
+		ds.ChannelMessageSend(mc.ChannelID, "Stay Realmed scum")
+		return false
+	}
+	
 	err = ds.GuildMemberRoleAdd(mc.GuildID, mc.Author.ID, timeoutRole.ID)
-	notifyIfErr("answerDon", err, ds)
+	notifyIfErr("answerDon, couldn't add timeoutRole", err, ds)
 	if err != nil {
 		return false
 	}

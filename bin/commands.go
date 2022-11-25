@@ -23,6 +23,7 @@ const commandWithTwoArgumentsError = "Something went wrong, please make sure to 
 const commandWithMentionError = "Something went wrong, please make sure that the command has an user mention"
 
 const roleEveryone = "@everyone"
+const globalGuildID = ""
 
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithOneArgument = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))`)
@@ -81,15 +82,17 @@ var commands = map[string]command{
 	"!shoot":  notSpammable(answerShoot),
 	"!pp":     notSpammable(answerPP),
 	// only available for the bot owner
-	"!roleids":         adminOnly(answerRoleIDs),
-	"!addcommand":      adminOnly(answerAddCommand),
-	"!removecommand":   adminOnly(answerRemoveCommand),
-	"!listcommands":    adminOnly(answerListCommands),
-	"!allowspamming":   adminOnly(answerAllowSpamming),
-	"!preventspamming": adminOnly(answerPreventSpamming),
-	"!reboot":          adminOnly(answerReboot),
-	"!shutdown":        adminOnly(answerShutdown),
-	"!abortshutdown":   adminOnly(answerAbortShutdown),
+	"!roleids":             adminOnly(answerRoleIDs),
+	"!addcommand":          adminOnly(answerAddCommand),
+	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
+	"!removecommand":       adminOnly(answerRemoveCommand),
+	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
+	"!listcommands":        adminOnly(answerListCommands),
+	"!allowspamming":       adminOnly(answerAllowSpamming),
+	"!preventspamming":     adminOnly(answerPreventSpamming),
+	"!reboot":              adminOnly(answerReboot),
+	"!shutdown":            adminOnly(answerShutdown),
+	"!abortshutdown":       adminOnly(answerAbortShutdown),
 }
 
 func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullCommand string, ctx context.Context) {
@@ -102,7 +105,7 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 		return
 	}
 
-	response, err := commandDS.simpleCommandResponse(commandKey)
+	response, err := commandDS.simpleCommandResponse(commandKey, mc.GuildID)
 	notifyIfErr("simpleCommandResponse", err, ds)
 	if err == nil {
 		if notSpammable(simpleTextResponse(response))(ds, mc, ctx) {
@@ -140,7 +143,7 @@ func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.C
 	if err != nil {
 		return false
 	}
-	
+
 	hasRoleAlready, err := isMemberInRole(mc.Member, timeoutRole.ID)
 	if err != nil {
 		return false
@@ -149,7 +152,7 @@ func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.C
 		ds.ChannelMessageSend(mc.ChannelID, "Stay Realmed scum")
 		return false
 	}
-	
+
 	err = ds.GuildMemberRoleAdd(mc.GuildID, mc.Author.ID, timeoutRole.ID)
 	notifyIfErr("answerDon, couldn't add timeoutRole", err, ds)
 	if err != nil {
@@ -404,8 +407,25 @@ func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 		return false
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
-	err := commandDS.addSimpleCommand(key, response)
+	err := commandDS.addSimpleCommand(key, response, mc.GuildID)
 	notifyIfErr("addSimpleCommand", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
+	}
+	return err == nil
+}
+
+func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	// FIXME: Reduce duplicate code
+	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
+	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
+	if key == "" {
+		ds.ChannelMessageSend(mc.ChannelID, errorMessage("Could not get the key from the command body"))
+		return false
+	}
+	response := commandPrefixRegex.ReplaceAllString(commandBody, globalGuildID)
+	err := commandDS.addSimpleCommand(key, response, "")
+	notifyIfErr("addGlobalCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
@@ -414,7 +434,7 @@ func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 
 func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
-	err := commandDS.removeSimpleCommand(commandBody)
+	err := commandDS.removeSimpleCommand(commandBody, mc.GuildID)
 	notifyIfErr("removeSimpleCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
@@ -422,8 +442,18 @@ func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 	return err == nil
 }
 
+func answerRemoveGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	err := commandDS.removeSimpleCommand(commandBody, globalGuildID)
+	notifyIfErr("removeGlobalCommand", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
+	}
+	return err == nil
+}
+
 func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	keys, err := commandDS.allSimpleCommandKeys()
+	keys, err := commandDS.allSimpleCommandKeys(mc.GuildID)
 	notifyIfErr("removeSimpleCommand", err, ds)
 	if len(keys) != 0 {
 		ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Current commands: %v", keys))

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -14,6 +15,8 @@ const dbFilename = "db.sqlite"
 
 var genshinDS genshinDataStore
 var commandDS commandDataStore
+
+var errZeroRowsAffected = errors.New("zero rows were affected")
 
 func initDB() {
 	db := sqlx.MustOpen("sqlite3", dbFilename)
@@ -62,6 +65,7 @@ func createTableSimpleCommand(db *sqlx.DB) {
 	createTable("SimpleCommand", []string{
 		"Key VARCHAR(36) UNIQUE NOT NULL COLLATE NOCASE",
 		"Response TEXT NOT NULL",
+		"GuildID VARCHAR(18) NOT NULL DEFAULT ''",
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
 	}, db)
 	createIndex("SimpleCommand", "Key", db)
@@ -81,30 +85,38 @@ type commandDataStore struct {
 	db *sqlx.DB
 }
 
-func (c commandDataStore) addSimpleCommand(key, response string) error {
-	_, err := c.db.Exec(`INSERT INTO SimpleCommand (Key, Response) VALUES (?, ?)`,
-		key, response)
+func (c commandDataStore) addSimpleCommand(key, response, guildID string) error {
+	_, err := c.db.Exec(`INSERT INTO SimpleCommand (Key, Response, GuildID) VALUES (?, ?, ?)`,
+		key, response, guildID)
 	return err
 }
 
-func (c commandDataStore) removeSimpleCommand(key string) error {
-	_, err := c.db.Exec(`DELETE FROM SimpleCommand WHERE Key = ?`,
-		key)
-	return err
+func (c commandDataStore) removeSimpleCommand(key, guildID string) error {
+	res, err := c.db.Exec(`DELETE FROM SimpleCommand WHERE Key = ? AND GuildID = ?`,
+		key, guildID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err == nil && rowsAffected == 0 {
+		return errZeroRowsAffected
+	}
+	return nil
 }
 
-func (c commandDataStore) simpleCommandResponse(key string) (string, error) {
+func (c commandDataStore) simpleCommandResponse(key, guildID string) (string, error) {
 	var response []string
-	err := c.db.Select(&response, `SELECT Response FROM SimpleCommand WHERE Key = ? COLLATE NOCASE`, key)
+	err := c.db.Select(&response, `SELECT Response FROM SimpleCommand WHERE Key = ? AND (GuildID = ? OR GuildID = '') COLLATE NOCASE`,
+		key, guildID)
 	if len(response) == 0 {
 		return "", err
 	}
 	return response[0], err
 }
 
-func (c commandDataStore) allSimpleCommandKeys() ([]string, error) {
+func (c commandDataStore) allSimpleCommandKeys(guildID string) ([]string, error) {
 	var keys []string
-	err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand`)
+	err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ? OR GuildID = ''`, guildID)
 	return keys, err
 }
 

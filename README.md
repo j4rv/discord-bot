@@ -20,7 +20,6 @@ env CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ CGO_ENABLED=1 GOOS=li
 ### Public
 
 - **!source**: Links to the bot's source code
-- **!ayayaify [message]**: Ayayaifies your message
 - **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed
 - **!roll [99]**: Rolls a dice with the specified sides amount
 - **!8ball [question]**: Ask the 8ball

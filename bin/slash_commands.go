@@ -136,7 +136,6 @@ func answerHelp(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 
 const helpResponse = `Available commands:
 - **!source**: Links to the bot's source code
-- **!ayayaify [message]**: Ayayaifies your message
 - **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed (beta)
 - **!roll [99]**: Rolls a dice with the specified sides amount
 - **!genshinDailyCheckIn**: Will remind you to do the Genshin Daily Check-In

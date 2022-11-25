@@ -72,7 +72,6 @@ var commands = map[string]command{
 	"!randomartifact":            notSpammable(answerRandomArtifact),
 	"!randomartifactset":         notSpammable(answerRandomArtifactSet),
 	"!randomdomainrun":           notSpammable(answerRandomDomainRun),
-	"!ayayaify":                  notSpammable(answerAyayaify),
 	"!remindme":                  notSpammable(answerRemindme),
 	"!roll":                      notSpammable(answerRoll),
 	// hidden or easter eggs
@@ -210,14 +209,6 @@ func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.Message
 		_, err := ds.ChannelMessageSend(mc.ChannelID, body)
 		return err == nil
 	}
-}
-
-func answerAyayaify(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	bodyToAyayaify := strings.Replace(mc.Content, "!ayayaify ", "", 1)
-	bodyToAyayaify = strings.ReplaceAll(bodyToAyayaify, "A", "AYAYA")
-	bodyToAyayaify = strings.ReplaceAll(bodyToAyayaify, "a", "ayaya")
-	_, err := ds.ChannelMessageSend(mc.ChannelID, bodyToAyayaify)
-	return err == nil
 }
 
 func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

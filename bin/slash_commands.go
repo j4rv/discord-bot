@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/lib/eightball"
@@ -10,7 +12,7 @@ import (
 )
 
 var strongboxMinAmount = 1.0
-var strongboxMaxAmount = 10.0
+var strongboxMaxAmount = 64.0
 
 const avatarTargetSize = "1024"
 
@@ -112,6 +114,23 @@ func textRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, textRes
 	notifyIfErr("textRespond", err, ds)
 }
 
+func fileRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, messageContent, fileName, fileData string) {
+	err := ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: messageContent,
+			Files: []*discordgo.File{
+				{
+					ContentType: "text/plain",
+					Name:        fileName,
+					Reader:      strings.NewReader(fileData),
+				},
+			},
+		},
+	})
+	notifyIfErr("fileRespond", err, ds)
+}
+
 // -----------------------------------------------------
 
 func answer8ball(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
@@ -174,12 +193,19 @@ func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	set := ic.ApplicationCommandData().Options[0].StringValue()
 	amount := int(ic.ApplicationCommandData().Options[1].IntValue())
 
-	response := fmt.Sprintf("%s is Strongboxing %d %s artifacts:\n", interactionUser(ic).Mention(), amount, set)
-
+	message := fmt.Sprintf("%s is Strongboxing %d %s artifacts:\n", interactionUser(ic).Mention(), amount, set)
+	var arts []*artis.Artifact
 	for i := 0; i < amount; i++ {
 		art := artis.RandomArtifactOfSet(set, artis.StrongboxBase4Chance)
-		response += formatGenshinArtifact(art)
+		arts = append(arts, art)
 	}
 
-	textRespond(ds, ic, response)
+	good, err := json.Marshal(artis.ExportToGOOD(arts))
+	if err != nil {
+		notifyIfErr("answerStrongbox_jsonMarshal", err, ds)
+		textRespond(ds, ic, "Oops, error")
+		return
+	}
+
+	fileRespond(ds, ic, message, "StrongboxResult.json", string(good))
 }

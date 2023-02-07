@@ -16,6 +16,9 @@ var responses = []string{
 	"Outlook good.",
 	"Signs point to yes.",
 	"Absolutely.",
+	"I'm afraid so.",
+	"*nods*",
+	"Yes, yes, yes, yes!",
 
 	// "neutral"
 	"Reply hazy, try again.",
@@ -29,6 +32,7 @@ var responses = []string{
 	"It is fifty fifty.",
 	"I don't get paid enough to answer that.",
 	"Fuck you.",
+	"Cu... come again?",
 
 	// "no"
 	"No.",
@@ -43,6 +47,9 @@ var responses = []string{
 	"I don't think so.",
 	"The opposite of yes.",
 	"In your dreams.",
+	"Thankfully no.",
+	"How can I say this... No.",
+	"No, no, no, no!",
 }
 
 func Response() string {

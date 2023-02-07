@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/bwmarrin/discordgo v0.26.1
-	github.com/j4rv/genshinartis v0.0.0-20220904214835-f0425c7c0fcb
+	github.com/j4rv/genshinartis v0.0.0-20221114130344-c3f8ebe95511
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/mattn/go-sqlite3 v1.14.10
 	github.com/robfig/cron/v3 v3.0.1

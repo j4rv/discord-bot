@@ -63,10 +63,11 @@ func createTablePlayStoreReminder(db *sqlx.DB) {
 
 func createTableSimpleCommand(db *sqlx.DB) {
 	createTable("SimpleCommand", []string{
-		"Key VARCHAR(36) UNIQUE NOT NULL COLLATE NOCASE",
+		"Key VARCHAR(36) NOT NULL COLLATE NOCASE",
 		"Response TEXT NOT NULL",
 		"GuildID VARCHAR(18) NOT NULL DEFAULT ''",
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+		"UNIQUE(Key, GuildID)",
 	}, db)
 	createIndex("SimpleCommand", "Key", db)
 }

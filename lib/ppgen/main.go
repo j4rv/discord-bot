@@ -21,12 +21,11 @@ var leftPPHeads = map[string]int{
 }
 
 var leftPPBalls = map[string]int{
-	"8":   100,
-	"3":   80,
-	"B":   60,
-	"(;)": 20,
-	"}":   10,
-	"]":   10,
+	"8": 100,
+	"3": 80,
+	"B": 60,
+	"}": 10,
+	"]": 10,
 }
 
 var rightPPHeads = map[string]int{

@@ -52,9 +52,8 @@ var slashCommands = []*discordgo.ApplicationCommand{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "set",
-				Description: "The artifact set name",
+				Description: "The artifact set name in GOOD format (See: https://frzyc.github.io/genshin-optimizer/#/doc/ArtifactSetKey)",
 				Required:    true,
-				Choices:     genshinSetChoices(),
 			},
 			{
 				Type:        discordgo.ApplicationCommandOptionInteger,

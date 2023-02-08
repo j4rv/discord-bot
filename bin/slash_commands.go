@@ -52,7 +52,7 @@ var slashCommands = []*discordgo.ApplicationCommand{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "set",
-				Description: "The artifact set name in GOOD format (See: https://frzyc.github.io/genshin-optimizer/#/doc/ArtifactSetKey)",
+				Description: "The artifact set name in GOOD format (Like 'GladiatorsFinale')",
 				Required:    true,
 			},
 			{
@@ -176,17 +176,6 @@ Admin only:
 - **!shutdown** [99h 99m 99s]: Shuts down the bot's system
 - **!abortShutdown**: Aborts the bot's system shutdown
 `
-
-func genshinSetChoices() []*discordgo.ApplicationCommandOptionChoice {
-	choices := make([]*discordgo.ApplicationCommandOptionChoice, len(artis.AllArtifactSets))
-	for i, set := range artis.AllArtifactSets {
-		choices[i] = &discordgo.ApplicationCommandOptionChoice{
-			Name:  string(set),
-			Value: set,
-		}
-	}
-	return choices
-}
 
 func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	set := ic.ApplicationCommandData().Options[0].StringValue()

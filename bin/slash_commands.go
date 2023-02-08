@@ -87,7 +87,8 @@ func initSlashCommands(ds *discordgo.Session) func() {
 		log.Println("Registering command:", slashCommand.Name)
 		cmd, err := ds.ApplicationCommandCreate(ds.State.User.ID, "", slashCommand)
 		if err != nil {
-			log.Panicf("Cannot create '%v' command: %v", slashCommand.Name, err)
+			notifyIfErr("Creating command: "+slashCommand.Name, err, ds)
+			log.Printf("Cannot create '%v' command: %v", slashCommand.Name, err)
 		}
 		registeredCommands[i] = cmd
 	}
@@ -97,7 +98,8 @@ func initSlashCommands(ds *discordgo.Session) func() {
 		for _, v := range registeredCommands {
 			err := ds.ApplicationCommandDelete(ds.State.User.ID, "", v.ID)
 			if err != nil {
-				log.Panicf("Cannot delete '%v' command: %v", v.Name, err)
+				notifyIfErr("Deleting command: "+v.Name, err, ds)
+				log.Printf("Cannot delete '%v' command: %v", v.Name, err)
 			}
 		}
 	}

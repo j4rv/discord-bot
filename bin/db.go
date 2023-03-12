@@ -13,6 +13,7 @@ import (
 
 const dbFilename = "db.sqlite"
 
+var moddingDS moddingDataStore
 var genshinDS genshinDataStore
 var commandDS commandDataStore
 
@@ -26,6 +27,7 @@ func initDB() {
 	createTables(db)
 	genshinDS = genshinDataStore{db}
 	commandDS = commandDataStore{db}
+	moddingDS = moddingDataStore{db}
 }
 
 func createTables(db *sqlx.DB) {
@@ -34,6 +36,7 @@ func createTables(db *sqlx.DB) {
 	createTablePlayStoreReminder(db)
 	createTableSimpleCommand(db)
 	createTableSpammableChannel(db)
+	createTableUserWarning(db)
 }
 
 func createTableDailyCheckInReminder(db *sqlx.DB) {
@@ -78,6 +81,17 @@ func createTableSpammableChannel(db *sqlx.DB) {
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
 	}, db)
 	createIndex("SpammableChannel", "ChannelID", db)
+}
+
+func createTableUserWarning(db *sqlx.DB) {
+	createTable("UserWarning", []string{
+		"DiscordUserID VARCHAR(18) NOT NULL",
+		"WarnedByID VARCHAR(18) NOT NULL", // admin that sent the warning
+		"GuildID VARCHAR(18) NOT NULL",
+		"Reason VARCHAR(320) NOT NULL",
+		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+	}, db)
+	createIndex("UserWarning", "DiscordUserID", db)
 }
 
 // commands
@@ -200,6 +214,25 @@ func (s genshinDataStore) allPlayStoreReminderUserIDsToBeReminded() ([]string, e
 	var userIDs []string
 	err := s.db.Select(&userIDs, `SELECT DiscordUserID FROM PlayStoreReminder WHERE LastReminder <= datetime('now', '-7 days')`)
 	return userIDs, err
+}
+
+// modding
+
+type moddingDataStore struct {
+	db *sqlx.DB
+}
+
+func (s moddingDataStore) WarnUser(userID, adminID, guildID, reason string) error {
+	_, err := s.db.Exec(`INSERT OR REPLACE INTO UserWarning (DiscordUserID, WarnedByID, GuildID, Reason, CreatedAt) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+		userID, adminID, guildID, reason)
+	return err
+}
+
+func (s moddingDataStore) UserWarnings(userID, guildID string) ([]UserWarning, error) {
+	warnings := []UserWarning{}
+	err := s.db.Select(&warnings, `SELECT * FROM UserWarning WHERE DiscordUserID = ? AND GuildID = ?`,
+		userID, guildID)
+	return warnings, err
 }
 
 // methods for repetitive stuff

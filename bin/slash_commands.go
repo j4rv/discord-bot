@@ -13,8 +13,12 @@ import (
 
 var strongboxMinAmount = 1.0
 var strongboxMaxAmount = 64.0
+var warnMessageMinLength = 1
+var warnMessageMaxLength = 320
 
 const avatarTargetSize = "1024"
+
+var moderatorMemberPermissions int64 = discordgo.PermissionBanMembers
 
 var slashCommands = []*discordgo.ApplicationCommand{
 	{
@@ -65,6 +69,40 @@ var slashCommands = []*discordgo.ApplicationCommand{
 			},
 		},
 	},
+	{
+		Name:                     "warn",
+		DefaultMemberPermissions: &moderatorMemberPermissions,
+		Description:              "Warn a user (mods only)",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionUser,
+				Name:        "user",
+				Description: "The user you want to warn",
+				Required:    true,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "reason",
+				Description: "The reason for the warning",
+				Required:    true,
+				MinLength:   &(warnMessageMinLength),
+				MaxLength:   warnMessageMaxLength,
+			},
+		},
+	},
+	{
+		Name:                     "warnings",
+		DefaultMemberPermissions: &moderatorMemberPermissions,
+		Description:              "Check the warnings for a user (mods only)",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionUser,
+				Name:        "user",
+				Description: "The user",
+				Required:    true,
+			},
+		},
+	},
 }
 
 var slashHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -72,6 +110,8 @@ var slashHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interacti
 	"8ball":     answer8ball,
 	"avatar":    answerAvatar,
 	"strongbox": answerStrongbox,
+	"warn":      answerWarn,
+	"warnings":  answerWarnings,
 }
 
 // initSlashCommands returns a function to remove the registered slash commands for graceful shutdowns
@@ -87,7 +127,8 @@ func initSlashCommands(ds *discordgo.Session) func() {
 		log.Println("Registering command:", slashCommand.Name)
 		cmd, err := ds.ApplicationCommandCreate(ds.State.User.ID, "", slashCommand)
 		if err != nil {
-			log.Panicf("Cannot create '%v' command: %v", slashCommand.Name, err)
+			notifyIfErr("Creating command: "+slashCommand.Name, err, ds)
+			log.Printf("Cannot create '%v' command: %v", slashCommand.Name, err)
 		}
 		registeredCommands[i] = cmd
 	}
@@ -97,7 +138,8 @@ func initSlashCommands(ds *discordgo.Session) func() {
 		for _, v := range registeredCommands {
 			err := ds.ApplicationCommandDelete(ds.State.User.ID, "", v.ID)
 			if err != nil {
-				log.Panicf("Cannot delete '%v' command: %v", v.Name, err)
+				notifyIfErr("Deleting command: "+v.Name, err, ds)
+				log.Printf("Cannot delete '%v' command: %v", v.Name, err)
 			}
 		}
 	}
@@ -149,6 +191,51 @@ func answerHelp(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 		textRespond(ds, ic, helpResponse)
 	} else {
 		textRespond(ds, ic, helpResponseAdmin)
+	}
+}
+
+func answerWarn(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	g, err := ds.State.Guild(ic.GuildID)
+	if err != nil {
+		textRespond(ds, ic, "Couldn't get the Guild's name :(")
+		return
+	}
+
+	user := ic.ApplicationCommandData().Options[0].UserValue(ds)
+	message := ic.ApplicationCommandData().Options[1].StringValue()
+	err = moddingDS.WarnUser(user.ID, interactionUser(ic).ID, ic.GuildID, message)
+	if err != nil {
+		textRespond(ds, ic, "There was an error storing the warning: "+err.Error())
+		return
+	}
+
+	formattedWarningMessage := fmt.Sprintf("**You have been warned in %s server** for the following reason:\n*%s*", g.Name, message)
+	_, err = userMessageSend(user.ID, formattedWarningMessage, ds)
+	if err != nil {
+		textRespond(ds, ic, "Warning recorded, but couldn't send the warning to the user: "+err.Error())
+		return
+	}
+
+	textRespond(ds, ic, fmt.Sprintf("The user %s#%s has been warned. Reason: '%s'", user.Username, user.Discriminator, message))
+}
+
+func answerWarnings(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	user := ic.ApplicationCommandData().Options[0].UserValue(ds)
+	warnings, err := moddingDS.UserWarnings(user.ID, ic.GuildID)
+	if err != nil {
+		textRespond(ds, ic, "Couldn't get the user warnings: "+err.Error())
+		return
+	}
+
+	responseMsg := fmt.Sprintf("%s has been warned %d times:\n", user.Mention(), len(warnings))
+	for _, warning := range warnings {
+		responseMsg += warning.ShortString() + "\n"
+	}
+
+	if len(responseMsg) < discordMaxMessageLength {
+		textRespond(ds, ic, responseMsg)
+	} else {
+		fileRespond(ds, ic, "Damn that user has been warned a lot", fmt.Sprintf("%s_warnings.txt", user.Username), responseMsg)
 	}
 }
 

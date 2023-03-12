@@ -18,6 +18,8 @@ import (
 var token string
 var adminID string
 
+const discordMaxMessageLength = 2000
+
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	initFlags()

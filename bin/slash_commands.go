@@ -70,6 +70,10 @@ var slashCommands = []*discordgo.ApplicationCommand{
 		},
 	},
 	{
+		Name:        "abyss_challenge",
+		Description: "Try yo beat Abyss with the result",
+	},
+	{
 		Name:                     "warn",
 		DefaultMemberPermissions: &moderatorMemberPermissions,
 		Description:              "Warn a user (mods only)",
@@ -106,12 +110,13 @@ var slashCommands = []*discordgo.ApplicationCommand{
 }
 
 var slashHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-	"help":      answerHelp,
-	"8ball":     answer8ball,
-	"avatar":    answerAvatar,
-	"strongbox": answerStrongbox,
-	"warn":      answerWarn,
-	"warnings":  answerWarnings,
+	"help":            answerHelp,
+	"8ball":           answer8ball,
+	"avatar":          answerAvatar,
+	"strongbox":       answerStrongbox,
+	"abyss_challenge": answerAbyssChallenge,
+	"warn":            answerWarn,
+	"warnings":        answerWarnings,
 }
 
 // initSlashCommands returns a function to remove the registered slash commands for graceful shutdowns
@@ -283,4 +288,8 @@ func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	}
 
 	fileRespond(ds, ic, message, "StrongboxResult.json", string(good))
+}
+
+func answerAbyssChallenge(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	textRespond(ds, ic, newAbyssChallenge())
 }

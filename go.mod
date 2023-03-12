@@ -1,7 +1,6 @@
 module github.com/j4rv/discord-bot
 
-go 1.17
-
+go 1.18
 require (
 	github.com/bwmarrin/discordgo v0.26.1
 	github.com/j4rv/genshinartis v0.0.0-20221114130344-c3f8ebe95511

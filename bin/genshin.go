@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/j4rv/discord-bot/lib/rngx"
 	"github.com/j4rv/genshinartis"
 	"github.com/robfig/cron/v3"
 )
@@ -149,12 +150,18 @@ func formatGenshinArtifact(artifact *genshinartis.Artifact) string {
 	)
 }
 
+func newAbyssChallenge() string {
+	return fmt.Sprintf("%s %s but %s", rngx.Pick(allGenshinChars()), rngx.Pick(teamTypes), rngx.Pick(handicaps))
+}
+
 func allGenshinChars() []string {
 	return []string{
 		"Albedo",
+		"Alhaitham",
 		"Aloy",
 		"Amber",
 		"Arataki Itto",
+		"Baizhu",
 		"Barbara",
 		"Beidou",
 		"Bennett",
@@ -162,6 +169,7 @@ func allGenshinChars() []string {
 		"Chongyun",
 		"Collei",
 		"Cyno",
+		"Dehya",
 		"Diluc",
 		"Diona",
 		"Dori",
@@ -176,12 +184,14 @@ func allGenshinChars() []string {
 		"Kaeya",
 		"Kamisato Ayaka",
 		"Kamisato Ayato",
+		"Kaveh",
 		"Keqing",
 		"Klee",
 		"Kujou Sara",
 		"Kuki Shinobu",
 		"Layla",
 		"Lisa",
+		"Mika",
 		"Mona",
 		"Nahida",
 		"Nilou",
@@ -208,9 +218,37 @@ func allGenshinChars() []string {
 		"Xinyan",
 		"Yae Miko",
 		"Yanfei",
+		"Yaoyao",
 		"Yelan",
 		"Yoimiya",
 		"Yun Jin",
 		"Zhongli",
 	}
+}
+
+var teamTypes = []string{
+	"Hypercarry",
+	"Vape",
+	"Melt",
+	"Freeze",
+	"Taser driver",
+	"National",
+	"Hyperbloom",
+	"Burgeon",
+	"Quicken",
+	"Physical",
+	"Monoelement",
+}
+
+var handicaps = []string{
+	"no healer/shielders (the other 3 chars)",
+	"no 5* or BP weapons (whole team)",
+	"no ER (<110%) (whole team)",
+	"no resets",
+	"only 3 characters",
+	"only 4* characters (the other 3 chars)",
+	"only 5* characters (the other 3 chars)",
+	"only males (the other 3 chars)",
+	"only females (the other 3 chars)",
+	"only 2 artifacts (whole team)",
 }

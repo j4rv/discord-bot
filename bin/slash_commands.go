@@ -8,6 +8,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/lib/eightball"
+	"github.com/j4rv/discord-bot/lib/genshinchargen"
 	artis "github.com/j4rv/genshinartis"
 )
 
@@ -70,6 +71,19 @@ var slashCommands = []*discordgo.ApplicationCommand{
 		},
 	},
 	{
+		Name:        "character",
+		Description: "Generate a Genshin Impact character",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "name",
+				Description: "The character's name",
+				Required:    true,
+				MaxLength:   20,
+			},
+		},
+	},
+	{
 		Name:        "abyss_challenge",
 		Description: "Try yo beat Abyss with the result",
 	},
@@ -114,6 +128,7 @@ var slashHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interacti
 	"8ball":           answer8ball,
 	"avatar":          answerAvatar,
 	"strongbox":       answerStrongbox,
+	"character":       answerCharacter,
 	"abyss_challenge": answerAbyssChallenge,
 	"warn":            answerWarn,
 	"warnings":        answerWarnings,
@@ -244,31 +259,6 @@ func answerWarnings(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	}
 }
 
-const helpResponse = `Available commands:
-- **!source**: Links to the bot's source code
-- **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed (beta)
-- **!roll [99]**: Rolls a dice with the specified sides amount
-- **!genshinDailyCheckIn**: Will remind you to do the Genshin Daily Check-In
-- **!genshinDailyCheckInStop**: The bot will stop reminding you to do the Genshin Daily Check-In
-- **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days. Use it again to reset the reminder
-- **!parametricTransformerStop**: The bot will stop reminding you to use the Parametric Transformer
-- **!randomAbyssLineup**: The bot will give you two random teams and some replacements. Have fun ¯\_(ツ)_/¯. Optional: Write 8+ character names separated by commas and the bot will only choose from those
-- **!randomArtifact**: Generates a random Lv20 Genshin Impact artifact
-- **!randomArtifactSet**: Generates five random Lv20 Genshin Impact artifacts
-- **!randomDomainRun (set A) (set B)**: Generates two random Lv20 Genshin Impact artifacts from the input sets
-- **!randomStrongbox (set)**: Generates three random artifacts from the input set
-`
-
-const helpResponseAdmin = helpResponse + `
-Admin only:
-- **!addCommand [!key] [response]**: Adds a simple command
-- **!removeCommand [!key]**: Removes a simple command
-- **!listCommands**: Lists all current simple commands
-- **!reboot**: Reboot the bot's system
-- **!shutdown** [99h 99m 99s]: Shuts down the bot's system
-- **!abortShutdown**: Aborts the bot's system shutdown
-`
-
 func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	set := ic.ApplicationCommandData().Options[0].StringValue()
 	amount := int(ic.ApplicationCommandData().Options[1].IntValue())
@@ -293,3 +283,33 @@ func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 func answerAbyssChallenge(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	textRespond(ds, ic, newAbyssChallenge())
 }
+
+func answerCharacter(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	name := ic.ApplicationCommandData().Options[0].StringValue()
+	textRespond(ds, ic, genshinchargen.NewChar(name).String())
+}
+
+const helpResponse = `Available commands:
+- **!source**: Links to the bot's source code
+- **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed (beta)
+- **!roll [99]**: Rolls a dice with the specified sides amount
+- **!genshinDailyCheckIn**: Will remind you to do the Genshin Daily Check-In
+- **!genshinDailyCheckInStop**: The bot will stop reminding you to do the Genshin Daily Check-In
+- **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days. Use it again to reset the reminder
+- **!parametricTransformerStop**: The bot will stop reminding you to use the Parametric Transformer
+- **!randomAbyssLineup**: The bot will give you two random teams and some replacements. Have fun ¯\_(ツ)_/¯. Optional: Write 8+ character names separated by commas and the bot will only choose from those
+- **!randomArtifact**: Generates a random Lv20 Genshin Impact artifact
+- **!randomArtifactSet**: Generates five random Lv20 Genshin Impact artifacts
+- **!randomDomainRun (set A) (set B)**: Generates two random Lv20 Genshin Impact artifacts from the input sets
+- **!randomStrongbox (set)**: Generates three random artifacts from the input set
+`
+
+const helpResponseAdmin = helpResponse + `
+Admin only:
+- **!addCommand [!key] [response]**: Adds a simple command
+- **!removeCommand [!key]**: Removes a simple command
+- **!listCommands**: Lists all current simple commands
+- **!reboot**: Reboot the bot's system
+- **!shutdown** [99h 99m 99s]: Shuts down the bot's system
+- **!abortShutdown**: Aborts the bot's system shutdown
+`

@@ -90,7 +90,7 @@ var slashCommands = []*discordgo.ApplicationCommand{
 	{
 		Name:                     "warn",
 		DefaultMemberPermissions: &moderatorMemberPermissions,
-		Description:              "Warn a user (mods only)",
+		Description:              "Warn a user (mods)",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionUser,
@@ -106,12 +106,18 @@ var slashCommands = []*discordgo.ApplicationCommand{
 				MinLength:   &(warnMessageMinLength),
 				MaxLength:   warnMessageMaxLength,
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Name:        "ping",
+				Description: "If true, the bot will DM the warned user.",
+				Required:    true,
+			},
 		},
 	},
 	{
 		Name:                     "warnings",
 		DefaultMemberPermissions: &moderatorMemberPermissions,
-		Description:              "Check the warnings for a user (mods only)",
+		Description:              "Check the warnings for a user (mods)",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionUser,
@@ -223,17 +229,20 @@ func answerWarn(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 
 	user := ic.ApplicationCommandData().Options[0].UserValue(ds)
 	message := ic.ApplicationCommandData().Options[1].StringValue()
+	ping := ic.ApplicationCommandData().Options[2].BoolValue()
 	err = moddingDS.WarnUser(user.ID, interactionUser(ic).ID, ic.GuildID, message)
 	if err != nil {
 		textRespond(ds, ic, "There was an error storing the warning: "+err.Error())
 		return
 	}
 
-	formattedWarningMessage := fmt.Sprintf("**You have been warned in %s server** for the following reason:\n*%s*", g.Name, message)
-	_, err = userMessageSend(user.ID, formattedWarningMessage, ds)
-	if err != nil {
-		textRespond(ds, ic, "Warning recorded, but couldn't send the warning to the user: "+err.Error())
-		return
+	if ping {
+		formattedWarningMessage := fmt.Sprintf("**You have been warned in %s server** for the following reason:\n*%s*", g.Name, message)
+		_, err = userMessageSend(user.ID, formattedWarningMessage, ds)
+		if err != nil {
+			textRespond(ds, ic, "Warning recorded, but couldn't send the warning to the user: "+err.Error())
+			return
+		}
 	}
 
 	textRespond(ds, ic, fmt.Sprintf("The user %s#%s has been warned. Reason: '%s'", user.Username, user.Discriminator, message))

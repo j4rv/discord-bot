@@ -23,8 +23,10 @@ var elements = NewWeightedSlice(map[string]int{
 })
 
 var rarity = NewWeightedSlice(map[string]int{
-	"5*": 10,
-	"4*": 10,
+	"6*": 1,
+	"5*": 1000,
+	"4*": 1000,
+	"3*": 1,
 })
 
 var models = NewWeightedSlice(map[string]int{
@@ -78,9 +80,9 @@ var weaknesses = NewWeightedSlice(map[string]int{
 	"has scuffed ICDs":                            8,
 	"has very long cooldowns":                     8,
 	"has shitty multipliers":                      8,
-	"his kit is circlet impact":                   8,
+	"his kit is circle impact":                    8,
 	"needs resistance to interruption to be good": 5,
-	"doesn't produce particles":                   2,
+	"doesn't create particles":                    5,
 	"can't crit":                                  2,
 })
 
@@ -100,11 +102,11 @@ func (c GeneratedCharacter) String() string {
 		c.name, c.rarity, c.element, c.role, c.model, c.scaling, c.strength, c.weakness)
 }
 
-func NewChar(name string) GeneratedCharacter {
+func NewChar(name string, seedSalt int64) GeneratedCharacter {
 	var result GeneratedCharacter
 	result.name = name
 
-	rng := rand.New(rand.NewSource(generateSeed(name)))
+	rng := rand.New(rand.NewSource(generateSeedFromName(name) + seedSalt))
 	result.element = elements.Random(rng)
 	result.rarity = rarity.Random(rng)
 	result.model = models.Random(rng)
@@ -116,7 +118,7 @@ func NewChar(name string) GeneratedCharacter {
 	return result
 }
 
-func generateSeed(name string) int64 {
+func generateSeedFromName(name string) int64 {
 	name = strings.TrimSpace(name)
 	name = strings.ToLower(name)
 	hash := sha256.New()

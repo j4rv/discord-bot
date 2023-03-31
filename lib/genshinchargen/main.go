@@ -22,20 +22,33 @@ var elements = NewWeightedSlice(map[string]int{
 	"Omni":    1,
 })
 
+var weapon = NewWeightedSlice(map[string]int{
+	"Sword":            100,
+	"Claymore":         100,
+	"Polearm":          100,
+	"Catalyst":         100,
+	"Bow":              100,
+	"Gun":              1,
+	"Scythe":           1,
+	"Brawler":          1,
+	"Whip":             1,
+	"Sword and Shield": 1,
+})
+
 var rarity = NewWeightedSlice(map[string]int{
 	"6*": 1,
-	"5*": 1000,
-	"4*": 1000,
+	"5*": 100,
+	"4*": 100,
 	"3*": 1,
 })
 
 var models = NewWeightedSlice(map[string]int{
-	"tall male":     50,
-	"tall female":   50,
-	"medium male":   100,
-	"medium female": 100,
-	"short male":    40,
-	"short female":  40,
+	"Tall male":     50,
+	"Tall female":   50,
+	"Medium male":   100,
+	"Medium female": 100,
+	"Short male":    40,
+	"Short female":  40,
 })
 
 var scaling = NewWeightedSlice(map[string]int{
@@ -54,6 +67,7 @@ var roles = NewWeightedSlice(map[string]int{
 	"Buffer":              5,
 	"Healer":              5,
 	"Shielder":            5,
+	"Phys on-field DPS":   3,
 	"Healer and shielder": 2,
 })
 
@@ -72,15 +86,15 @@ var strengths = NewWeightedSlice(map[string]int{
 })
 
 var weaknesses = NewWeightedSlice(map[string]int{
-	"extremely fragile":                           10,
 	"has energy issues":                           10,
 	"very hard to play":                           10,
 	"needs constellations to be good":             10,
 	"selfish and needs a lot of field time":       10,
+	"extremely fragile":                           8,
 	"has scuffed ICDs":                            8,
 	"has very long cooldowns":                     8,
 	"has shitty multipliers":                      8,
-	"his kit is circle impact":                    8,
+	"the kit is circle impact":                    8,
 	"needs resistance to interruption to be good": 5,
 	"doesn't create particles":                    5,
 	"can't crit":                                  2,
@@ -90,6 +104,7 @@ type GeneratedCharacter struct {
 	name     string
 	rarity   string
 	element  string
+	weapon   string
 	model    string
 	scaling  string
 	role     string
@@ -97,9 +112,9 @@ type GeneratedCharacter struct {
 	weakness string
 }
 
-func (c GeneratedCharacter) String() string {
-	return fmt.Sprintf("%s is a %s %s %s with a %s model and scales with %s, %s but %s.",
-		c.name, c.rarity, c.element, c.role, c.model, c.scaling, c.strength, c.weakness)
+func (c GeneratedCharacter) PrettyString() string {
+	return fmt.Sprintf("%s is a %s %s character.\nWeapon: %s.\nModel: %s.\nKit: %s, scales with %s, %s but %s.",
+		c.name, c.rarity, c.element, c.weapon, c.model, c.role, c.scaling, c.strength, c.weakness)
 }
 
 func NewChar(name string, seedSalt int64) GeneratedCharacter {
@@ -109,6 +124,7 @@ func NewChar(name string, seedSalt int64) GeneratedCharacter {
 	rng := rand.New(rand.NewSource(generateSeedFromName(name) + seedSalt))
 	result.element = elements.Random(rng)
 	result.rarity = rarity.Random(rng)
+	result.weapon = weapon.Random(rng)
 	result.model = models.Random(rng)
 	result.scaling = scaling.Random(rng)
 	result.role = roles.Random(rng)

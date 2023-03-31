@@ -295,7 +295,7 @@ func answerAbyssChallenge(ds *discordgo.Session, ic *discordgo.InteractionCreate
 
 func answerCharacter(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	name := ic.ApplicationCommandData().Options[0].StringValue()
-	textRespond(ds, ic, genshinchargen.NewChar(name, unixDay()).String())
+	textRespond(ds, ic, genshinchargen.NewChar(name, unixDay()).PrettyString())
 }
 
 const helpResponse = `Available commands:

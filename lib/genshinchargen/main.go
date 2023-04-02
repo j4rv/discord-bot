@@ -63,7 +63,7 @@ var scaling = NewWeightedSlice(map[string]int{
 
 var roles = NewWeightedSlice(map[string]int{
 	"On-field DPS":        10,
-	"Off-field DPS":       5,
+	"Off-field DPS":       7,
 	"Buffer":              5,
 	"Healer":              5,
 	"Shielder":            5,
@@ -81,20 +81,23 @@ var strengths = NewWeightedSlice(map[string]int{
 	"has amazing animations and visual effects": 10,
 	"can snapshot buffs":                        8,
 	"can shred resistances":                     5,
+	"can group enemies":                         5,
 	"has damage resistance buffs":               2,
 	"can shred defense":                         2,
 })
 
 var weaknesses = NewWeightedSlice(map[string]int{
-	"has energy issues":                           10,
-	"very hard to play":                           10,
-	"needs constellations to be good":             10,
-	"selfish and needs a lot of field time":       10,
+	"has energy issues":                           8,
+	"very hard to play":                           8,
+	"needs constellations to be good":             8,
+	"selfish and needs a lot of field time":       8,
 	"extremely fragile":                           8,
 	"has scuffed ICDs":                            8,
 	"has very long cooldowns":                     8,
 	"has shitty multipliers":                      8,
 	"the kit is circle impact":                    8,
+	"it's purely single target":                   8,
+	"consumes a lot of stamina to play optimally": 5,
 	"needs resistance to interruption to be good": 5,
 	"doesn't create particles":                    5,
 	"can't crit":                                  2,

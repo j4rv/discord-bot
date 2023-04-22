@@ -15,8 +15,10 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// FLAGS
 var token string
 var adminID string
+var noSlashCommands bool
 
 const discordMaxMessageLength = 2000
 
@@ -26,7 +28,11 @@ func main() {
 	initDB()
 	ds := initDiscordSession()
 	initCRONs(ds)
-	removeSlashCommands := initSlashCommands(ds)
+
+	if !noSlashCommands {
+		removeSlashCommands := initSlashCommands(ds)
+		defer removeSlashCommands()
+	}
 
 	// Wait here until CTRL-C or other term signal is received.
 	log.Println("Bot is now running. Press CTRL-C to exit.")
@@ -34,13 +40,13 @@ func main() {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-signalChan
 
-	removeSlashCommands()
 	ds.Close()
 }
 
 func initFlags() {
 	flag.StringVar(&token, "token", "", "Bot Token")
 	flag.StringVar(&adminID, "adminID", "", "The ID of the bot's admin")
+	flag.BoolVar(&noSlashCommands, "noSlashCommands", false, "The bot will not init slash commands, boots faster.")
 	flag.Parse()
 	if token == "" {
 		panic("Provide a token flag!")
@@ -61,8 +67,11 @@ func initDiscordSession() *discordgo.Session {
 
 	// Register the messageCreate func as a callback for MessageCreate events.
 	ds.AddHandler(onMessageCreated(backgroundCtx))
+	ds.AddHandler(onMessageReacted(backgroundCtx))
+	ds.AddHandler(onMessageUnreacted(backgroundCtx))
 	ds.Identify.Intents |= discordgo.IntentsGuildMessages
 	ds.Identify.Intents |= discordgo.IntentsDirectMessages
+	ds.Identify.Intents |= discordgo.IntentsGuildMessageReactions
 
 	// Open a websocket connection to Discord and begin listening.
 	err = ds.Open()
@@ -89,6 +98,18 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 		}
 
 		processCommand(ds, mc, message, ctx)
+	}
+}
+
+func onMessageReacted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageReactionAdd) {
+	return func(ds *discordgo.Session, mc *discordgo.MessageReactionAdd) {
+		log.Printf("Message reacted with %s by %s", mc.Emoji.Name, mc.UserID)
+	}
+}
+
+func onMessageUnreacted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageReactionRemove) {
+	return func(ds *discordgo.Session, mc *discordgo.MessageReactionRemove) {
+		log.Printf("Message unreacted with %s by %s", mc.Emoji.Name, mc.UserID)
 	}
 }
 

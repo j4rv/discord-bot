@@ -19,7 +19,8 @@ const playStoreReminderCRON = "0 * * * *"
 const playStoreReminderMessage = "Remember to get the weekly Play Store prize!\nI will remind you again in 7 days."
 const genshinTeamSize = 4
 
-func initGenshinCRONs(ds *discordgo.Session) {
+func initCRONs(ds *discordgo.Session) {
+	log.Println("Initiating CRONs")
 	dailyCheckInCRON := cron.New()
 	_, err := dailyCheckInCRON.AddFunc(dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))
 	if err != nil {

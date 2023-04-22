@@ -25,7 +25,7 @@ func main() {
 	initFlags()
 	initDB()
 	ds := initDiscordSession()
-	initGenshinCRONs(ds)
+	initCRONs(ds)
 	removeSlashCommands := initSlashCommands(ds)
 
 	// Wait here until CTRL-C or other term signal is received.
@@ -51,6 +51,7 @@ func initFlags() {
 }
 
 func initDiscordSession() *discordgo.Session {
+	log.Println("Initiating Discord Session")
 	ds, err := discordgo.New("Bot " + token)
 	if err != nil {
 		panic("error creating Discord session: " + err.Error())

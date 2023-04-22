@@ -4,7 +4,9 @@
 
 ## How to run:
 
-Needs Golang 1.17+
+ - Needs Golang 1.17+
+ - Windows: Needs GCC present in your path (For example https://jmeubank.github.io/tdm-gcc/)
+ - Needs CGO_ENABLED=1 (`go env -w CGO_ENABLED=1`)
 
 ```
 go run ./bin/ -token **** -adminID ****

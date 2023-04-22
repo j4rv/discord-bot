@@ -21,8 +21,8 @@ var errZeroRowsAffected = errors.New("zero rows were affected")
 
 func initDB() {
 	db := sqlx.MustOpen("sqlite3", dbFilename)
-	if db.Ping() != nil {
-		panic("DB did not answer ping")
+	if err := db.Ping(); err != nil {
+		panic("DB did not answer ping: " + err.Error())
 	}
 	createTables(db)
 	genshinDS = genshinDataStore{db}

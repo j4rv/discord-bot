@@ -171,14 +171,16 @@ func initSlashCommands(ds *discordgo.Session) func() {
 	}
 }
 
-func textRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, textResponse string) {
-	err := ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+func textRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, textResponse string) (*discordgo.InteractionResponse, error) {
+	response := &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: textResponse,
 		},
-	})
+	}
+	err := ds.InteractionRespond(ic.Interaction, response)
 	notifyIfErr("textRespond", err, ds)
+	return response, err
 }
 
 func fileRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, messageContent, fileName, fileData string) {
@@ -230,7 +232,7 @@ func answerWarn(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	user := ic.ApplicationCommandData().Options[0].UserValue(ds)
 	message := ic.ApplicationCommandData().Options[1].StringValue()
 	ping := ic.ApplicationCommandData().Options[2].BoolValue()
-	err = moddingDS.WarnUser(user.ID, interactionUser(ic).ID, ic.GuildID, message)
+	err = moddingDS.warnUser(user.ID, interactionUser(ic).ID, ic.GuildID, message)
 	if err != nil {
 		textRespond(ds, ic, "There was an error storing the warning: "+err.Error())
 		return
@@ -250,7 +252,7 @@ func answerWarn(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 
 func answerWarnings(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	user := ic.ApplicationCommandData().Options[0].UserValue(ds)
-	warnings, err := moddingDS.UserWarnings(user.ID, ic.GuildID)
+	warnings, err := moddingDS.userWarnings(user.ID, ic.GuildID)
 	if err != nil {
 		textRespond(ds, ic, "Couldn't get the user warnings: "+err.Error())
 		return

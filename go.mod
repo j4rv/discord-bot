@@ -1,8 +1,10 @@
 module github.com/j4rv/discord-bot
 
 go 1.18
+
 require (
 	github.com/bwmarrin/discordgo v0.26.1
+	github.com/enescakir/emoji v1.0.0
 	github.com/j4rv/genshinartis v0.0.0-20221114130344-c3f8ebe95511
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/mattn/go-sqlite3 v1.14.10

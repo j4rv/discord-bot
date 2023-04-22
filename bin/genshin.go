@@ -20,6 +20,7 @@ const playStoreReminderMessage = "Remember to get the weekly Play Store prize!\n
 const genshinTeamSize = 4
 
 func initCRONs(ds *discordgo.Session) {
+	// TODO: CRON that checks if a React4Role message still exists, if it doesnt, remove it from DB (once a week for example)
 	log.Println("Initiating CRONs")
 	dailyCheckInCRON := cron.New()
 	_, err := dailyCheckInCRON.AddFunc(dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))

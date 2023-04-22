@@ -24,6 +24,7 @@ const discordMaxMessageLength = 2000
 
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
+
 	initFlags()
 	initDB()
 	ds := initDiscordSession()
@@ -65,13 +66,15 @@ func initDiscordSession() *discordgo.Session {
 
 	backgroundCtx := context.Background()
 
-	// Register the messageCreate func as a callback for MessageCreate events.
 	ds.AddHandler(onMessageCreated(backgroundCtx))
 	ds.AddHandler(onMessageReacted(backgroundCtx))
 	ds.AddHandler(onMessageUnreacted(backgroundCtx))
-	ds.Identify.Intents |= discordgo.IntentsGuildMessages
-	ds.Identify.Intents |= discordgo.IntentsDirectMessages
-	ds.Identify.Intents |= discordgo.IntentsGuildMessageReactions
+
+	ds.Identify.Intents |= discordgo.IntentGuilds
+	ds.Identify.Intents |= discordgo.IntentGuildMembers
+	ds.Identify.Intents |= discordgo.IntentGuildMessages
+	ds.Identify.Intents |= discordgo.IntentGuildMessageReactions
+	ds.Identify.Intents |= discordgo.IntentDirectMessages
 
 	// Open a websocket connection to Discord and begin listening.
 	err = ds.Open()
@@ -98,18 +101,6 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 		}
 
 		processCommand(ds, mc, message, ctx)
-	}
-}
-
-func onMessageReacted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageReactionAdd) {
-	return func(ds *discordgo.Session, mc *discordgo.MessageReactionAdd) {
-		log.Printf("Message reacted with %s by %s", mc.Emoji.Name, mc.UserID)
-	}
-}
-
-func onMessageUnreacted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageReactionRemove) {
-	return func(ds *discordgo.Session, mc *discordgo.MessageReactionRemove) {
-		log.Printf("Message unreacted with %s by %s", mc.Emoji.Name, mc.UserID)
 	}
 }
 
@@ -157,13 +148,13 @@ func guildRoleByName(ds *discordgo.Session, guildID string, roleName string) (*d
 	return nil, fmt.Errorf("role with name %s not found in guild with id %s", roleName, guildID)
 }
 
-func isMemberInRole(member *discordgo.Member, roleID string) (bool, error) {
+func isMemberInRole(member *discordgo.Member, roleID string) bool {
 	for _, r := range member.Roles {
 		if r == roleID {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 // for single line strings only!
@@ -173,7 +164,7 @@ func errorMessage(body string) string {
 
 func notifyIfErr(context string, err error, ds *discordgo.Session) {
 	if err != nil {
-		msg := "[" + context + "] an error happened: " + err.Error()
+		msg := "ERROR [" + context + "]: " + err.Error()
 		log.Println(msg)
 		userMessageSend(adminID, errorMessage(msg), ds)
 	}

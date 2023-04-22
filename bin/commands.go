@@ -16,6 +16,7 @@ import (
 )
 
 const userMustBeAdminMessage = "Only the bot's admin can do that"
+const userMustBeModMessage = "Only a mod can do that"
 const commandReceivedMessage = "Gotcha!"
 const commandSuccessMessage = "Successfully donette!"
 const commandWithOneArgumentError = "Something went wrong, please make sure to use the command with the following format: '!command (...)'"
@@ -35,8 +36,26 @@ type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context)
 func adminOnly(wrapped command) command {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 		if mc.Author.ID != adminID {
-			mc.Author.Mention()
 			ds.ChannelMessageSend(mc.ChannelID, userMustBeAdminMessage)
+			return false
+		}
+		return wrapped(ds, mc, ctx)
+	}
+}
+
+func modOnly(wrapped command) command {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		if mc.Author.ID == adminID {
+			return wrapped(ds, mc, ctx)
+		}
+
+		perms, err := ds.UserChannelPermissions(mc.Author.ID, mc.ChannelID)
+		if err != nil {
+			notifyIfErr("modOnly::UserChannelPermissions", err, ds)
+			return false
+		}
+		if perms&discordgo.PermissionAdministrator == 0 {
+			ds.ChannelMessageSend(mc.ChannelID, userMustBeModMessage)
 			return false
 		}
 		return wrapped(ds, mc, ctx)
@@ -47,7 +66,7 @@ func notSpammable(wrapped command) command {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 		if mc.Author.ID != adminID {
 			channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
-			notifyIfErr("notSpammable: isChannelSpammable", err, ds)
+			notifyIfErr("notSpammable::isChannelSpammable", err, ds)
 			if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {
 				userMessageSend(mc.Author.ID, "Pls don't spam the bot commands uwu", ds)
 				ds.MessageReactionAdd(mc.ChannelID, mc.Message.ID, "❌")
@@ -80,15 +99,17 @@ var commands = map[string]command{
 	"!don":    notSpammable(answerDon),
 	"!shoot":  notSpammable(answerShoot),
 	"!pp":     notSpammable(answerPP),
+	// only available for discord mods
+	"!roleids":         modOnly(answerRoleIDs),
+	"!react4roles":     modOnly(answerMakeReact4RolesMsg),
+	"!addcommand":      modOnly(answerAddCommand),
+	"!removecommand":   modOnly(answerRemoveCommand),
+	"!allowspamming":   modOnly(answerAllowSpamming),
+	"!preventspamming": modOnly(answerPreventSpamming),
 	// only available for the bot owner
-	"!roleids":             adminOnly(answerRoleIDs),
-	"!addcommand":          adminOnly(answerAddCommand),
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
-	"!removecommand":       adminOnly(answerRemoveCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!listcommands":        adminOnly(answerListCommands),
-	"!allowspamming":       adminOnly(answerAllowSpamming),
-	"!preventspamming":     adminOnly(answerPreventSpamming),
 	"!reboot":              adminOnly(answerReboot),
 	"!shutdown":            adminOnly(answerShutdown),
 	"!abortshutdown":       adminOnly(answerAbortShutdown),
@@ -121,6 +142,13 @@ func onSuccessCommandCall(mc *discordgo.MessageCreate) {
 	}
 }
 
+func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		_, err := ds.ChannelMessageSend(mc.ChannelID, body)
+		return err == nil
+	}
+}
+
 func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	var err error
 	if mc.Author.ID == adminID {
@@ -128,67 +156,6 @@ func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	} else {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, "Hello!")
 	}
-	return err == nil
-}
-
-func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	_, err := ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%06d, you know what to do with this. ", rand.Intn(450000)))
-	return err == nil
-}
-
-func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	timeoutRole, err := guildRoleByName(ds, mc.GuildID, timeoutRoleName)
-	notifyIfErr("answerDon, couldn't get timeoutRole", err, ds)
-	if err != nil {
-		return false
-	}
-
-	hasRoleAlready, err := isMemberInRole(mc.Member, timeoutRole.ID)
-	if err != nil {
-		return false
-	}
-	if hasRoleAlready {
-		ds.ChannelMessageSend(mc.ChannelID, "Stay Realmed scum")
-		return false
-	}
-
-	err = ds.GuildMemberRoleAdd(mc.GuildID, mc.Author.ID, timeoutRole.ID)
-	notifyIfErr("answerDon, couldn't add timeoutRole", err, ds)
-	if err != nil {
-		return false
-	}
-	removeRoleAfterDuration(ds, mc.GuildID, mc.Author.ID, timeoutRole.ID, 10*time.Minute)
-	_, err = ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("To the Shadow Realm you go %s", mc.Author.Mention()))
-	return err == nil
-}
-
-func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	match := commandWithMention.FindStringSubmatch(mc.Content)
-	if match == nil || len(match) != 2 {
-		ds.ChannelMessageSend(mc.ChannelID, commandWithMentionError)
-		return false
-	}
-
-	timeoutRole, err := guildRoleByName(ds, mc.GuildID, timeoutRoleName)
-	notifyIfErr("answerShoot: get timeout role", err, ds)
-	if err != nil {
-		return false
-	}
-
-	shooter, err := ds.GuildMember(mc.GuildID, mc.Author.ID)
-	notifyIfErr("answerShoot: get shooter member", err, ds)
-	if err != nil {
-		return false
-	}
-
-	target, err := ds.GuildMember(mc.GuildID, match[1])
-	notifyIfErr("answerShoot: get target member", err, ds)
-	if err != nil {
-		return false
-	}
-
-	err = shoot(ds, mc.ChannelID, mc.GuildID, shooter, target, timeoutRole.ID)
-	notifyIfErr("answerShoot: shoot", err, ds)
 	return err == nil
 }
 
@@ -202,13 +169,6 @@ func answerPP(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Co
 	pp := ppgen.NewPenisWithSeed(seed)
 	_, err = ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%s's penis: %s", mc.Author.Mention(), pp))
 	return err == nil
-}
-
-func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool {
-	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-		_, err := ds.ChannelMessageSend(mc.ChannelID, body)
-		return err == nil
-	}
 }
 
 func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

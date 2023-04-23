@@ -13,9 +13,10 @@ import (
 
 type React4RoleMessage struct {
 	ID             int       `db:"React4RoleMessage"`
+	ChannelID      string    `db:"ChannelID"`
 	MessageID      string    `db:"MessageID"`
 	EmojiID        string    `db:"EmojiID"`
-	EmojiName      string    `db:"-"`
+	EmojiName      string    `db:"EmojiName"`
 	RoleID         string    `db:"RoleID"`
 	RequiredRoleID string    `db:"RequiredRoleID"`
 	CreatedAt      time.Time `db:"CreatedAt"`
@@ -29,11 +30,19 @@ func (r React4RoleMessage) String(roles []*discordgo.Role) string {
 
 	if r.RequiredRoleID != "" {
 		reqRole := findRoleInSlice(r.RequiredRoleID, roles)
-		return fmt.Sprintf("React to this message with %s to get the role %s (requires role %s)",
+		return fmt.Sprintf("%s for %s (requires role %s)",
 			r.FormattedEmojiString(), role.Name, reqRole.Name)
 	} else {
-		return fmt.Sprintf("React to this message with %s to get the role %s",
+		return fmt.Sprintf("%s for %s",
 			r.FormattedEmojiString(), role.Name)
+	}
+}
+
+func (r React4RoleMessage) IsMyEmoji(e discordgo.Emoji) bool {
+	if r.EmojiID == "" {
+		return r.EmojiName == e.Name
+	} else {
+		return r.EmojiID == e.ID
 	}
 }
 
@@ -47,14 +56,19 @@ func (r React4RoleMessage) FormattedEmojiString() string {
 
 func onMessageReacted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageReactionAdd) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageReactionAdd) {
-		r4rs, err := moddingDS.react4Roles(mc.MessageID)
+		// Ignore all reacts by the bot itself
+		if mc.UserID == ds.State.User.ID {
+			return
+		}
+
+		r4rs, err := moddingDS.react4Roles(mc.ChannelID, mc.MessageID)
 		if err != nil {
 			notifyIfErr("onMessageReacted::react4Roles", err, ds)
 			return
 		}
 
 		for _, r4r := range r4rs {
-			if mc.Emoji.ID == r4r.EmojiID {
+			if r4r.IsMyEmoji(mc.Emoji) {
 
 				if r4r.RequiredRoleID != "" && !isMemberInRole(mc.Member, r4r.RequiredRoleID) {
 					sendDirectMessage(mc.UserID, "You can't have that role! :<", ds)
@@ -74,13 +88,18 @@ func onMessageReacted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 
 func onMessageUnreacted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageReactionRemove) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageReactionRemove) {
-		r4rs, err := moddingDS.react4Roles(mc.MessageID)
+		// Ignore all reacts by the bot itself
+		if mc.UserID == ds.State.User.ID {
+			return
+		}
+
+		r4rs, err := moddingDS.react4Roles(mc.ChannelID, mc.MessageID)
 		if err != nil {
 			notifyIfErr("onMessageUnreacted::react4Roles", err, ds)
 			return
 		}
 		for _, r4r := range r4rs {
-			if mc.Emoji.ID == r4r.EmojiID {
+			if r4r.IsMyEmoji(mc.Emoji) {
 				action := fmt.Sprintf("Removed role %s from user %s in %s", r4r.RoleID, mc.UserID, mc.GuildID)
 				err := ds.GuildMemberRoleRemove(mc.GuildID, mc.UserID, r4r.RoleID)
 				notifyIfErr(action, err, ds)
@@ -113,9 +132,12 @@ func answerMakeReact4RolesMsg(ds *discordgo.Session, mc *discordgo.MessageCreate
 		return false
 	}
 	for i, r4r := range r4rs {
+		r4rs[i].ChannelID = response.ChannelID
 		r4rs[i].MessageID = response.ID
 		if r4r.EmojiID == "" {
-			err = ds.MessageReactionAdd(response.ChannelID, response.ID, emoji.Parse(r4r.FormattedEmojiString()))
+			parsed := emoji.Parse(r4r.FormattedEmojiString())
+			r4rs[i].EmojiName = parsed
+			err = ds.MessageReactionAdd(response.ChannelID, response.ID, parsed)
 		} else {
 			err = ds.MessageReactionAdd(response.ChannelID, response.ID, r4r.EmojiName+":"+r4r.EmojiID)
 		}
@@ -130,6 +152,26 @@ func answerMakeReact4RolesMsg(ds *discordgo.Session, mc *discordgo.MessageCreate
 	}
 
 	return err == nil
+}
+
+// CRONs
+
+func react4RolesCRONFunc(ds *discordgo.Session) func() {
+	return func() {
+		// Checks which R4Rs can be removed from DB
+		r4rs, err := moddingDS.allReact4Roles()
+		if err != nil {
+			notifyIfErr("react4RolesCRONFunc", err, ds)
+			return
+		}
+		for _, r4r := range r4rs {
+			_, err = ds.ChannelMessage(r4r.ChannelID, r4r.MessageID)
+			restErr, ok := (err).(*discordgo.RESTError)
+			if ok && restErr.Response.StatusCode == 404 {
+				moddingDS.deleteReact4Roles(r4r.ChannelID, r4r.MessageID)
+			}
+		}
+	}
 }
 
 // Internal functions
@@ -171,9 +213,9 @@ func extractReact4Roles(message string) []React4RoleMessage {
 }
 
 func buildReact4RolesMessage(r4rs []React4RoleMessage, roles []*discordgo.Role) string {
-	msg := ""
+	msg := "React to this message to get or remove roles:\n"
 	for _, r4r := range r4rs {
-		msg += r4r.String(roles) + "\n"
+		msg += "> " + r4r.String(roles) + "\n"
 	}
 	return msg
 }

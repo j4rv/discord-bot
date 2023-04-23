@@ -84,8 +84,10 @@ func createTableUserWarning(db *sqlx.DB) {
 
 func createTableReact4RoleMessage(db *sqlx.DB) {
 	createTable("React4RoleMessage", []string{
+		"ChannelID VARCHAR(20) NOT NULL",
 		"MessageID VARCHAR(20) NOT NULL",
 		"EmojiID VARCHAR(20) NOT NULL",
+		"EmojiName VARCHAR(32) NOT NULL",
 		"RoleID VARCHAR(20) NOT NULL",
 		"RequiredRoleID VARCHAR(20)",
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
@@ -236,8 +238,8 @@ func (s moddingDataStore) userWarnings(userID, guildID string) ([]UserWarning, e
 
 func (s moddingDataStore) addReact4Roles(r4rs []React4RoleMessage) error {
 	for _, r4r := range r4rs {
-		_, err := s.db.Exec(`INSERT OR REPLACE INTO React4RoleMessage (MessageID, EmojiID, RoleID, RequiredRoleID) VALUES (?, ?, ?, ?)`,
-			r4r.MessageID, r4r.EmojiID, r4r.RoleID, r4r.RequiredRoleID)
+		_, err := s.db.Exec(`INSERT OR REPLACE INTO React4RoleMessage (ChannelID, MessageID, EmojiID, EmojiName, RoleID, RequiredRoleID) VALUES (?, ?, ?, ?, ?, ?)`,
+			r4r.ChannelID, r4r.MessageID, r4r.EmojiID, r4r.EmojiName, r4r.RoleID, r4r.RequiredRoleID)
 		if err != nil {
 			return err
 		}
@@ -245,11 +247,23 @@ func (s moddingDataStore) addReact4Roles(r4rs []React4RoleMessage) error {
 	return nil
 }
 
-func (s moddingDataStore) react4Roles(messageID string) ([]React4RoleMessage, error) {
+func (s moddingDataStore) react4Roles(channelID, messageID string) ([]React4RoleMessage, error) {
 	var r4rs []React4RoleMessage
-	err := s.db.Select(&r4rs, `SELECT * FROM React4RoleMessage WHERE MessageID = ?`,
-		messageID)
+	err := s.db.Select(&r4rs, `SELECT * FROM React4RoleMessage ChannelID = ? AND WHERE MessageID = ?`,
+		channelID, messageID)
 	return r4rs, err
+}
+
+func (s moddingDataStore) allReact4Roles() ([]React4RoleMessage, error) {
+	var r4rs []React4RoleMessage
+	err := s.db.Select(&r4rs, `SELECT * FROM React4RoleMessage`)
+	return r4rs, err
+}
+
+func (s moddingDataStore) deleteReact4Roles(channelID, messageID string) error {
+	_, err := s.db.Exec(`DELETE * FROM React4RoleMessage ChannelID = ? AND WHERE MessageID = ?`,
+		channelID, messageID)
+	return err
 }
 
 // methods for repetitive stuff

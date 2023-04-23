@@ -98,7 +98,6 @@ func initDiscordSession() *discordgo.Session {
 }
 
 func initCRONs(ds *discordgo.Session) {
-	// TODO: CRON that checks if a React4Role message still exists, if it doesnt, remove it from DB (once a week for example)
 	log.Println("Initiating CRONs")
 	dailyCheckInCRON := cron.New()
 	_, err := dailyCheckInCRON.AddFunc(dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))
@@ -122,6 +121,14 @@ func initCRONs(ds *discordgo.Session) {
 		notifyIfErr("AddFunc to playStoreCRON", err, ds)
 	} else {
 		playStoreCRON.Start()
+	}
+
+	r4rsCRON := cron.New()
+	_, err = r4rsCRON.AddFunc(react4RolesCRON, react4RolesCRONFunc(ds))
+	if err != nil {
+		notifyIfErr("AddFunc to react4RolesCRON", err, ds)
+	} else {
+		r4rsCRON.Start()
 	}
 }
 

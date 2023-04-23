@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -18,61 +19,34 @@ const userMustBeAdminMessage = "Only the bot's admin can do that"
 const userMustBeModMessage = "Only a mod can do that"
 const commandReceivedMessage = "Gotcha!"
 const commandSuccessMessage = "Successfully donette!"
-const commandWithOneArgumentError = "Something went wrong, please make sure to use the command with the following format: '!command (...)'"
 const commandWithTwoArgumentsError = "Something went wrong, please make sure to use the command with the following format: '!command (...) (...)'"
 const commandWithMentionError = "Something went wrong, please make sure that the command has an user mention"
+
+var errKeyNotFoundInCommand = errors.New("could not get the key from the command body")
 
 const roleEveryone = "@everyone"
 const globalGuildID = ""
 
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
-var commandWithOneArgument = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
 var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d{18})>`)
 
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool
 
-func adminOnly(wrapped command) command {
-	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-		if mc.Author.ID != adminID {
-			ds.ChannelMessageSend(mc.ChannelID, userMustBeAdminMessage)
-			return false
-		}
-		return wrapped(ds, mc, ctx)
-	}
-}
-
-func modOnly(wrapped command) command {
-	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-		if mc.Author.ID == adminID {
-			return wrapped(ds, mc, ctx)
+func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
+		// Ignore all messages created by the bot itself
+		if mc.Author.ID == ds.State.User.ID {
+			return
 		}
 
-		perms, err := ds.UserChannelPermissions(mc.Author.ID, mc.ChannelID)
-		if err != nil {
-			notifyIfErr("modOnly::UserChannelPermissions", err, ds)
-			return false
+		// Ignore all messages that don't start with '!'
+		if len(mc.Content) == 0 || mc.Content[0] != '!' {
+			return
 		}
-		if perms&discordgo.PermissionAdministrator == 0 {
-			ds.ChannelMessageSend(mc.ChannelID, userMustBeModMessage)
-			return false
-		}
-		return wrapped(ds, mc, ctx)
-	}
-}
 
-func notSpammable(wrapped command) command {
-	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-		if mc.Author.ID != adminID {
-			channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
-			notifyIfErr("notSpammable::isChannelSpammable", err, ds)
-			if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {
-				userMessageSend(mc.Author.ID, "Pls don't spam the bot commands uwu", ds)
-				ds.MessageReactionAdd(mc.ChannelID, mc.Message.ID, "❌")
-				return false
-			}
-		}
-		return wrapped(ds, mc, ctx)
+		trimmedMsg := strings.TrimSpace(mc.Content)
+		processCommand(ds, mc, trimmedMsg, ctx)
 	}
 }
 
@@ -177,7 +151,7 @@ func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	timeToWait, reminderBody := processTimedCommand(mc.Content)
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will remind you in %v with the message '%s'", timeToWait, reminderBody))
 	time.Sleep(timeToWait)
-	userMessageSend(mc.Author.ID, reminderBody, ds)
+	sendDirectMessage(mc.Author.ID, reminderBody, ds)
 	return true
 }
 
@@ -195,6 +169,25 @@ func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.
 	result := rand.Intn(diceSides) + 1
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("You rolled a %d!", result))
 	return true
+}
+
+func answerAllowSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := commandDS.addSpammableChannel(mc.ChannelID)
+	notifyIfErr("addSpammableChannel", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
+	}
+	return err == nil
+}
+
+func answerPreventSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := commandDS.removeSpammableChannel(mc.ChannelID)
+	notifyIfErr("removeSpammableChannel", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
+	}
+	notifyIfErr("MessageReactionAdd", err, ds)
+	return err == nil
 }
 
 // ---------- Simple command stuff ----------
@@ -216,15 +209,14 @@ func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 }
 
 func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	// FIXME: Reduce duplicate code
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
 	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
 	if key == "" {
 		ds.ChannelMessageSend(mc.ChannelID, errorMessage("Could not get the key from the command body"))
 		return false
 	}
-	response := commandPrefixRegex.ReplaceAllString(commandBody, globalGuildID)
-	err := commandDS.addSimpleCommand(key, response, "")
+	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
+	err := commandDS.addSimpleCommand(key, response, globalGuildID)
 	notifyIfErr("addGlobalCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
@@ -261,25 +253,6 @@ func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	return err == nil
 }
 
-func answerAllowSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := commandDS.addSpammableChannel(mc.ChannelID)
-	notifyIfErr("addSpammableChannel", err, ds)
-	if err == nil {
-		ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
-	}
-	return err == nil
-}
-
-func answerPreventSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := commandDS.removeSpammableChannel(mc.ChannelID)
-	notifyIfErr("removeSpammableChannel", err, ds)
-	if err == nil {
-		ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
-	}
-	notifyIfErr("MessageReactionAdd", err, ds)
-	return err == nil
-}
-
 // ---------- Server commands ----------
 
 func answerReboot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
@@ -301,6 +274,43 @@ func answerAbortShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 	err := abortShutdown()
 	notifyIfErr("abortShutdown", err, ds)
 	return err == nil
+}
+
+// Command wrappers
+
+func adminOnly(wrapped command) command {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		if !isAdmin(mc.Author.ID) {
+			ds.ChannelMessageSend(mc.ChannelID, userMustBeAdminMessage)
+			return false
+		}
+		return wrapped(ds, mc, ctx)
+	}
+}
+
+func modOnly(wrapped command) command {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		if !(isAdmin(mc.Author.ID) || isMod(ds, mc.Author.ID, mc.ChannelID)) {
+			ds.ChannelMessageSend(mc.ChannelID, userMustBeModMessage)
+			return false
+		}
+		return wrapped(ds, mc, ctx)
+	}
+}
+
+func notSpammable(wrapped command) command {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		if !isAdmin(mc.Author.ID) {
+			channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
+			notifyIfErr("notSpammable::isChannelSpammable", err, ds)
+			if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {
+				sendDirectMessage(mc.Author.ID, "Pls don't spam the bot commands uwu", ds)
+				ds.MessageReactionAdd(mc.ChannelID, mc.Message.ID, "❌")
+				return false
+			}
+		}
+		return wrapped(ds, mc, ctx)
+	}
 }
 
 // ---------- Cooldowns ----------

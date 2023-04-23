@@ -1,10 +1,10 @@
-package main
+package rngx
 
 import (
 	"math/rand"
 )
 
-func extractRandomStringFromSlice(s *[]string) string {
+func ExtractRandomStringFromSlice(s *[]string) string {
 	i := int(rand.Float32() * float32(len(*s)))
 	elem := (*s)[i]
 	(*s)[i] = (*s)[len(*s)-1]

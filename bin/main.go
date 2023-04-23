@@ -3,16 +3,15 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"math/rand"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/jmoiron/sqlx"
 	"github.com/robfig/cron/v3"
 )
 
@@ -22,6 +21,7 @@ var adminID string
 var noSlashCommands bool
 
 const discordMaxMessageLength = 2000
+const dbFilename = "db.sqlite"
 
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -56,6 +56,17 @@ func initFlags() {
 	if adminID == "" {
 		log.Println("Warning: Admin user ID not set")
 	}
+}
+
+func initDB() {
+	db := sqlx.MustOpen("sqlite3", dbFilename)
+	if err := db.Ping(); err != nil {
+		panic("DB did not answer ping: " + err.Error())
+	}
+	createTables(db)
+	genshinDS = genshinDataStore{db}
+	commandDS = commandDataStore{db}
+	moddingDS = moddingDataStore{db}
 }
 
 func initDiscordSession() *discordgo.Session {
@@ -114,76 +125,35 @@ func initCRONs(ds *discordgo.Session) {
 	}
 }
 
-// React to every new message
-func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
-	return func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
-		// Ignore all messages created by the bot itself
-		if mc.Author.ID == ds.State.User.ID {
-			return
+// initSlashCommands returns a function to remove the registered slash commands for graceful shutdowns
+func initSlashCommands(ds *discordgo.Session) func() {
+	ds.AddHandler(func(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+		if h, ok := slashHandlers[ic.ApplicationCommandData().Name]; ok {
+			h(ds, ic)
 		}
+	})
 
-		message := strings.TrimSpace(mc.Content)
-
-		// Ignore all messages that don't start with '!'
-		if len(message) == 0 || message[0] != '!' {
-			return
-		}
-
-		processCommand(ds, mc, message, ctx)
-	}
-}
-
-var userChannels = map[string]*discordgo.Channel{}
-
-func getUserChannel(userID string, ds *discordgo.Session) (*discordgo.Channel, error) {
-	userChannel, ok := userChannels[userID]
-	if !ok {
-		createdChannel, err := ds.UserChannelCreate(userID)
+	registeredCommands := make([]*discordgo.ApplicationCommand, len(slashCommands))
+	for i, slashCommand := range slashCommands {
+		log.Println("Registering command:", slashCommand.Name)
+		cmd, err := ds.ApplicationCommandCreate(ds.State.User.ID, "", slashCommand)
 		if err != nil {
-			// If an error occurred, we failed to create the channel.
-			//
-			// Some common causes are:
-			// 1. We don't share a server with the user (not possible here).
-			// 2. We opened enough DM channels quickly enough for Discord to
-			//    label us as abusing the endpoint, blocking us from opening
-			//    new ones.
-			log.Println("error creating user channel:", err)
-			return nil, err
+			notifyIfErr("Creating command: "+slashCommand.Name, err, ds)
+			log.Printf("Cannot create '%v' command: %v", slashCommand.Name, err)
 		}
-		userChannels[userID] = createdChannel
-		return createdChannel, nil
+		registeredCommands[i] = cmd
 	}
-	return userChannel, nil
-}
 
-func userMessageSend(userID string, body string, ds *discordgo.Session) (*discordgo.Message, error) {
-	userChannel, err := getUserChannel(userID, ds)
-	if err != nil {
-		return nil, err
-	}
-	return ds.ChannelMessageSend(userChannel.ID, body)
-}
-
-func guildRoleByName(ds *discordgo.Session, guildID string, roleName string) (*discordgo.Role, error) {
-	roles, err := ds.GuildRoles(guildID)
-	if err != nil {
-		return nil, err
-	}
-	for _, r := range roles {
-		if r.Name == roleName {
-			return r, nil
+	return func() {
+		log.Println("Removing registered slash commands...")
+		for _, v := range registeredCommands {
+			err := ds.ApplicationCommandDelete(ds.State.User.ID, "", v.ID)
+			if err != nil {
+				notifyIfErr("Deleting command: "+v.Name, err, ds)
+				log.Printf("Cannot delete '%v' command: %v", v.Name, err)
+			}
 		}
 	}
-	return nil, fmt.Errorf("role with name %s not found in guild with id %s", roleName, guildID)
-}
-
-func isMemberInRole(member *discordgo.Member, roleID string) bool {
-	for _, r := range member.Roles {
-		if r == roleID {
-			return true
-		}
-	}
-	return false
 }
 
 // for single line strings only!
@@ -195,16 +165,6 @@ func notifyIfErr(context string, err error, ds *discordgo.Session) {
 	if err != nil {
 		msg := "ERROR [" + context + "]: " + err.Error()
 		log.Println(msg)
-		userMessageSend(adminID, errorMessage(msg), ds)
+		sendDirectMessage(adminID, errorMessage(msg), ds)
 	}
-}
-
-func interactionUser(ic *discordgo.InteractionCreate) *discordgo.User {
-	if ic.User != nil {
-		return ic.User
-	}
-	if ic.Member != nil {
-		return ic.Member.User
-	}
-	return nil
 }

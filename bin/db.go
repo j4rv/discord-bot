@@ -11,24 +11,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const dbFilename = "db.sqlite"
-
 var moddingDS moddingDataStore
 var genshinDS genshinDataStore
 var commandDS commandDataStore
 
 var errZeroRowsAffected = errors.New("zero rows were affected")
-
-func initDB() {
-	db := sqlx.MustOpen("sqlite3", dbFilename)
-	if err := db.Ping(); err != nil {
-		panic("DB did not answer ping: " + err.Error())
-	}
-	createTables(db)
-	genshinDS = genshinDataStore{db}
-	commandDS = commandDataStore{db}
-	moddingDS = moddingDataStore{db}
-}
 
 func createTables(db *sqlx.DB) {
 	createTableDailyCheckInReminder(db)
@@ -234,9 +221,9 @@ type moddingDataStore struct {
 	db *sqlx.DB
 }
 
-func (s moddingDataStore) warnUser(userID, adminID, guildID, reason string) error {
+func (s moddingDataStore) warnUser(userID, modID, guildID, reason string) error {
 	_, err := s.db.Exec(`INSERT OR REPLACE INTO UserWarning (DiscordUserID, WarnedByID, GuildID, Reason, CreatedAt) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-		userID, adminID, guildID, reason)
+		userID, modID, guildID, reason)
 	return err
 }
 

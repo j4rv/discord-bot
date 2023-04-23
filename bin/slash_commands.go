@@ -1,15 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/lib/eightball"
-	"github.com/j4rv/discord-bot/lib/genshinchargen"
-	artis "github.com/j4rv/genshinartis"
 )
 
 var strongboxMinAmount = 1.0
@@ -140,37 +136,6 @@ var slashHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interacti
 	"warnings":        answerWarnings,
 }
 
-// initSlashCommands returns a function to remove the registered slash commands for graceful shutdowns
-func initSlashCommands(ds *discordgo.Session) func() {
-	ds.AddHandler(func(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-		if h, ok := slashHandlers[ic.ApplicationCommandData().Name]; ok {
-			h(ds, ic)
-		}
-	})
-
-	registeredCommands := make([]*discordgo.ApplicationCommand, len(slashCommands))
-	for i, slashCommand := range slashCommands {
-		log.Println("Registering command:", slashCommand.Name)
-		cmd, err := ds.ApplicationCommandCreate(ds.State.User.ID, "", slashCommand)
-		if err != nil {
-			notifyIfErr("Creating command: "+slashCommand.Name, err, ds)
-			log.Printf("Cannot create '%v' command: %v", slashCommand.Name, err)
-		}
-		registeredCommands[i] = cmd
-	}
-
-	return func() {
-		log.Println("Removing registered slash commands...")
-		for _, v := range registeredCommands {
-			err := ds.ApplicationCommandDelete(ds.State.User.ID, "", v.ID)
-			if err != nil {
-				notifyIfErr("Deleting command: "+v.Name, err, ds)
-				log.Printf("Cannot delete '%v' command: %v", v.Name, err)
-			}
-		}
-	}
-}
-
 func textRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, textResponse string) (*discordgo.InteractionResponse, error) {
 	response := &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -200,13 +165,10 @@ func fileRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, message
 	notifyIfErr("fileRespond", err, ds)
 }
 
-// -----------------------------------------------------
+// Slash Command answers
 
-func answer8ball(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	question := ic.ApplicationCommandData().Options[0].StringValue()
-	response := fmt.Sprintf("%s asked: %s\nThe 8 Ball says...\n'%s'",
-		interactionUser(ic).Mention(), question, eightball.Response())
-	textRespond(ds, ic, response)
+func answerHelp(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	textRespond(ds, ic, "https://github.com/j4rv/discord-bot/wiki/Help")
 }
 
 func answerAvatar(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
@@ -214,65 +176,9 @@ func answerAvatar(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	textRespond(ds, ic, user.AvatarURL(avatarTargetSize))
 }
 
-func answerHelp(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	if interactionUser(ic).ID != adminID {
-		textRespond(ds, ic, helpResponse)
-	} else {
-		textRespond(ds, ic, helpResponseAdmin)
-	}
+func answer8ball(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	question := ic.ApplicationCommandData().Options[0].StringValue()
+	response := fmt.Sprintf("%s asked: %s\nThe 8 Ball says...\n'%s'",
+		interactionUser(ic).Mention(), question, eightball.Response())
+	textRespond(ds, ic, response)
 }
-
-func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	set := ic.ApplicationCommandData().Options[0].StringValue()
-	amount := int(ic.ApplicationCommandData().Options[1].IntValue())
-
-	message := fmt.Sprintf("%s is Strongboxing %d %s artifacts:\n", interactionUser(ic).Mention(), amount, set)
-	var arts []*artis.Artifact
-	for i := 0; i < amount; i++ {
-		art := artis.RandomArtifactOfSet(set, artis.StrongboxBase4Chance)
-		arts = append(arts, art)
-	}
-
-	good, err := json.Marshal(artis.ExportToGOOD(arts))
-	if err != nil {
-		notifyIfErr("answerStrongbox_jsonMarshal", err, ds)
-		textRespond(ds, ic, "Oops, error")
-		return
-	}
-
-	fileRespond(ds, ic, message, "StrongboxResult.json", string(good))
-}
-
-func answerAbyssChallenge(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	textRespond(ds, ic, newAbyssChallenge())
-}
-
-func answerCharacter(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	name := ic.ApplicationCommandData().Options[0].StringValue()
-	textRespond(ds, ic, genshinchargen.NewChar(name, unixDay()).PrettyString())
-}
-
-const helpResponse = `Available commands:
-- **!source**: Links to the bot's source code
-- **!remindme [99h 99m 99s] [message]**: Reminds you of the message after the specified time has passed (beta)
-- **!roll [99]**: Rolls a dice with the specified sides amount
-- **!genshinDailyCheckIn**: Will remind you to do the Genshin Daily Check-In
-- **!genshinDailyCheckInStop**: The bot will stop reminding you to do the Genshin Daily Check-In
-- **!parametricTransformer**: Will remind you to use the Parametric Transformer every 7 days. Use it again to reset the reminder
-- **!parametricTransformerStop**: The bot will stop reminding you to use the Parametric Transformer
-- **!randomAbyssLineup**: The bot will give you two random teams and some replacements. Have fun ¯\_(ツ)_/¯. Optional: Write 8+ character names separated by commas and the bot will only choose from those
-- **!randomArtifact**: Generates a random Lv20 Genshin Impact artifact
-- **!randomArtifactSet**: Generates five random Lv20 Genshin Impact artifacts
-- **!randomDomainRun (set A) (set B)**: Generates two random Lv20 Genshin Impact artifacts from the input sets
-- **!randomStrongbox (set)**: Generates three random artifacts from the input set
-`
-
-const helpResponseAdmin = helpResponse + `
-Admin only:
-- **!addCommand [!key] [response]**: Adds a simple command
-- **!removeCommand [!key]**: Removes a simple command
-- **!listCommands**: Lists all current simple commands
-- **!reboot**: Reboot the bot's system
-- **!shutdown** [99h 99m 99s]: Shuts down the bot's system
-- **!abortShutdown**: Aborts the bot's system shutdown
-`

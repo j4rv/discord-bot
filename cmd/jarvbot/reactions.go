@@ -176,8 +176,8 @@ func react4RolesCRONFunc(ds *discordgo.Session) func() {
 
 // Internal functions
 
-var react4RoleEmoteRgx = `\(\s*<:([^:]+):(\d+)>\s+(\d+)\s*(\d+)?\s*\)`
-var react4RoleEmojiRgx = `\(\s*([a-z0-9_]+)\s+(\d+)\s*(\d+)?\s*\)`
+const react4RoleEmoteRgx = `\(\s*<:([^:]+):(\d+)>\s+(\d+)\s*(\d+)?\s*\)`
+const react4RoleEmojiRgx = `\(\s*([a-z0-9_]+)\s+(\d+)\s*(\d+)?\s*\)`
 
 func extractReact4Roles(message string) []React4RoleMessage {
 	r4rs := []React4RoleMessage{}

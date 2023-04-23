@@ -21,7 +21,6 @@ var adminID string
 var noSlashCommands bool
 
 const discordMaxMessageLength = 2000
-const dbFilename = "db.sqlite"
 
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())

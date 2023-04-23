@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/j4rv/discord-bot/lib/eightball"
+	"github.com/j4rv/discord-bot/pkg/eightball"
 )
 
 var strongboxMinAmount = 1.0

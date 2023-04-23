@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-// wip
-
 var elements = NewWeightedSlice(map[string]int{
 	"Pyro":    100,
 	"Hydro":   100,

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/j4rv/discord-bot/lib/ppgen"
+	"github.com/j4rv/discord-bot/pkg/ppgen"
 )
 
 const userMustBeAdminMessage = "Only the bot's admin can do that"

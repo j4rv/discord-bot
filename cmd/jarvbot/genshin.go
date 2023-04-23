@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/j4rv/discord-bot/lib/genshinchargen"
-	"github.com/j4rv/discord-bot/lib/rngx"
+	"github.com/j4rv/discord-bot/pkg/genshinchargen"
+	"github.com/j4rv/discord-bot/pkg/rngx"
 	artis "github.com/j4rv/genshinartis"
 )
 
@@ -266,15 +266,15 @@ func randomAbyssLineup(chars ...string) (firstTeam, secondTeam [genshinTeamSize]
 	}
 
 	for i := 0; i < genshinTeamSize; i++ {
-		firstTeam[i] = rngx.ExtractRandomStringFromSlice(&chars)
-		secondTeam[i] = rngx.ExtractRandomStringFromSlice(&chars)
+		firstTeam[i] = rngx.PickAndRemove(&chars)
+		secondTeam[i] = rngx.PickAndRemove(&chars)
 	}
 
 	if len(chars) < genshinTeamSize {
 		replacements = chars
 	} else {
 		for i := 0; i < genshinTeamSize; i++ {
-			replacements = append(replacements, rngx.ExtractRandomStringFromSlice(&chars))
+			replacements = append(replacements, rngx.PickAndRemove(&chars))
 		}
 	}
 

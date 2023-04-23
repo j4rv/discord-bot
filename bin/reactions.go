@@ -22,13 +22,13 @@ type React4RoleMessage struct {
 }
 
 func (r React4RoleMessage) String(roles []*discordgo.Role) string {
-	role := findRole(r.RoleID, roles)
+	role := findRoleInSlice(r.RoleID, roles)
 	if role == nil {
 		return "COULDN'T FIND ROLE WITH ID: " + r.RoleID
 	}
 
 	if r.RequiredRoleID != "" {
-		reqRole := findRole(r.RequiredRoleID, roles)
+		reqRole := findRoleInSlice(r.RequiredRoleID, roles)
 		return fmt.Sprintf("React to this message with %s to get the role %s (requires role %s)",
 			r.FormattedEmojiString(), role.Name, reqRole.Name)
 	} else {
@@ -57,7 +57,7 @@ func onMessageReacted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			if mc.Emoji.ID == r4r.EmojiID {
 
 				if r4r.RequiredRoleID != "" && !isMemberInRole(mc.Member, r4r.RequiredRoleID) {
-					userMessageSend(mc.UserID, "You can't have that role! :<", ds)
+					sendDirectMessage(mc.UserID, "You can't have that role! :<", ds)
 					return
 				}
 

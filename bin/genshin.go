@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/j4rv/discord-bot/lib/genshinchargen"
 	"github.com/j4rv/discord-bot/lib/rngx"
 	artis "github.com/j4rv/genshinartis"
 )
@@ -156,6 +158,38 @@ func answerGenshinDailyCheckInStop(ds *discordgo.Session, mc *discordgo.MessageC
 	return err == nil
 }
 
+// Slash Command answers
+
+func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	set := ic.ApplicationCommandData().Options[0].StringValue()
+	amount := int(ic.ApplicationCommandData().Options[1].IntValue())
+
+	message := fmt.Sprintf("%s is Strongboxing %d %s artifacts:\n", interactionUser(ic).Mention(), amount, set)
+	var arts []*artis.Artifact
+	for i := 0; i < amount; i++ {
+		art := artis.RandomArtifactOfSet(set, artis.StrongboxBase4Chance)
+		arts = append(arts, art)
+	}
+
+	good, err := json.Marshal(artis.ExportToGOOD(arts))
+	if err != nil {
+		notifyIfErr("answerStrongbox_jsonMarshal", err, ds)
+		textRespond(ds, ic, "Oops, error")
+		return
+	}
+
+	fileRespond(ds, ic, message, "StrongboxResult.json", string(good))
+}
+
+func answerAbyssChallenge(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	textRespond(ds, ic, newAbyssChallenge())
+}
+
+func answerCharacter(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	name := ic.ApplicationCommandData().Options[0].StringValue()
+	textRespond(ds, ic, genshinchargen.NewChar(name, unixDay()).PrettyString())
+}
+
 // CRONs
 
 func dailyCheckInCRONFunc(ds *discordgo.Session) func() {
@@ -165,7 +199,7 @@ func dailyCheckInCRONFunc(ds *discordgo.Session) func() {
 		if len(userIDs) > 0 {
 			log.Printf("Reminding %d users to do the Daily CheckIn", len(userIDs))
 			for _, userID := range userIDs {
-				userMessageSend(userID, dailyCheckInReminderMessage, ds)
+				sendDirectMessage(userID, dailyCheckInReminderMessage, ds)
 			}
 		}
 	}
@@ -178,7 +212,7 @@ func parametricCRONFunc(ds *discordgo.Session) func() {
 		if len(userIDs) > 0 {
 			log.Printf("Reminding %d users to use the Parametric Transformer", len(userIDs))
 			for _, userID := range userIDs {
-				userMessageSend(userID, parametricReminderMessage, ds)
+				sendDirectMessage(userID, parametricReminderMessage, ds)
 				err := genshinDS.addOrUpdateParametricReminder(userID)
 				notifyIfErr("addOrUpdateParametricReminder", err, ds)
 			}
@@ -193,7 +227,7 @@ func playStoreCRONFunc(ds *discordgo.Session) func() {
 		if len(userIDs) > 0 {
 			log.Printf("Reminding %d users to get the Play Store prize", len(userIDs))
 			for _, userID := range userIDs {
-				userMessageSend(userID, playStoreReminderMessage, ds)
+				sendDirectMessage(userID, playStoreReminderMessage, ds)
 				err := genshinDS.addOrUpdatePlayStoreReminder(userID)
 				notifyIfErr("addOrUpdatePlayStoreReminder", err, ds)
 			}
@@ -232,15 +266,15 @@ func randomAbyssLineup(chars ...string) (firstTeam, secondTeam [genshinTeamSize]
 	}
 
 	for i := 0; i < genshinTeamSize; i++ {
-		firstTeam[i] = extractRandomStringFromSlice(&chars)
-		secondTeam[i] = extractRandomStringFromSlice(&chars)
+		firstTeam[i] = rngx.ExtractRandomStringFromSlice(&chars)
+		secondTeam[i] = rngx.ExtractRandomStringFromSlice(&chars)
 	}
 
 	if len(chars) < genshinTeamSize {
 		replacements = chars
 	} else {
 		for i := 0; i < genshinTeamSize; i++ {
-			replacements = append(replacements, extractRandomStringFromSlice(&chars))
+			replacements = append(replacements, rngx.ExtractRandomStringFromSlice(&chars))
 		}
 	}
 

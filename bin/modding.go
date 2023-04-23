@@ -36,11 +36,11 @@ func answerRoleIDs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx conte
 		}
 		response += fmt.Sprintf("%s: %s\n", role.Name, role.ID)
 	}
-	userMessageSend(adminID, response, ds)
+	sendDirectMessage(mc.Author.ID, response, ds)
 	return true
 }
 
-// Slash commands
+// Slash Command answers
 
 func answerWarn(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	g, err := ds.State.Guild(ic.GuildID)
@@ -60,7 +60,7 @@ func answerWarn(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 
 	if ping {
 		formattedWarningMessage := fmt.Sprintf("**You have been warned in %s server** for the following reason:\n*%s*", g.Name, message)
-		_, err = userMessageSend(user.ID, formattedWarningMessage, ds)
+		_, err = sendDirectMessage(user.ID, formattedWarningMessage, ds)
 		if err != nil {
 			textRespond(ds, ic, "Warning recorded, but couldn't send the warning to the user: "+err.Error())
 			return

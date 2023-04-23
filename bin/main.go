@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/robfig/cron/v3"
 )
 
 // FLAGS
@@ -83,6 +84,34 @@ func initDiscordSession() *discordgo.Session {
 	}
 
 	return ds
+}
+
+func initCRONs(ds *discordgo.Session) {
+	// TODO: CRON that checks if a React4Role message still exists, if it doesnt, remove it from DB (once a week for example)
+	log.Println("Initiating CRONs")
+	dailyCheckInCRON := cron.New()
+	_, err := dailyCheckInCRON.AddFunc(dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))
+	if err != nil {
+		notifyIfErr("AddFunc to dailyCheckInCRON", err, ds)
+	} else {
+		dailyCheckInCRON.Start()
+	}
+
+	parametricCRON := cron.New()
+	_, err = parametricCRON.AddFunc(parametricReminderCRON, parametricCRONFunc(ds))
+	if err != nil {
+		notifyIfErr("AddFunc to parametricCRON", err, ds)
+	} else {
+		parametricCRON.Start()
+	}
+
+	playStoreCRON := cron.New()
+	_, err = playStoreCRON.AddFunc(playStoreReminderCRON, playStoreCRONFunc(ds))
+	if err != nil {
+		notifyIfErr("AddFunc to playStoreCRON", err, ds)
+	} else {
+		playStoreCRON.Start()
+	}
 }
 
 // React to every new message

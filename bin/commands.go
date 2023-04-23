@@ -12,7 +12,6 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/lib/ppgen"
-	artis "github.com/j4rv/genshinartis"
 )
 
 const userMustBeAdminMessage = "Only the bot's admin can do that"
@@ -142,6 +141,8 @@ func onSuccessCommandCall(mc *discordgo.MessageCreate) {
 	}
 }
 
+// Command Answers
+
 func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 		_, err := ds.ChannelMessageSend(mc.ChannelID, body)
@@ -171,141 +172,6 @@ func answerPP(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Co
 	return err == nil
 }
 
-func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := startParametricReminder(ds, mc, ctx)
-	notifyIfErr("answerParametricTransformer", err, ds)
-	if err == nil {
-		_, err = ds.ChannelMessageSend(mc.ChannelID, "I will remind you about the Parametric Transformer in 7 days!")
-	}
-	return err == nil
-}
-
-func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := stopParametricReminder(ds, mc, ctx)
-	notifyIfErr("answerParametricTransformerStop", err, ds)
-	if err == nil {
-		_, err = ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
-	}
-	return err == nil
-}
-
-func answerPlayStore(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := startPlayStoreReminder(ds, mc, ctx)
-	notifyIfErr("answerPlayStore", err, ds)
-	if err == nil {
-		_, err = ds.ChannelMessageSend(mc.ChannelID, "I will remind you about the PlayStore in 7 days!")
-	}
-	return err == nil
-}
-
-func answerPlayStoreStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := stopPlayStoreReminder(ds, mc, ctx)
-	notifyIfErr("answerPlayStoreStop", err, ds)
-	if err == nil {
-		_, err = ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
-	}
-	return err == nil
-}
-
-func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	var firstTeam, secondTeam [4]string
-	var replacements []string
-
-	// Process Input and generate the teams
-	inputString := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
-	inputChars := strings.Split(inputString, ",")
-	if inputChars[0] != "" && len(inputChars) < genshinTeamSize*2 {
-		ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`Not enough characters! Please enter at least %d`, genshinTeamSize*2))
-		return false
-	}
-	for i := range inputChars {
-		inputChars[i] = strings.TrimSpace(inputChars[i])
-	}
-	firstTeam, secondTeam, replacements = randomAbyssLineup(inputChars...)
-
-	// Format the teams into readable text
-	formattedFirstTeam, formattedSecondTeam, formattedReplacements := "```\n", "```\n", "```\n"
-	for _, r := range replacements {
-		formattedReplacements += r + "\n"
-	}
-	for i := 0; i < genshinTeamSize; i++ {
-		formattedFirstTeam += firstTeam[i] + "\n"
-		formattedSecondTeam += secondTeam[i] + "\n"
-	}
-	formattedFirstTeam += "```"
-	formattedSecondTeam += "```"
-	formattedReplacements += "```"
-
-	_, err := ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`
-You can only replace one character on each team with one of the replacements.
-
-**Team 1:**
-%s
-**Team 2:**
-%s
-**Replacements:**
-%s
-`, formattedFirstTeam, formattedSecondTeam, formattedReplacements))
-	return err == nil
-}
-
-func answerRandomArtifact(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	artifact := artis.RandomArtifact(artis.DomainBase4Chance)
-	_, err := ds.ChannelMessageSend(mc.ChannelID, formatGenshinArtifact(artifact))
-	return err == nil
-}
-
-func answerRandomArtifactSet(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	flower := artis.RandomArtifactOfSlot(artis.SlotFlower, artis.DomainBase4Chance)
-	plume := artis.RandomArtifactOfSlot(artis.SlotPlume, artis.DomainBase4Chance)
-	sands := artis.RandomArtifactOfSlot(artis.SlotSands, artis.DomainBase4Chance)
-	goblet := artis.RandomArtifactOfSlot(artis.SlotGoblet, artis.DomainBase4Chance)
-	circlet := artis.RandomArtifactOfSlot(artis.SlotCirclet, artis.DomainBase4Chance)
-	msg := formatGenshinArtifact(flower)
-	msg += formatGenshinArtifact(plume)
-	msg += formatGenshinArtifact(sands)
-	msg += formatGenshinArtifact(goblet)
-	msg += formatGenshinArtifact(circlet)
-	_, err := ds.ChannelMessageSend(mc.ChannelID, msg)
-	return err == nil
-}
-
-func answerRandomDomainRun(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	match := commandWithTwoArguments.FindStringSubmatch(mc.Content)
-	if match == nil || len(match) != 3 {
-		ds.ChannelMessageSend(mc.ChannelID, commandWithTwoArgumentsError)
-		return false
-	}
-
-	// we also remove the "(" and ")" chars
-	set1 := match[1][1 : len(match[1])-1]
-	set2 := match[2][1 : len(match[2])-1]
-	art1 := artis.RandomArtifactFromDomain(set1, set2)
-	art2 := artis.RandomArtifactFromDomain(set1, set2)
-	msg := formatGenshinArtifact(art1)
-	msg += formatGenshinArtifact(art2)
-	_, err := ds.ChannelMessageSend(mc.ChannelID, msg)
-	return err == nil
-}
-
-func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := startDailyCheckInReminder(ds, mc, ctx)
-	if err == nil {
-		_, err = ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
-	}
-	notifyIfErr("answerGenshinDailyCheckIn", err, ds)
-	return err == nil
-}
-
-func answerGenshinDailyCheckInStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := stopDailyCheckInReminder(ds, mc, ctx)
-	if err == nil {
-		ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
-	}
-	notifyIfErr("answerGenshinDailyCheckInStop", err, ds)
-	return err == nil
-}
-
 // FIXME: Limit its usage by user (max 3 active reminders?)
 func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	timeToWait, reminderBody := processTimedCommand(mc.Content)
@@ -328,23 +194,6 @@ func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.
 	}
 	result := rand.Intn(diceSides) + 1
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("You rolled a %d!", result))
-	return true
-}
-
-func answerRoleIDs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	roles, err := ds.GuildRoles(mc.GuildID)
-	notifyIfErr("answerRoleIDs", err, ds)
-	if err != nil {
-		return false
-	}
-	var response string
-	for _, role := range roles {
-		if role.Name == roleEveryone {
-			continue
-		}
-		response += fmt.Sprintf("%s: %s\n", role.Name, role.ID)
-	}
-	userMessageSend(adminID, response, ds)
 	return true
 }
 

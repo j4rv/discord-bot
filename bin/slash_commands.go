@@ -222,54 +222,6 @@ func answerHelp(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	}
 }
 
-func answerWarn(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	g, err := ds.State.Guild(ic.GuildID)
-	if err != nil {
-		textRespond(ds, ic, "Couldn't get the Guild's name :(")
-		return
-	}
-
-	user := ic.ApplicationCommandData().Options[0].UserValue(ds)
-	message := ic.ApplicationCommandData().Options[1].StringValue()
-	ping := ic.ApplicationCommandData().Options[2].BoolValue()
-	err = moddingDS.warnUser(user.ID, interactionUser(ic).ID, ic.GuildID, message)
-	if err != nil {
-		textRespond(ds, ic, "There was an error storing the warning: "+err.Error())
-		return
-	}
-
-	if ping {
-		formattedWarningMessage := fmt.Sprintf("**You have been warned in %s server** for the following reason:\n*%s*", g.Name, message)
-		_, err = userMessageSend(user.ID, formattedWarningMessage, ds)
-		if err != nil {
-			textRespond(ds, ic, "Warning recorded, but couldn't send the warning to the user: "+err.Error())
-			return
-		}
-	}
-
-	textRespond(ds, ic, fmt.Sprintf("The user %s#%s has been warned. Reason: '%s'", user.Username, user.Discriminator, message))
-}
-
-func answerWarnings(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	user := ic.ApplicationCommandData().Options[0].UserValue(ds)
-	warnings, err := moddingDS.userWarnings(user.ID, ic.GuildID)
-	if err != nil {
-		textRespond(ds, ic, "Couldn't get the user warnings: "+err.Error())
-		return
-	}
-
-	responseMsg := fmt.Sprintf("%s has been warned %d times:\n", user.Mention(), len(warnings))
-	for _, warning := range warnings {
-		responseMsg += warning.ShortString() + "\n"
-	}
-
-	if len(responseMsg) < discordMaxMessageLength {
-		textRespond(ds, ic, responseMsg)
-	} else {
-		fileRespond(ds, ic, "Damn that user has been warned a lot", fmt.Sprintf("%s_warnings.txt", user.Username), responseMsg)
-	}
-}
-
 func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	set := ic.ApplicationCommandData().Options[0].StringValue()
 	amount := int(ic.ApplicationCommandData().Options[1].IntValue())

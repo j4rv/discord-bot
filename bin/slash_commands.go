@@ -171,14 +171,16 @@ func initSlashCommands(ds *discordgo.Session) func() {
 	}
 }
 
-func textRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, textResponse string) {
-	err := ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+func textRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, textResponse string) (*discordgo.InteractionResponse, error) {
+	response := &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: textResponse,
 		},
-	})
+	}
+	err := ds.InteractionRespond(ic.Interaction, response)
 	notifyIfErr("textRespond", err, ds)
+	return response, err
 }
 
 func fileRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, messageContent, fileName, fileData string) {
@@ -217,54 +219,6 @@ func answerHelp(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 		textRespond(ds, ic, helpResponse)
 	} else {
 		textRespond(ds, ic, helpResponseAdmin)
-	}
-}
-
-func answerWarn(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	g, err := ds.State.Guild(ic.GuildID)
-	if err != nil {
-		textRespond(ds, ic, "Couldn't get the Guild's name :(")
-		return
-	}
-
-	user := ic.ApplicationCommandData().Options[0].UserValue(ds)
-	message := ic.ApplicationCommandData().Options[1].StringValue()
-	ping := ic.ApplicationCommandData().Options[2].BoolValue()
-	err = moddingDS.WarnUser(user.ID, interactionUser(ic).ID, ic.GuildID, message)
-	if err != nil {
-		textRespond(ds, ic, "There was an error storing the warning: "+err.Error())
-		return
-	}
-
-	if ping {
-		formattedWarningMessage := fmt.Sprintf("**You have been warned in %s server** for the following reason:\n*%s*", g.Name, message)
-		_, err = userMessageSend(user.ID, formattedWarningMessage, ds)
-		if err != nil {
-			textRespond(ds, ic, "Warning recorded, but couldn't send the warning to the user: "+err.Error())
-			return
-		}
-	}
-
-	textRespond(ds, ic, fmt.Sprintf("The user %s#%s has been warned. Reason: '%s'", user.Username, user.Discriminator, message))
-}
-
-func answerWarnings(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	user := ic.ApplicationCommandData().Options[0].UserValue(ds)
-	warnings, err := moddingDS.UserWarnings(user.ID, ic.GuildID)
-	if err != nil {
-		textRespond(ds, ic, "Couldn't get the user warnings: "+err.Error())
-		return
-	}
-
-	responseMsg := fmt.Sprintf("%s has been warned %d times:\n", user.Mention(), len(warnings))
-	for _, warning := range warnings {
-		responseMsg += warning.ShortString() + "\n"
-	}
-
-	if len(responseMsg) < discordMaxMessageLength {
-		textRespond(ds, ic, responseMsg)
-	} else {
-		fileRespond(ds, ic, "Damn that user has been warned a lot", fmt.Sprintf("%s_warnings.txt", user.Username), responseMsg)
 	}
 }
 

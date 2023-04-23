@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"time"
@@ -15,27 +16,75 @@ const timeoutDurationWhenShot = 2 * time.Minute
 const timeoutDurationWhenMisfire = 5 * time.Minute
 const timeoutDurationWhenNuclearCatastrophe = 30 * time.Second
 
-func removeRoleAfterDuration(ds *discordgo.Session, guildID string, memberID string, roleID string, duration time.Duration) {
-	go func() {
-		time.Sleep(duration)
-		ds.GuildMemberRoleRemove(guildID, memberID, roleID)
-	}()
+// Command Answers
+
+func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	_, err := ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%06d, you know what to do with this. ", rand.Intn(450000)))
+	return err == nil
 }
 
-func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *discordgo.Member, target *discordgo.Member, timeoutRoleID string) error {
-	shooterHasRoleAlready, err := isMemberInRole(shooter, timeoutRoleID)
+func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	timeoutRole, err := guildRoleByName(ds, mc.GuildID, timeoutRoleName)
+	notifyIfErr("answerDon, couldn't get timeoutRole", err, ds)
 	if err != nil {
-		return err
+		return false
 	}
+
+	if isMemberInRole(mc.Member, timeoutRole.ID) {
+		ds.ChannelMessageSend(mc.ChannelID, "Stay Realmed scum")
+		return false
+	}
+
+	err = ds.GuildMemberRoleAdd(mc.GuildID, mc.Author.ID, timeoutRole.ID)
+	notifyIfErr("answerDon, couldn't add timeoutRole", err, ds)
+	if err != nil {
+		return false
+	}
+	removeRoleAfterDuration(ds, mc.GuildID, mc.Author.ID, timeoutRole.ID, 10*time.Minute)
+	_, err = ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("To the Shadow Realm you go %s", mc.Author.Mention()))
+	return err == nil
+}
+
+func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	match := commandWithMention.FindStringSubmatch(mc.Content)
+	if match == nil || len(match) != 2 {
+		ds.ChannelMessageSend(mc.ChannelID, commandWithMentionError)
+		return false
+	}
+
+	timeoutRole, err := guildRoleByName(ds, mc.GuildID, timeoutRoleName)
+	notifyIfErr("answerShoot: get timeout role", err, ds)
+	if err != nil {
+		return false
+	}
+
+	shooter, err := ds.GuildMember(mc.GuildID, mc.Author.ID)
+	notifyIfErr("answerShoot: get shooter member", err, ds)
+	if err != nil {
+		return false
+	}
+
+	target, err := ds.GuildMember(mc.GuildID, match[1])
+	notifyIfErr("answerShoot: get target member", err, ds)
+	if err != nil {
+		return false
+	}
+
+	err = shoot(ds, mc.ChannelID, mc.GuildID, shooter, target, timeoutRole.ID)
+	notifyIfErr("answerShoot: shoot", err, ds)
+	return err == nil
+}
+
+// Internal functions
+
+func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *discordgo.Member, target *discordgo.Member, timeoutRoleID string) error {
+	shooterHasRoleAlready := isMemberInRole(shooter, timeoutRoleID)
 	if shooterHasRoleAlready {
 		ds.ChannelMessageSend(channelID, "Shadow Realmed people can't shoot dummy")
 		return nil
 	}
 
-	targetHasRoleAlready, err := isMemberInRole(target, timeoutRoleID)
-	if err != nil {
-		return err
-	}
+	targetHasRoleAlready := isMemberInRole(target, timeoutRoleID)
 	if targetHasRoleAlready {
 		ds.ChannelMessageSend(channelID, "https://giphy.com/gifs/the-simpsons-stop-hes-already-dead-JCAZQKoMefkoX6TyTb")
 		return nil

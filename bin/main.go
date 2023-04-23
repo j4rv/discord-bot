@@ -13,20 +13,28 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/robfig/cron/v3"
 )
 
+// FLAGS
 var token string
 var adminID string
+var noSlashCommands bool
 
 const discordMaxMessageLength = 2000
 
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
+
 	initFlags()
 	initDB()
 	ds := initDiscordSession()
-	initGenshinCRONs(ds)
-	removeSlashCommands := initSlashCommands(ds)
+	initCRONs(ds)
+
+	if !noSlashCommands {
+		removeSlashCommands := initSlashCommands(ds)
+		defer removeSlashCommands()
+	}
 
 	// Wait here until CTRL-C or other term signal is received.
 	log.Println("Bot is now running. Press CTRL-C to exit.")
@@ -34,13 +42,13 @@ func main() {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-signalChan
 
-	removeSlashCommands()
 	ds.Close()
 }
 
 func initFlags() {
 	flag.StringVar(&token, "token", "", "Bot Token")
 	flag.StringVar(&adminID, "adminID", "", "The ID of the bot's admin")
+	flag.BoolVar(&noSlashCommands, "noSlashCommands", false, "The bot will not init slash commands, boots faster.")
 	flag.Parse()
 	if token == "" {
 		panic("Provide a token flag!")
@@ -51,6 +59,7 @@ func initFlags() {
 }
 
 func initDiscordSession() *discordgo.Session {
+	log.Println("Initiating Discord Session")
 	ds, err := discordgo.New("Bot " + token)
 	if err != nil {
 		panic("error creating Discord session: " + err.Error())
@@ -58,10 +67,15 @@ func initDiscordSession() *discordgo.Session {
 
 	backgroundCtx := context.Background()
 
-	// Register the messageCreate func as a callback for MessageCreate events.
 	ds.AddHandler(onMessageCreated(backgroundCtx))
-	ds.Identify.Intents |= discordgo.IntentsGuildMessages
-	ds.Identify.Intents |= discordgo.IntentsDirectMessages
+	ds.AddHandler(onMessageReacted(backgroundCtx))
+	ds.AddHandler(onMessageUnreacted(backgroundCtx))
+
+	ds.Identify.Intents |= discordgo.IntentGuilds
+	ds.Identify.Intents |= discordgo.IntentGuildMembers
+	ds.Identify.Intents |= discordgo.IntentGuildMessages
+	ds.Identify.Intents |= discordgo.IntentGuildMessageReactions
+	ds.Identify.Intents |= discordgo.IntentDirectMessages
 
 	// Open a websocket connection to Discord and begin listening.
 	err = ds.Open()
@@ -70,6 +84,34 @@ func initDiscordSession() *discordgo.Session {
 	}
 
 	return ds
+}
+
+func initCRONs(ds *discordgo.Session) {
+	// TODO: CRON that checks if a React4Role message still exists, if it doesnt, remove it from DB (once a week for example)
+	log.Println("Initiating CRONs")
+	dailyCheckInCRON := cron.New()
+	_, err := dailyCheckInCRON.AddFunc(dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))
+	if err != nil {
+		notifyIfErr("AddFunc to dailyCheckInCRON", err, ds)
+	} else {
+		dailyCheckInCRON.Start()
+	}
+
+	parametricCRON := cron.New()
+	_, err = parametricCRON.AddFunc(parametricReminderCRON, parametricCRONFunc(ds))
+	if err != nil {
+		notifyIfErr("AddFunc to parametricCRON", err, ds)
+	} else {
+		parametricCRON.Start()
+	}
+
+	playStoreCRON := cron.New()
+	_, err = playStoreCRON.AddFunc(playStoreReminderCRON, playStoreCRONFunc(ds))
+	if err != nil {
+		notifyIfErr("AddFunc to playStoreCRON", err, ds)
+	} else {
+		playStoreCRON.Start()
+	}
 }
 
 // React to every new message
@@ -135,13 +177,13 @@ func guildRoleByName(ds *discordgo.Session, guildID string, roleName string) (*d
 	return nil, fmt.Errorf("role with name %s not found in guild with id %s", roleName, guildID)
 }
 
-func isMemberInRole(member *discordgo.Member, roleID string) (bool, error) {
+func isMemberInRole(member *discordgo.Member, roleID string) bool {
 	for _, r := range member.Roles {
 		if r == roleID {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 // for single line strings only!
@@ -151,7 +193,7 @@ func errorMessage(body string) string {
 
 func notifyIfErr(context string, err error, ds *discordgo.Session) {
 	if err != nil {
-		msg := "[" + context + "] an error happened: " + err.Error()
+		msg := "ERROR [" + context + "]: " + err.Error()
 		log.Println(msg)
 		userMessageSend(adminID, errorMessage(msg), ds)
 	}

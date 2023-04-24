@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -14,15 +13,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/pkg/ppgen"
 )
-
-const userMustBeAdminMessage = "Only the bot's admin can do that"
-const userMustBeModMessage = "Only a mod can do that"
-const commandReceivedMessage = "Gotcha!"
-const commandSuccessMessage = "Successfully donette!"
-const commandWithTwoArgumentsError = "Something went wrong, please make sure to use the command with the following format: '!command (...) (...)'"
-const commandWithMentionError = "Something went wrong, please make sure that the command has an user mention"
-
-var errKeyNotFoundInCommand = errors.New("could not get the key from the command body")
 
 const roleEveryone = "@everyone"
 const globalGuildID = ""

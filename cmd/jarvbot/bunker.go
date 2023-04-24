@@ -9,13 +9,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-const timeoutRoleName = "Shadow Realm"
-const shootMisfireChance = 0.5
-const nuclearCatastropheChance = 0.006
-const timeoutDurationWhenShot = 2 * time.Minute
-const timeoutDurationWhenMisfire = 5 * time.Minute
-const timeoutDurationWhenNuclearCatastrophe = 30 * time.Second
-
 // Command Answers
 
 func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

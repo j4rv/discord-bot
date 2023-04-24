@@ -13,12 +13,6 @@ import (
 	artis "github.com/j4rv/genshinartis"
 )
 
-const dailyCheckInReminderCRON = "CRON_TZ=Asia/Shanghai 0 0 * * *"
-const dailyCheckInReminderMessage = "Remember to do the Daily Check-In! https://webstatic-sea.mihoyo.com/ys/event/signin-sea/index.html?act_id=e202102251931481"
-const parametricReminderCRON = "0 * * * *"
-const parametricReminderMessage = "Remember to use the Parametric Transformer!\nI will remind you again in 7 days."
-const playStoreReminderCRON = "0 * * * *"
-const playStoreReminderMessage = "Remember to get the weekly Play Store prize!\nI will remind you again in 7 days."
 const genshinTeamSize = 4
 
 // Command Answers

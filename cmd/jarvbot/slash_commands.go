@@ -8,13 +8,6 @@ import (
 	"github.com/j4rv/discord-bot/pkg/eightball"
 )
 
-var strongboxMinAmount = 1.0
-var strongboxMaxAmount = 64.0
-var warnMessageMinLength = 1
-var warnMessageMaxLength = 320
-
-const avatarTargetSize = "1024"
-
 var moderatorMemberPermissions int64 = discordgo.PermissionBanMembers
 
 var slashCommands = []*discordgo.ApplicationCommand{

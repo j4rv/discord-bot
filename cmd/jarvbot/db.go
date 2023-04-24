@@ -249,7 +249,7 @@ func (s moddingDataStore) addReact4Roles(r4rs []React4RoleMessage) error {
 
 func (s moddingDataStore) react4Roles(channelID, messageID string) ([]React4RoleMessage, error) {
 	var r4rs []React4RoleMessage
-	err := s.db.Select(&r4rs, `SELECT * FROM React4RoleMessage ChannelID = ? AND WHERE MessageID = ?`,
+	err := s.db.Select(&r4rs, `SELECT * FROM React4RoleMessage WHERE ChannelID = ? AND MessageID = ?`,
 		channelID, messageID)
 	return r4rs, err
 }
@@ -261,7 +261,7 @@ func (s moddingDataStore) allReact4Roles() ([]React4RoleMessage, error) {
 }
 
 func (s moddingDataStore) deleteReact4Roles(channelID, messageID string) error {
-	_, err := s.db.Exec(`DELETE * FROM React4RoleMessage ChannelID = ? AND WHERE MessageID = ?`,
+	_, err := s.db.Exec(`DELETE * FROM React4RoleMessage WHERE ChannelID = ? AND MessageID = ?`,
 		channelID, messageID)
 	return err
 }

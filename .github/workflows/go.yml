@@ -23,7 +23,7 @@ jobs:
 
     - name: Build
       run: | 
-        go get .
+        go mod download
         go build -v ./...
 
     - name: Test

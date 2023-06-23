@@ -22,10 +22,8 @@ const timeoutDurationWhenNuclearCatastrophe = 2 * time.Minute
 
 const dailyCheckInReminderCRON = "CRON_TZ=Asia/Shanghai 0 0 * * *"
 const dailyCheckInReminderMessage = `Remember to do the Daily Check-In!
-
-Genshin: https://webstatic-sea.mihoyo.com/ys/event/signin-sea/index.html?act_id=e202102251931481
-
-Star Rail: https://act.hoyolab.com/bbs/event/signin/hkrpg/index.html?act_id=e202303301540311`
+- Genshin: https://webstatic-sea.mihoyo.com/ys/event/signin-sea/index.html?act_id=e202102251931481
+- Star Rail: https://act.hoyolab.com/bbs/event/signin/hkrpg/index.html?act_id=e202303301540311 `
 const parametricReminderCRON = "0 * * * *"
 const parametricReminderMessage = "Remember to use the Parametric Transformer!\nI will remind you again in 7 days."
 const playStoreReminderCRON = "0 * * * *"

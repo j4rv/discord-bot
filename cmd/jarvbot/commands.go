@@ -19,7 +19,7 @@ const globalGuildID = ""
 
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
-var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d{18})>`)
+var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d+)>`)
 
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool
 

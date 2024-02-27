@@ -17,7 +17,7 @@ func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx contex
 }
 
 func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	timeoutRole, err := guildRoleByName(ds, mc.GuildID, timeoutRoleName)
+	timeoutRole, err := getTimeoutRole(ds, mc.GuildID)
 	notifyIfErr("answerDon, couldn't get timeoutRole", err, ds)
 	if err != nil {
 		return false
@@ -45,7 +45,7 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 		return false
 	}
 
-	timeoutRole, err := guildRoleByName(ds, mc.GuildID, timeoutRoleName)
+	timeoutRole, err := getTimeoutRole(ds, mc.GuildID)
 	notifyIfErr("answerShoot: get timeout role", err, ds)
 	if err != nil {
 		return false
@@ -66,6 +66,18 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	err = shoot(ds, mc.ChannelID, mc.GuildID, shooter, target, timeoutRole.ID)
 	notifyIfErr("answerShoot: shoot", err, ds)
 	return err == nil
+}
+
+func getTimeoutRole(ds *discordgo.Session, guildID string) (*discordgo.Role, error) {
+	customRoleName, err := serverDS.getServerProperty(guildID, customTimeoutRoleNameKey)
+	if err != nil {
+		customRoleName = defaultTimeoutRoleName
+	}
+	return guildRoleByName(ds, guildID, customRoleName)
+}
+
+func setCustomTimeoutRole(ds *discordgo.Session, guildID string, roleName string) error {
+	return serverDS.setServerProperty(guildID, customTimeoutRoleNameKey, roleName)
 }
 
 // Internal functions

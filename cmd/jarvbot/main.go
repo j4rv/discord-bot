@@ -4,11 +4,9 @@ import (
 	"context"
 	"flag"
 	"log"
-	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jmoiron/sqlx"
@@ -23,8 +21,6 @@ var noSlashCommands bool
 const discordMaxMessageLength = 2000
 
 func main() {
-	rand.Seed(time.Now().UTC().UnixNano())
-
 	initFlags()
 	initDB()
 	ds := initDiscordSession()
@@ -66,6 +62,7 @@ func initDB() {
 	genshinDS = genshinDataStore{db}
 	commandDS = commandDataStore{db}
 	moddingDS = moddingDataStore{db}
+	serverDS = serverDataStore{db}
 }
 
 func initDiscordSession() *discordgo.Session {

@@ -14,6 +14,7 @@ import (
 var moddingDS moddingDataStore
 var genshinDS genshinDataStore
 var commandDS commandDataStore
+var serverDS serverDataStore
 
 var errZeroRowsAffected = errors.New("zero rows were affected")
 
@@ -25,6 +26,7 @@ func createTables(db *sqlx.DB) {
 	createTableSpammableChannel(db)
 	createTableUserWarning(db)
 	createTableReact4RoleMessage(db)
+	createTableServerProperties(db)
 }
 
 func createTableDailyCheckInReminder(db *sqlx.DB) {
@@ -93,6 +95,17 @@ func createTableReact4RoleMessage(db *sqlx.DB) {
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
 	}, db)
 	createIndex("React4RoleMessage", "MessageID", db)
+}
+
+func createTableServerProperties(db *sqlx.DB) {
+	createTable("ServerProperties", []string{
+		"ServerID VARCHAR(20) UNIQUE NOT NULL",
+		"PropertyName VARCHAR(32) NOT NULL",
+		"PropertyValue TEXT NOT NULL",
+		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+		"UNIQUE(ServerID, PropertyName)",
+	}, db)
+	createIndex("ServerProperties", "ServerID", db)
 }
 
 // commands
@@ -264,6 +277,29 @@ func (s moddingDataStore) deleteReact4Roles(channelID, messageID string) error {
 	_, err := s.db.Exec(`DELETE * FROM React4RoleMessage WHERE ChannelID = ? AND MessageID = ?`,
 		channelID, messageID)
 	return err
+}
+
+// server
+
+type serverDataStore struct {
+	db *sqlx.DB
+}
+
+func (s *serverDataStore) setServerProperty(serverID, propertyName, propertyValue string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO ServerProperties (ServerID, PropertyName, PropertyValue) 
+		VALUES (?, ?, ?) 
+		ON CONFLICT(ServerID, PropertyName) 
+		DO UPDATE SET PropertyValue = excluded.PropertyValue`,
+		serverID, propertyName, propertyValue)
+	return err
+}
+
+func (s *serverDataStore) getServerProperty(serverID, propertyName string) (string, error) {
+	var propertyValue string
+	err := s.db.Get(&propertyValue, `SELECT PropertyValue FROM ServerProperties WHERE ServerID = ? AND PropertyName = ?`,
+		serverID, propertyName)
+	return propertyValue, err
 }
 
 // methods for repetitive stuff

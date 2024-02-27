@@ -4,7 +4,7 @@ import "time"
 
 // TODO make this a config file
 
-const dbFilename = "db.sqlite"
+var dbFilename = "db.sqlite"
 
 var strongboxMinAmount = 1.0
 var strongboxMaxAmount = 64.0
@@ -13,7 +13,8 @@ var warnMessageMaxLength = 320
 
 const avatarTargetSize = "1024"
 
-const timeoutRoleName = "Shadow Realm"
+const customTimeoutRoleNameKey = "custom_timeout_role_name"
+const defaultTimeoutRoleName = "Shadow Realm"
 const shootMisfireChance = 0.2
 const nuclearCatastropheChance = 0.006
 const timeoutDurationWhenShot = 4 * time.Minute

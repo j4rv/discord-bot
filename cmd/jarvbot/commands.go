@@ -43,6 +43,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
+	"!version":                   simpleTextResponse("v3.0.3"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -63,12 +64,13 @@ var commands = map[string]command{
 	"!shoot":  notSpammable(answerShoot),
 	"!pp":     notSpammable(answerPP),
 	// only available for discord mods
-	"!roleids":         modOnly(answerRoleIDs),
-	"!react4roles":     modOnly(answerMakeReact4RolesMsg),
-	"!addcommand":      modOnly(answerAddCommand),
-	"!removecommand":   modOnly(answerRemoveCommand),
-	"!allowspamming":   modOnly(answerAllowSpamming),
-	"!preventspamming": modOnly(answerPreventSpamming),
+	"!roleids":              modOnly(answerRoleIDs),
+	"!react4roles":          modOnly(answerMakeReact4RolesMsg),
+	"!addcommand":           modOnly(answerAddCommand),
+	"!removecommand":        modOnly(answerRemoveCommand),
+	"!allowspamming":        modOnly(answerAllowSpamming),
+	"!preventspamming":      modOnly(answerPreventSpamming),
+	"!setcustomtimeoutrole": modOnly(answerSetCustomTimeoutRole),
 	// only available for the bot owner
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
@@ -177,6 +179,24 @@ func answerPreventSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, c
 		ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	}
 	notifyIfErr("MessageReactionAdd", err, ds)
+	return err == nil
+}
+
+func answerSetCustomTimeoutRole(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	guildID := mc.GuildID
+
+	timeoutRoleName := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	_, err := guildRoleByName(ds, guildID, timeoutRoleName)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Could not find role '%s'", timeoutRoleName))
+		return false
+	}
+
+	err = setCustomTimeoutRole(ds, guildID, timeoutRoleName)
+	notifyIfErr("setCustomTimeoutRole", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Custom timeout role set to '%s'", timeoutRoleName))
+	}
 	return err == nil
 }
 

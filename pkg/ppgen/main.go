@@ -23,6 +23,7 @@ var leftPPHeads = map[string]int{
 	"<": 10,
 	"«": 5,
 	"Ƈ": 3,
+	"⟨": 1,
 }
 
 var rightPPHeads = map[string]int{
@@ -35,6 +36,7 @@ var rightPPHeads = map[string]int{
 	">": 10,
 	"»": 5,
 	"ƿ": 5,
+	"⟩": 1,
 }
 
 var leftPPBalls = map[string]int{
@@ -72,6 +74,7 @@ var ppBodies = map[string]int{
 	"\\~": 5,
 	"∾":   2,
 	"≋":   1,
+	"≭":   1,
 }
 
 var bigDickAscii1 = `
@@ -159,9 +162,7 @@ func NewPenisWithSeed(seed int64) string {
 		return sussyDick2
 	}
 
-	facingLeft := rng.Float64() <= 0.5
-
-	if facingLeft {
+	if rng.Float64() <= 0.5 {
 		return newPenisFacingLeft(rng)
 	} else {
 		return newPenisFacingRight(rng)

@@ -9,35 +9,44 @@ import (
 )
 
 var elements = NewWeightedSlice(map[string]int{
-	"Pyro":    100,
-	"Hydro":   100,
-	"Electro": 100,
-	"Cryo":    100,
-	"Anemo":   100,
-	"Geo":     100,
-	"Dendro":  100,
-	"Abyss":   1,
-	"Omni":    1,
+	"Pyro":      100,
+	"Hydro":     100,
+	"Electro":   100,
+	"Cryo":      100,
+	"Anemo":     100,
+	"Geo":       100,
+	"Dendro":    100,
+	"Abyss":     1,
+	"Solar":     1,
+	"Omni":      1,
+	"Quantum":   1,
+	"Imaginary": 1,
 })
 
 var weapon = NewWeightedSlice(map[string]int{
-	"Sword":            100,
-	"Claymore":         100,
-	"Polearm":          100,
-	"Catalyst":         100,
-	"Bow":              100,
-	"Gun":              1,
-	"Scythe":           1,
-	"Brawler":          1,
-	"Whip":             1,
-	"Sword and Shield": 1,
+	"Sword":                   1000,
+	"Claymore":                1000,
+	"Polearm":                 1000,
+	"Bow":                     800,
+	"Bow (with a special CA)": 200,
+	"Catalyst (ranged)":       700,
+	"Catalyst (melee)":        300,
+	"Dual swords":             5,
+	"Gun":                     5,
+	"Shotgun":                 2,
+	"Scythe":                  2,
+	"Brawler":                 2,
+	"Whip":                    2,
+	"Sword and Shield":        2,
 })
 
 var rarity = NewWeightedSlice(map[string]int{
-	"6*": 1,
-	"5*": 100,
-	"4*": 100,
-	"3*": 1,
+	"7*": 1,
+	"6*": 10,
+	"5*": 1000,
+	"4*": 1000,
+	"3*": 10,
+	"2*": 1,
 })
 
 var models = NewWeightedSlice(map[string]int{
@@ -50,27 +59,33 @@ var models = NewWeightedSlice(map[string]int{
 })
 
 var scaling = NewWeightedSlice(map[string]int{
-	"ATK":             50,
-	"HP":              20,
-	"DEF":             10,
-	"EM":              10,
-	"Energy Recharge": 3,
-	"Healing Bonus":   2,
+	"ATK":             500,
+	"HP":              200,
+	"DEF":             100,
+	"EM":              100,
+	"Energy Recharge": 30,
+	"EM and ATK":      20,
+	"HP and ATK":      20,
+	"DEF and ATK":     20,
+	"Healing Bonus":   20,
 	"Shield Strength": 1,
 })
 
 var roles = NewWeightedSlice(map[string]int{
-	"On-field DPS":        10,
-	"Off-field DPS":       7,
-	"Buffer":              5,
-	"Healer":              5,
-	"Shielder":            5,
-	"Phys on-field DPS":   3,
-	"Healer and shielder": 2,
+	"On-field DPS":            10,
+	"Off-field DPS":           7,
+	"Buffer":                  5,
+	"Healer":                  5,
+	"Shielder":                4,
+	"Phys on-field DPS":       3,
+	"Healer DPS":              3,
+	"Healer and shielder":     2,
+	"Healer and shielder DPS": 1,
 })
 
 var strengths = NewWeightedSlice(map[string]int{
 	"has good AOE":                              10,
+	"excels in single-target damage":            10,
 	"has good elemental application":            10,
 	"it's a great battery":                      10,
 	"easy to build":                             10,
@@ -78,8 +93,11 @@ var strengths = NewWeightedSlice(map[string]int{
 	"has great vertical scaling":                10,
 	"has amazing animations and visual effects": 10,
 	"can snapshot buffs":                        8,
+	"provides strong team utility":              5,
 	"can shred resistances":                     5,
 	"can group enemies":                         5,
+	"offers crowd control":                      4,
+	"can heal while dealing damage":             3,
 	"has damage resistance buffs":               2,
 	"can shred defense":                         2,
 })
@@ -95,9 +113,13 @@ var weaknesses = NewWeightedSlice(map[string]int{
 	"has shitty multipliers":                      8,
 	"the kit is circle impact":                    8,
 	"it's purely single target":                   8,
+	"has low base stats":                          8,
+	"has long skill animations":                   5,
+	"has bad weapon options":                      5,
 	"consumes a lot of stamina to play optimally": 5,
 	"needs resistance to interruption to be good": 5,
 	"doesn't create particles":                    5,
+	"has limited range":                           5,
 	"can't crit":                                  2,
 })
 

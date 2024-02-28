@@ -74,10 +74,12 @@ var scaling = NewWeightedSlice(map[string]int{
 var roles = NewWeightedSlice(map[string]int{
 	"On-field DPS":            10,
 	"Off-field DPS":           7,
+	"NA DPS":                  5,
 	"Buffer":                  5,
 	"Healer":                  5,
 	"Shielder":                4,
-	"Phys on-field DPS":       3,
+	"Plunge DPS":              3,
+	"Physical DPS":            3,
 	"Healer DPS":              3,
 	"Healer and shielder":     2,
 	"Healer and shielder DPS": 1,

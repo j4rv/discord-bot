@@ -391,5 +391,5 @@ var handicaps = []string{
 	"only 5* characters (the other 3 chars)",
 	"only males (the other 3 chars)",
 	"only females (the other 3 chars)",
-	"only 2 artifacts (whole team)",
+	"only 10 artifacts (whole team)",
 }

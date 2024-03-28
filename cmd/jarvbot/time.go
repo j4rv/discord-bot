@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 var stringHoursRegex = regexp.MustCompile(`^(\d{1,2})h`)
@@ -12,6 +14,31 @@ var stringMinsRegex = regexp.MustCompile(`^(\d{1,2})m`)
 var stringSecsRegex = regexp.MustCompile(`^(\d{1,2})s`)
 
 const secondsInADay = 60 * 60 * 24
+const expensiveOperationCooldown = 5 * 60 * time.Second
+const expensiveOperationErrorMsg = "You just executed an expensive operation, please wait."
+
+func removeRoleAfterDuration(ds *discordgo.Session, guildID string, memberID string, roleID string, duration time.Duration) {
+	go func() {
+		time.Sleep(duration)
+		ds.GuildMemberRoleRemove(guildID, memberID, roleID)
+	}()
+}
+
+var usersOnExpensiveOperationCooldown = make(map[string]struct{})
+
+func userExpensiveOperationOnCooldown(userID string) bool {
+	_, inCooldown := usersOnExpensiveOperationCooldown[userID]
+	return inCooldown
+}
+
+func userExecutedExpensiveOperation(userID string) {
+	usersOnExpensiveOperationCooldown[userID] = struct{}{}
+
+	go func() {
+		time.Sleep(expensiveOperationCooldown)
+		delete(usersOnExpensiveOperationCooldown, userID)
+	}()
+}
 
 // Format: "!<command> 99h 99m 99s <body>"
 // Returns: The duration and the body

@@ -133,6 +133,8 @@ func initSlashCommands(ds *discordgo.Session) func() {
 	ds.AddHandler(func(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 		if h, ok := slashHandlers[ic.ApplicationCommandData().Name]; ok {
 			h(ds, ic)
+		} else {
+			log.Println("ERROR couldnt add handler for slash command:", ic.ApplicationCommandData().Name)
 		}
 	})
 

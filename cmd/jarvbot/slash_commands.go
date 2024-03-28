@@ -40,6 +40,92 @@ var slashCommands = []*discordgo.ApplicationCommand{
 		},
 	},
 	{
+		Name:        "genshin_chances",
+		Description: "Calculate your chance to get a Genshin Impact character with specific constellations and refinements",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        "roll_count",
+				Description: "The amount of rolls you have.",
+				Required:    true,
+				MinValue:    &zero,
+				MaxValue:    1500,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        "char_count",
+				Description: "The amount of characters you want to pull. 0 for none, 1 for C0, 7 for C6.",
+				Required:    true,
+				MinValue:    &zero,
+				MaxValue:    7,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        "weapon_count",
+				Description: "The amount of weapons you want to pull. 0 for none, 1 for R1, 5 for R5.",
+				Required:    true,
+				MinValue:    &zero,
+				MaxValue:    5,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        "char_pity",
+				Description: "Your limited character banner 5* pity count.",
+				Required:    false,
+				MinValue:    &zero,
+				MaxValue:    89,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Name:        "guaranteed_sr_char",
+				Description: "If the next 5* character is guaranteed to be the rate up.",
+				Required:    false,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        "char_rare_pity",
+				Description: "Your limited character banner 4* pity count.",
+				Required:    false,
+				MinValue:    &zero,
+				MaxValue:    9,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Name:        "guaranteed_rare_char",
+				Description: "If the next 4* character is guaranteed to be a rate up.",
+				Required:    false,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        "weapon_pity",
+				Description: "Your limited weapon banner 5* pity count.",
+				Required:    false,
+				MinValue:    &zero,
+				MaxValue:    89,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Name:        "guaranteed_sr_weapon",
+				Description: "If the next 5* weapon is guaranteed to be a rate up.",
+				Required:    false,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        "weapon_rare_pity",
+				Description: "Your limited weapon banner 4* pity count.",
+				Required:    false,
+				MinValue:    &zero,
+				MaxValue:    9,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Name:        "guaranteed_rare_weapon",
+				Description: "If the next 4* weapon is guaranteed to be a rate up.",
+				Required:    false,
+			},
+		},
+	},
+	{
 		Name:        "strongbox",
 		Description: "Do Strongbox rolls of your set of choice",
 		Options: []*discordgo.ApplicationCommandOption{
@@ -122,11 +208,45 @@ var slashHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interacti
 	"help":            answerHelp,
 	"8ball":           answer8ball,
 	"avatar":          answerAvatar,
-	"strongbox":       answerStrongbox,
+	"genshin_chances": expensiveSlashCommand(answerGenshinChance),
+	"strongbox":       expensiveSlashCommand(answerStrongbox),
 	"character":       answerCharacter,
 	"abyss_challenge": answerAbyssChallenge,
 	"warn":            answerWarn,
 	"warnings":        answerWarnings,
+}
+
+func expensiveSlashCommand(expensiveOp func(ds *discordgo.Session, ic *discordgo.InteractionCreate)) func(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	return func(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+		if userExpensiveOperationOnCooldown(interactionUser(ic).ID) {
+			sendDirectMessage(interactionUser(ic).ID, expensiveOperationErrorMsg, ds)
+			return
+		}
+		userExecutedExpensiveOperation(interactionUser(ic).ID)
+		expensiveOp(ds, ic)
+	}
+}
+
+func optionMap(opts []*discordgo.ApplicationCommandInteractionDataOption) map[string]*discordgo.ApplicationCommandInteractionDataOption {
+	m := make(map[string]*discordgo.ApplicationCommandInteractionDataOption)
+	for _, opt := range opts {
+		m[opt.Name] = opt
+	}
+	return m
+}
+
+func optionIntValueOrZero(opt *discordgo.ApplicationCommandInteractionDataOption) int {
+	if opt == nil || opt.Value == nil {
+		return 0
+	}
+	return int(opt.IntValue())
+}
+
+func optionBoolValueOrFalse(opt *discordgo.ApplicationCommandInteractionDataOption) bool {
+	if opt == nil || opt.Value == nil {
+		return false
+	}
+	return opt.BoolValue()
 }
 
 func textRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, textResponse string) (*discordgo.InteractionResponse, error) {

@@ -6,8 +6,9 @@ import "time"
 
 var dbFilename = "db.sqlite"
 
+var zero = 0.0
 var strongboxMinAmount = 1.0
-var strongboxMaxAmount = 64.0
+var strongboxMaxAmount = 1000.0
 var warnMessageMinLength = 1
 var warnMessageMaxLength = 320
 

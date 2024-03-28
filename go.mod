@@ -13,7 +13,8 @@ require (
 
 require (
 	github.com/gorilla/websocket v1.5.1 // indirect
-	golang.org/x/crypto v0.20.0 // indirect
-	golang.org/x/net v0.21.0 // indirect
-	golang.org/x/sys v0.17.0 // indirect
+	github.com/j4rv/rollssim v0.0.0-20240328173749-ed06730e3472 // indirect
+	golang.org/x/crypto v0.21.0 // indirect
+	golang.org/x/net v0.22.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 )

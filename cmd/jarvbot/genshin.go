@@ -11,9 +11,12 @@ import (
 	"github.com/j4rv/discord-bot/pkg/genshinchargen"
 	"github.com/j4rv/discord-bot/pkg/rngx"
 	artis "github.com/j4rv/genshinartis"
+	"github.com/j4rv/rollssim"
 )
 
 const genshinTeamSize = 4
+const genshinChanceIterations = 1000
+const averagePullsNote = "**Note:** The average rolls spent on each banner include successful attempts and failed attempts. This includes the best case scenarios of not needing to spend all your pulls to get your desired characters/weapons, and the worst case scenarios of spending all your pulls and not getting your desired characters/weapons."
 
 // Command Answers
 
@@ -153,6 +156,104 @@ func answerGenshinDailyCheckInStop(ds *discordgo.Session, mc *discordgo.MessageC
 }
 
 // Slash Command answers
+
+func answerGenshinChance(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	defer func() {
+		if r := recover(); r != nil {
+			notifyIfErr("answerGenshinChance panic", fmt.Errorf("%v", r), ds)
+		}
+	}()
+	options := optionMap(ic.ApplicationCommandData().Options)
+	rollCount := int(options["roll_count"].IntValue())
+	charCount := int(options["char_count"].IntValue())
+	weaponCount := int(options["weapon_count"].IntValue())
+	charPity := optionIntValueOrZero(options["char_pity"])
+	charGuaranteed := optionBoolValueOrFalse(options["guaranteed_sr_char"])
+	charRarePity := optionIntValueOrZero(options["char_rare_pity"])
+	charRareGuaranteed := optionBoolValueOrFalse(options["guaranteed_rare_char"])
+	weaponPity := optionIntValueOrZero(options["weapon_pity"])
+	weaponGuaranteed := optionBoolValueOrFalse(options["guaranteed_sr_weapon"])
+	weaponRarePity := optionIntValueOrZero(options["weapon_rare_pity"])
+	weaponRareGuaranteed := optionBoolValueOrFalse(options["guaranteed_rare_weapon"])
+
+	cumResult := rollssim.WantedRollsResult{}
+	successCount := 0
+
+	for i := 0; i < genshinChanceIterations; i++ {
+		charBanner := rollssim.GenshinCharRoller{
+			MihoyoRoller: rollssim.MihoyoRoller{
+				CurrSRPity:           charPity,
+				GuaranteedRateUpSR:   charGuaranteed,
+				CurrRarePity:         charRarePity,
+				GuaranteedRateUpRare: charRareGuaranteed,
+			},
+		}
+		weaponBanner := rollssim.GenshinWeaponRoller{
+			MihoyoRoller: rollssim.MihoyoRoller{
+				CurrSRPity:           weaponPity,
+				GuaranteedRateUpSR:   weaponGuaranteed,
+				CurrRarePity:         weaponRarePity,
+				GuaranteedRateUpRare: weaponRareGuaranteed,
+			},
+			FatePoints: 0,
+		}
+		result := rollssim.CalcGenshinWantedRolls(rollCount, charCount, weaponCount, &charBanner, &weaponBanner)
+		cumResult.Add(result)
+
+		if result.CharacterBannerRateUpSRCount >= charCount && result.WeaponBannerChosenRateUpCount >= weaponCount {
+			successCount++
+		}
+	}
+
+	_, err := textRespond(ds, ic, formatGenshinChanceResult(cumResult, successCount))
+	notifyIfErr("answerGenshinChance", err, ds)
+}
+
+func formatGenshinChanceResult(result rollssim.WantedRollsResult, successCount int) string {
+	formatted := fmt.Sprintf("## Chance of success: %.2f%%\n",
+		divideToFloat(successCount, genshinChanceIterations)*100,
+	)
+
+	if result.CharacterBannerRollCount > 0 {
+		formatted += fmt.Sprintf(`### Character banner:
+	Average rate up 5\*s characters: %.2f
+	Average standard 5\*s characters: %.2f
+	Average rate up 4\*s characters: %.2f
+	Average standard 4\*s: %.2f
+	Average rolls spent on character banner: %.2f
+	
+`,
+			divideToFloat(result.CharacterBannerRateUpSRCount, genshinChanceIterations),
+			divideToFloat(result.CharacterBannerStdSRCount, genshinChanceIterations),
+			divideToFloat(result.CharacterBannerRateUpRareCount, genshinChanceIterations),
+			divideToFloat(result.CharacterBannerStdRareCount, genshinChanceIterations),
+			divideToFloat(result.CharacterBannerRollCount, genshinChanceIterations),
+		)
+	}
+
+	if result.WeaponBannerRollCount > 0 {
+		formatted += fmt.Sprintf(`### Weapon banner:
+	Average chosen rate up weapons: %.2f
+	Average non-chosen rate up weapons: %.2f
+	Average standard 5\* weapons: %.2f
+	Average rate up 4\*s weapons: %.2f
+	Average standard 4\*s: %.2f
+	Average rolls spent on weapon banner: %.2f
+	
+`,
+			divideToFloat(result.WeaponBannerChosenRateUpCount, genshinChanceIterations),
+			divideToFloat(result.WeaponBannerNotChosenRateUpCount, genshinChanceIterations),
+			divideToFloat(result.WeaponBannerStdSRCount, genshinChanceIterations),
+			divideToFloat(result.WeaponBannerRateUpRareCount, genshinChanceIterations),
+			divideToFloat(result.WeaponBannerStdRareCount, genshinChanceIterations),
+			divideToFloat(result.WeaponBannerRollCount, genshinChanceIterations),
+		)
+	}
+
+	formatted += averagePullsNote
+
+	return formatted
+}
 
 func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	set := ic.ApplicationCommandData().Options[0].StringValue()

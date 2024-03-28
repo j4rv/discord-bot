@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -36,11 +35,4 @@ func isMemberInRole(member *discordgo.Member, roleID string) bool {
 		}
 	}
 	return false
-}
-
-func removeRoleAfterDuration(ds *discordgo.Session, guildID string, memberID string, roleID string, duration time.Duration) {
-	go func() {
-		time.Sleep(duration)
-		ds.GuildMemberRoleRemove(guildID, memberID, roleID)
-	}()
 }

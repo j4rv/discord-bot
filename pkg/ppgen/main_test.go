@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewPenisWithSeed(t *testing.T) {
-	for i := int64(0); i < 100; i++ {
+	for i := int64(0); i < 300; i++ {
 		seed := time.Now().UnixNano() + i
 		penis := NewPenisWithSeed(seed)
 		t.Logf("Seed: %d, Penis: %s", seed, penis)

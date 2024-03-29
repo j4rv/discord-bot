@@ -6,6 +6,7 @@ require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/enescakir/emoji v1.0.0
 	github.com/j4rv/genshinartis v0.0.0-20230911183910-b19c3dc323f3
+	github.com/j4rv/rollssim v0.0.0-20240329011720-1ac34fe7b422
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/robfig/cron/v3 v3.0.1
@@ -13,7 +14,6 @@ require (
 
 require (
 	github.com/gorilla/websocket v1.5.1 // indirect
-	github.com/j4rv/rollssim v0.0.0-20240328173749-ed06730e3472 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect

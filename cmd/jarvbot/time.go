@@ -27,6 +27,9 @@ func removeRoleAfterDuration(ds *discordgo.Session, guildID string, memberID str
 var usersOnExpensiveOperationCooldown = make(map[string]struct{})
 
 func userExpensiveOperationOnCooldown(userID string) bool {
+	if userID == adminID {
+		return false
+	}
 	_, inCooldown := usersOnExpensiveOperationCooldown[userID]
 	return inCooldown
 }

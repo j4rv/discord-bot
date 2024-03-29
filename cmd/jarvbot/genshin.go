@@ -15,7 +15,7 @@ import (
 )
 
 const genshinTeamSize = 4
-const genshinChanceIterations = 1000
+const gachaPullChanceIterations = 1000
 const averagePullsNote = "**Note:** The average rolls spent on each banner include successful attempts and failed attempts. This includes the best case scenarios of not needing to spend all your pulls to get your desired characters/weapons, and the worst case scenarios of spending all your pulls and not getting your desired characters/weapons."
 
 // Command Answers
@@ -179,7 +179,7 @@ func answerGenshinChance(ds *discordgo.Session, ic *discordgo.InteractionCreate)
 	cumResult := rollssim.WantedRollsResult{}
 	successCount := 0
 
-	for i := 0; i < genshinChanceIterations; i++ {
+	for i := 0; i < gachaPullChanceIterations; i++ {
 		charBanner := rollssim.GenshinCharRoller{
 			MihoyoRoller: rollssim.MihoyoRoller{
 				CurrSRPity:           charPity,
@@ -210,43 +210,138 @@ func answerGenshinChance(ds *discordgo.Session, ic *discordgo.InteractionCreate)
 }
 
 func formatGenshinChanceResult(result rollssim.WantedRollsResult, successCount int) string {
-	formatted := fmt.Sprintf("## Chance of success: %.2f%%\n",
-		divideToFloat(successCount, genshinChanceIterations)*100,
+	formatted := fmt.Sprintf("## Chance of Success: %.2f%%\n",
+		divideToFloat(successCount, gachaPullChanceIterations)*100,
 	)
 
 	if result.CharacterBannerRollCount > 0 {
 		formatted += fmt.Sprintf(`### Character banner:
-	Average rate up 5\*s characters: %.2f
-	Average standard 5\*s characters: %.2f
-	Average rate up 4\*s characters: %.2f
-	Average standard 4\*s: %.2f
-	Average rolls spent on character banner: %.2f
+	Average Rate-Up 5\* Characters: %.2f
+	Average Standard 5\* Characters: %.2f
+	Average Rate-Up 4\* Characters: %.2f
+	Average Standard 4\*s: %.2f
+	Average Wishes spent on Character banner: %.2f
 	
 `,
-			divideToFloat(result.CharacterBannerRateUpSRCount, genshinChanceIterations),
-			divideToFloat(result.CharacterBannerStdSRCount, genshinChanceIterations),
-			divideToFloat(result.CharacterBannerRateUpRareCount, genshinChanceIterations),
-			divideToFloat(result.CharacterBannerStdRareCount, genshinChanceIterations),
-			divideToFloat(result.CharacterBannerRollCount, genshinChanceIterations),
+			divideToFloat(result.CharacterBannerRateUpSRCount, gachaPullChanceIterations),
+			divideToFloat(result.CharacterBannerStdSRCount, gachaPullChanceIterations),
+			divideToFloat(result.CharacterBannerRateUpRareCount, gachaPullChanceIterations),
+			divideToFloat(result.CharacterBannerStdRareCount, gachaPullChanceIterations),
+			divideToFloat(result.CharacterBannerRollCount, gachaPullChanceIterations),
 		)
 	}
 
 	if result.WeaponBannerRollCount > 0 {
 		formatted += fmt.Sprintf(`### Weapon banner:
-	Average chosen rate up weapons: %.2f
-	Average non-chosen rate up weapons: %.2f
-	Average standard 5\* weapons: %.2f
-	Average rate up 4\*s weapons: %.2f
-	Average standard 4\*s: %.2f
-	Average rolls spent on weapon banner: %.2f
+	Average Chosen Rate-Up 5\* Weapons: %.2f
+	Average Non-Chosen Rate-Up 5\* Weapons: %.2f
+	Average Standard 5\* Weapons: %.2f
+	Average Rate-Up 4\* Weapons: %.2f
+	Average Standard 4\*s: %.2f
+	Average Wishes spent on Weapon banner: %.2f
 	
 `,
-			divideToFloat(result.WeaponBannerChosenRateUpCount, genshinChanceIterations),
-			divideToFloat(result.WeaponBannerNotChosenRateUpCount, genshinChanceIterations),
-			divideToFloat(result.WeaponBannerStdSRCount, genshinChanceIterations),
-			divideToFloat(result.WeaponBannerRateUpRareCount, genshinChanceIterations),
-			divideToFloat(result.WeaponBannerStdRareCount, genshinChanceIterations),
-			divideToFloat(result.WeaponBannerRollCount, genshinChanceIterations),
+			divideToFloat(result.WeaponBannerChosenRateUpCount, gachaPullChanceIterations),
+			divideToFloat(result.WeaponBannerNotChosenRateUpCount, gachaPullChanceIterations),
+			divideToFloat(result.WeaponBannerStdSRCount, gachaPullChanceIterations),
+			divideToFloat(result.WeaponBannerRateUpRareCount, gachaPullChanceIterations),
+			divideToFloat(result.WeaponBannerStdRareCount, gachaPullChanceIterations),
+			divideToFloat(result.WeaponBannerRollCount, gachaPullChanceIterations),
+		)
+	}
+
+	formatted += averagePullsNote
+
+	return formatted
+}
+
+func answerStarRailChance(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	defer func() {
+		if r := recover(); r != nil {
+			notifyIfErr("answerStarRailChance panic", fmt.Errorf("%v", r), ds)
+		}
+	}()
+	options := optionMap(ic.ApplicationCommandData().Options)
+	rollCount := int(options["roll_count"].IntValue())
+	charCount := int(options["char_count"].IntValue())
+	weaponCount := int(options["weapon_count"].IntValue())
+	charPity := optionIntValueOrZero(options["char_pity"])
+	charGuaranteed := optionBoolValueOrFalse(options["guaranteed_sr_char"])
+	charRarePity := optionIntValueOrZero(options["char_rare_pity"])
+	charRareGuaranteed := optionBoolValueOrFalse(options["guaranteed_rare_char"])
+	weaponPity := optionIntValueOrZero(options["weapon_pity"])
+	weaponGuaranteed := optionBoolValueOrFalse(options["guaranteed_sr_weapon"])
+	weaponRarePity := optionIntValueOrZero(options["weapon_rare_pity"])
+	weaponRareGuaranteed := optionBoolValueOrFalse(options["guaranteed_rare_weapon"])
+
+	cumResult := rollssim.WantedRollsResult{}
+	successCount := 0
+
+	for i := 0; i < gachaPullChanceIterations; i++ {
+		charBanner := rollssim.StarRailCharRoller{
+			MihoyoRoller: rollssim.MihoyoRoller{
+				CurrSRPity:           charPity,
+				GuaranteedRateUpSR:   charGuaranteed,
+				CurrRarePity:         charRarePity,
+				GuaranteedRateUpRare: charRareGuaranteed,
+			},
+		}
+		weaponBanner := rollssim.StarRailLCRoller{
+			MihoyoRoller: rollssim.MihoyoRoller{
+				CurrSRPity:           weaponPity,
+				GuaranteedRateUpSR:   weaponGuaranteed,
+				CurrRarePity:         weaponRarePity,
+				GuaranteedRateUpRare: weaponRareGuaranteed,
+			},
+		}
+		result := rollssim.CalcStarRailWantedRolls(rollCount, charCount, weaponCount, &charBanner, &weaponBanner)
+		cumResult.Add(result)
+
+		if result.CharacterBannerRateUpSRCount >= charCount && result.WeaponBannerRateUpSRCount >= weaponCount {
+			successCount++
+		}
+	}
+
+	_, err := textRespond(ds, ic, formatStarRailChanceResult(cumResult, successCount))
+	notifyIfErr("answerStarRailChance", err, ds)
+}
+
+func formatStarRailChanceResult(result rollssim.WantedRollsResult, successCount int) string {
+	formatted := fmt.Sprintf("## Chance of Success: %.2f%%\n",
+		divideToFloat(successCount, gachaPullChanceIterations)*100,
+	)
+
+	if result.CharacterBannerRollCount > 0 {
+		formatted += fmt.Sprintf(`### Character banner:
+	Average Rate-Up 5\* Characters: %.2f
+	Average Standard 5\* Characters: %.2f
+	Average Rate-Up 4\* Characters: %.2f
+	Average Standard 4\*s: %.2f
+	Average Warps spent on Character banner: %.2f
+	
+`,
+			divideToFloat(result.CharacterBannerRateUpSRCount, gachaPullChanceIterations),
+			divideToFloat(result.CharacterBannerStdSRCount, gachaPullChanceIterations),
+			divideToFloat(result.CharacterBannerRateUpRareCount, gachaPullChanceIterations),
+			divideToFloat(result.CharacterBannerStdRareCount, gachaPullChanceIterations),
+			divideToFloat(result.CharacterBannerRollCount, gachaPullChanceIterations),
+		)
+	}
+
+	if result.WeaponBannerRollCount > 0 {
+		formatted += fmt.Sprintf(`### Light Cone banner:
+	Average Rate-Up 5\* Light Cones: %.2f
+	Average Standard 5\* Light Cones: %.2f
+	Average Rate-Up 4\* Light Cones: %.2f
+	Average Standard 4\*s: %.2f
+	Average Warps spent on Light Cone banner: %.2f
+	
+`,
+			divideToFloat(result.WeaponBannerRateUpSRCount, gachaPullChanceIterations),
+			divideToFloat(result.WeaponBannerStdSRCount, gachaPullChanceIterations),
+			divideToFloat(result.WeaponBannerRateUpRareCount, gachaPullChanceIterations),
+			divideToFloat(result.WeaponBannerStdRareCount, gachaPullChanceIterations),
+			divideToFloat(result.WeaponBannerRollCount, gachaPullChanceIterations),
 		)
 	}
 

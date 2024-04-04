@@ -11,6 +11,8 @@ github.com/j4rv/genshinartis v0.0.0-20230911183910-b19c3dc323f3 h1:bdBq6XxKRQvZW
 github.com/j4rv/genshinartis v0.0.0-20230911183910-b19c3dc323f3/go.mod h1:NXUI4xa2rw8D2BjTBqgT6934wIJXJgn1vG9x/FGXW4E=
 github.com/j4rv/rollssim v0.0.0-20240329011720-1ac34fe7b422 h1:hB8eYD6EUsqv8KagIC/vVrm1/k9exSi/o+Za2fcvTrM=
 github.com/j4rv/rollssim v0.0.0-20240329011720-1ac34fe7b422/go.mod h1:giZ+GfPdq1sGjpWZHM5YSQ7Pfz2/doB9I2uSUXl/ZxU=
+github.com/j4rv/rollssim v0.0.0-20240404184348-3de18bb2de33 h1:cGdwtbBohkaKAc/b4RDz/Yv0J3J7RRJktf+1RVkk9Hg=
+github.com/j4rv/rollssim v0.0.0-20240404184348-3de18bb2de33/go.mod h1:giZ+GfPdq1sGjpWZHM5YSQ7Pfz2/doB9I2uSUXl/ZxU=
 github.com/jmoiron/sqlx v1.3.5 h1:vFFPA71p1o5gAeqtEAwLU4dnX2napprKtHr7PYIcN3g=
 github.com/jmoiron/sqlx v1.3.5/go.mod h1:nRVWtLre0KfCLJvgxzCsLVMogSvQ1zNJtpYr2Ccp0mQ=
 github.com/lib/pq v1.2.0 h1:LXpIM/LZ5xGFhOpXAQUIMM1HdyqzVYM13zNdjCEEcA0=

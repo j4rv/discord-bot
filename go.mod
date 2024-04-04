@@ -6,7 +6,7 @@ require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/enescakir/emoji v1.0.0
 	github.com/j4rv/genshinartis v0.0.0-20230911183910-b19c3dc323f3
-	github.com/j4rv/rollssim v0.0.0-20240329011720-1ac34fe7b422
+	github.com/j4rv/rollssim v0.0.0-20240404184348-3de18bb2de33
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/robfig/cron/v3 v3.0.1

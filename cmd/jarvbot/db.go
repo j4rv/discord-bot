@@ -99,7 +99,7 @@ func createTableReact4RoleMessage(db *sqlx.DB) {
 
 func createTableServerProperties(db *sqlx.DB) {
 	createTable("ServerProperties", []string{
-		"ServerID VARCHAR(20) UNIQUE NOT NULL",
+		"ServerID VARCHAR(20) NOT NULL",
 		"PropertyName VARCHAR(32) NOT NULL",
 		"PropertyValue TEXT NOT NULL",
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
@@ -285,6 +285,12 @@ type serverDataStore struct {
 	db *sqlx.DB
 }
 
+type ServerProperty struct {
+	ServerID      string `db:"ServerID"`
+	PropertyName  string `db:"PropertyName"`
+	PropertyValue string `db:"PropertyValue"`
+}
+
 func (s *serverDataStore) setServerProperty(serverID, propertyName, propertyValue string) error {
 	_, err := s.db.Exec(`
 		INSERT INTO ServerProperties (ServerID, PropertyName, PropertyValue) 
@@ -300,6 +306,13 @@ func (s *serverDataStore) getServerProperty(serverID, propertyName string) (stri
 	err := s.db.Get(&propertyValue, `SELECT PropertyValue FROM ServerProperties WHERE ServerID = ? AND PropertyName = ?`,
 		serverID, propertyName)
 	return propertyValue, err
+}
+
+func (s *serverDataStore) getServerProperties(propertyName string) ([]ServerProperty, error) {
+	var properties []ServerProperty
+	err := s.db.Select(&properties, `SELECT ServerID, PropertyName, PropertyValue FROM ServerProperties WHERE PropertyName = ?`,
+		propertyName)
+	return properties, err
 }
 
 // methods for repetitive stuff

@@ -14,7 +14,9 @@ var warnMessageMaxLength = 320
 
 const avatarTargetSize = "1024"
 
-const customTimeoutRoleNameKey = "custom_timeout_role_name"
+const serverPropCustomTimeoutRoleName = "custom_timeout_role_name"
+const serverPropAnnounceHere = "announce_here"
+
 const defaultTimeoutRoleName = "Shadow Realm"
 const shootMisfireChance = 0.2
 const nuclearCatastropheChance = 0.006

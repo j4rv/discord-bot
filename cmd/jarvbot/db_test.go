@@ -44,4 +44,16 @@ func TestServerProperties(t *testing.T) {
 	if val != "value2" {
 		t.Errorf("Expected 'value2', got '%s'", val)
 	}
+
+	err = serverDS.setServerProperty("0000", "key2", "value3")
+	if err != nil {
+		t.Error(err)
+	}
+	val, err = serverDS.getServerProperty("0000", "key2")
+	if err != nil {
+		t.Error(err)
+	}
+	if val != "value3" {
+		t.Errorf("Expected 'value3', got '%s'", val)
+	}
 }

@@ -72,9 +72,11 @@ var commands = map[string]command{
 	"!allowspamming":        modOnly(answerAllowSpamming),
 	"!preventspamming":      modOnly(answerPreventSpamming),
 	"!setcustomtimeoutrole": modOnly(answerSetCustomTimeoutRole),
+	"!announcehere":         modOnly(answerAnnounceHere),
 	// only available for the bot owner
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
+	"!announce":            adminOnly(answerAnnounce),
 	"!listcommands":        adminOnly(answerListCommands),
 	"!reboot":              adminOnly(answerReboot),
 	"!shutdown":            adminOnly(answerShutdown),
@@ -201,6 +203,15 @@ func answerSetCustomTimeoutRole(ds *discordgo.Session, mc *discordgo.MessageCrea
 	return err == nil
 }
 
+func answerAnnounceHere(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := serverDS.setServerProperty(mc.GuildID, serverPropAnnounceHere, mc.ChannelID)
+	notifyIfErr("answerAnnounceHere", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will send announcements in this channel")
+	}
+	return err == nil
+}
+
 // ---------- Simple command stuff ----------
 
 func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
@@ -253,6 +264,35 @@ func answerRemoveGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreat
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
 	return err == nil
+}
+
+func answerAnnounce(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	properties, err := serverDS.getServerProperties(serverPropAnnounceHere)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not get server properties: "+err.Error())
+		return false
+	}
+	log.Println("Server properties", properties)
+
+	errors := ""
+	for _, prop := range properties {
+		_, err = ds.ChannelMessageSend(prop.PropertyValue, commandBody)
+		log.Println("Sending message to channel", prop.PropertyValue, "in server", prop.ServerID, "with content", commandBody)
+		if err != nil {
+			errors += fmt.Sprintf("Could not send message to channel %s in server %s: %s\n", prop.PropertyValue, prop.ServerID, err)
+		}
+	}
+
+	if errors != "" {
+		ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
+			Title:       "Errors while announcing",
+			Description: errors,
+		})
+	} else {
+		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
+	}
+	return errors == ""
 }
 
 func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

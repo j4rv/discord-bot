@@ -99,6 +99,7 @@ func answerSniperShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 	ds.ChannelMessageSend(bunkerGeneralChannelID, fmt.Sprintf("%s got sniped by %s!", target.User.Mention(), mc.Author.Mention()))
 	ds.GuildMemberRoleAdd(bunkerServerID, target.User.ID, timeoutRole.ID)
 	removeRoleAfterDuration(ds, bunkerServerID, target.User.ID, timeoutRole.ID, timeoutDurationWhenShot)
+	ds.ChannelMessageSend(mc.ChannelID, "https://tenor.com/view/gun-anime-sniper-scope-scoping-gif-17545837")
 	return true
 }
 

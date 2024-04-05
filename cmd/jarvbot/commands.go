@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -256,9 +257,17 @@ func answerRemoveGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreat
 
 func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	keys, err := commandDS.allSimpleCommandKeys(mc.GuildID)
-	notifyIfErr("removeSimpleCommand", err, ds)
+	notifyIfErr("answerListCommands::allSimpleCommandKeys", err, ds)
 	if len(keys) != 0 {
-		ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Current commands: %v", keys))
+		sort.Strings(keys)
+		msg := ""
+		for _, k := range keys {
+			msg += k + "\n"
+		}
+		ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
+			Title:       "Simple commands",
+			Description: msg,
+		})
 	}
 	return err == nil
 }

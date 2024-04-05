@@ -69,7 +69,7 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 }
 
 func getTimeoutRole(ds *discordgo.Session, guildID string) (*discordgo.Role, error) {
-	customRoleName, err := serverDS.getServerProperty(guildID, customTimeoutRoleNameKey)
+	customRoleName, err := serverDS.getServerProperty(guildID, serverPropCustomTimeoutRoleName)
 	if err != nil {
 		customRoleName = defaultTimeoutRoleName
 	}
@@ -77,7 +77,7 @@ func getTimeoutRole(ds *discordgo.Session, guildID string) (*discordgo.Role, err
 }
 
 func setCustomTimeoutRole(ds *discordgo.Session, guildID string, roleName string) error {
-	return serverDS.setServerProperty(guildID, customTimeoutRoleNameKey, roleName)
+	return serverDS.setServerProperty(guildID, serverPropCustomTimeoutRoleName, roleName)
 }
 
 // Internal functions

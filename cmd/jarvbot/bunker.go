@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+const bunkerServerID = "807055417120129085"
+const bunkerGeneralChannelID = "828303425414365214"
 
 // Command Answers
 
@@ -66,6 +70,36 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	err = shoot(ds, mc.ChannelID, mc.GuildID, shooter, target, timeoutRole.ID)
 	notifyIfErr("answerShoot: shoot", err, ds)
 	return err == nil
+}
+
+func answerSniperShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	if mc.Author == nil {
+		return false
+	}
+
+	targetID := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	if targetID == ds.State.User.ID {
+		ds.ChannelMessageSend(mc.ChannelID, "https://tenor.com/view/anya-forger-anya-spy-x-family-gif-17200077238442027522")
+		return false
+	}
+
+	target, err := ds.GuildMember(bunkerServerID, targetID)
+	notifyIfErr("answerShoot: get target member", err, ds)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Couldn't find Bunker member with user ID: "+targetID)
+		return false
+	}
+
+	timeoutRole, err := getTimeoutRole(ds, bunkerServerID)
+	notifyIfErr("answerSniperShoot: get timeout role", err, ds)
+	if err != nil {
+		return false
+	}
+
+	ds.ChannelMessageSend(bunkerGeneralChannelID, fmt.Sprintf("%s got sniped by %s!", target.User.Mention(), mc.Author.Mention()))
+	ds.GuildMemberRoleAdd(bunkerServerID, target.User.ID, timeoutRole.ID)
+	removeRoleAfterDuration(ds, bunkerServerID, target.User.ID, timeoutRole.ID, timeoutDurationWhenShot)
+	return true
 }
 
 func getTimeoutRole(ds *discordgo.Session, guildID string) (*discordgo.Role, error) {

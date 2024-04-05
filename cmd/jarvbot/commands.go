@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"regexp"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -59,11 +60,12 @@ var commands = map[string]command{
 	"!remindme":                  notSpammable(answerRemindme),
 	"!roll":                      notSpammable(answerRoll),
 	// hidden or easter eggs
-	"!hello":  notSpammable(answerHello),
-	"!liquid": notSpammable(answerLiquid),
-	"!don":    notSpammable(answerDon),
-	"!shoot":  notSpammable(answerShoot),
-	"!pp":     notSpammable(answerPP),
+	"!hello":        notSpammable(answerHello),
+	"!liquid":       notSpammable(answerLiquid),
+	"!don":          notSpammable(answerDon),
+	"!shoot":        notSpammable(answerShoot),
+	"!sniper_shoot": notSpammable(answerSniperShoot),
+	"!pp":           notSpammable(answerPP),
 	// only available for discord mods
 	"!roleids":              modOnly(answerRoleIDs),
 	"!react4roles":          modOnly(answerMakeReact4RolesMsg),
@@ -84,6 +86,12 @@ var commands = map[string]command{
 }
 
 func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullCommand string, ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			notifyIfErr("processCommand", fmt.Errorf("panic in command %s: %s\n%s", fullCommand, r, string(debug.Stack())), ds)
+		}
+	}()
+
 	commandKey := strings.TrimSpace(commandPrefixRegex.FindString(fullCommand))
 	command, ok := commands[strings.ToLower(commandKey)]
 	if ok {

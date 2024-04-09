@@ -45,7 +45,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.3.3"),
+	"!version":                   simpleTextResponse("v3.4.0"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -67,15 +67,16 @@ var commands = map[string]command{
 	"!sniper_shoot": notSpammable(answerSniperShoot),
 	"!pp":           notSpammable(answerPP),
 	// only available for discord mods
-	"!roleids":              modOnly(answerRoleIDs),
-	"!react4roles":          modOnly(answerMakeReact4RolesMsg),
-	"!addcommand":           modOnly(answerAddCommand),
-	"!removecommand":        modOnly(answerRemoveCommand),
+	"!roleids":              guildOnly((answerRoleIDs)),
+	"!react4roles":          guildOnly((answerMakeReact4RolesMsg)),
+	"!addcommand":           guildOnly((answerAddCommand)),
+	"!removecommand":        guildOnly((answerRemoveCommand)),
 	"!listcommands":         modOnly(answerListCommands),
-	"!allowspamming":        modOnly(answerAllowSpamming),
-	"!preventspamming":      modOnly(answerPreventSpamming),
-	"!setcustomtimeoutrole": modOnly(answerSetCustomTimeoutRole),
-	"!announcehere":         modOnly(answerAnnounceHere),
+	"!allowspamming":        guildOnly(modOnly(answerAllowSpamming)),
+	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),
+	"!setcustomtimeoutrole": guildOnly(modOnly(answerSetCustomTimeoutRole)),
+	"!announcehere":         guildOnly(modOnly(answerAnnounceHere)),
+	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	// only available for the bot owner
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
@@ -220,13 +221,22 @@ func answerAnnounceHere(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	return err == nil
 }
 
+func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := serverDS.setServerProperty(mc.GuildID, serverPropMessageLogs, mc.ChannelID)
+	notifyIfErr("answerMessageLogs", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will send message logs in this channel")
+	}
+	return err == nil
+}
+
 // ---------- Simple command stuff ----------
 
 func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
 	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
 	if key == "" {
-		ds.ChannelMessageSend(mc.ChannelID, errorMessage("Could not get the key from the command body"))
+		ds.ChannelMessageSend(mc.ChannelID, diff("Could not get the key from the command body", "- "))
 		return false
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
@@ -242,7 +252,7 @@ func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, 
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
 	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
 	if key == "" {
-		ds.ChannelMessageSend(mc.ChannelID, errorMessage("Could not get the key from the command body"))
+		ds.ChannelMessageSend(mc.ChannelID, diff("Could not get the key from the command body", "- "))
 		return false
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
@@ -359,6 +369,16 @@ func modOnly(wrapped command) command {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 		if !(isAdmin(mc.Author.ID) || isMod(ds, mc.Author.ID, mc.ChannelID)) {
 			ds.ChannelMessageSend(mc.ChannelID, userMustBeModMessage)
+			return false
+		}
+		return wrapped(ds, mc, ctx)
+	}
+}
+
+func guildOnly(wrapped command) command {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		if mc.GuildID == globalGuildID {
+			ds.ChannelMessageSend(mc.ChannelID, notAGuildMessage)
 			return false
 		}
 		return wrapped(ds, mc, ctx)

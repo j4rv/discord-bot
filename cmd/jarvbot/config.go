@@ -21,6 +21,7 @@ const colorRed = 0xED4245
 
 const serverPropCustomTimeoutRoleName = "custom_timeout_role_name"
 const serverPropAnnounceHere = "announce_here"
+const serverPropMessageLogs = "message_logs"
 
 const defaultTimeoutRoleName = "Shadow Realm"
 const shootMisfireChance = 0.2
@@ -43,6 +44,7 @@ const react4RolesCRON = "0 0 * * 6"
 // Messages
 const userMustBeAdminMessage = "Only the bot's admin can do that"
 const userMustBeModMessage = "Only a mod can do that"
+const notAGuildMessage = "This command can only be used on a server"
 const commandReceivedMessage = "Gotcha!"
 const commandSuccessMessage = "Successfully donette!"
 const commandWithTwoArgumentsError = "Something went wrong, please make sure to use the command with the following format: '!command (...) (...)'"

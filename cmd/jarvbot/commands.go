@@ -67,15 +67,16 @@ var commands = map[string]command{
 	"!sniper_shoot": notSpammable(answerSniperShoot),
 	"!pp":           notSpammable(answerPP),
 	// only available for discord mods
-	"!roleids":              modOnly(answerRoleIDs),
-	"!react4roles":          modOnly(answerMakeReact4RolesMsg),
-	"!addcommand":           modOnly(answerAddCommand),
-	"!removecommand":        modOnly(answerRemoveCommand),
+	"!roleids":              guildOnly((answerRoleIDs)),
+	"!react4roles":          guildOnly((answerMakeReact4RolesMsg)),
+	"!addcommand":           guildOnly((answerAddCommand)),
+	"!removecommand":        guildOnly((answerRemoveCommand)),
 	"!listcommands":         modOnly(answerListCommands),
-	"!allowspamming":        modOnly(answerAllowSpamming),
-	"!preventspamming":      modOnly(answerPreventSpamming),
-	"!setcustomtimeoutrole": modOnly(answerSetCustomTimeoutRole),
-	"!announcehere":         modOnly(answerAnnounceHere),
+	"!allowspamming":        guildOnly(modOnly(answerAllowSpamming)),
+	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),
+	"!setcustomtimeoutrole": guildOnly(modOnly(answerSetCustomTimeoutRole)),
+	"!announcehere":         guildOnly(modOnly(answerAnnounceHere)),
+	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	// only available for the bot owner
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
@@ -220,6 +221,15 @@ func answerAnnounceHere(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	return err == nil
 }
 
+func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := serverDS.setServerProperty(mc.GuildID, serverPropMessageLogs, mc.ChannelID)
+	notifyIfErr("answerMessageLogs", err, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will send message logs in this channel")
+	}
+	return err == nil
+}
+
 // ---------- Simple command stuff ----------
 
 func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
@@ -359,6 +369,16 @@ func modOnly(wrapped command) command {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 		if !(isAdmin(mc.Author.ID) || isMod(ds, mc.Author.ID, mc.ChannelID)) {
 			ds.ChannelMessageSend(mc.ChannelID, userMustBeModMessage)
+			return false
+		}
+		return wrapped(ds, mc, ctx)
+	}
+}
+
+func guildOnly(wrapped command) command {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		if mc.GuildID == globalGuildID {
+			ds.ChannelMessageSend(mc.ChannelID, notAGuildMessage)
 			return false
 		}
 		return wrapped(ds, mc, ctx)

@@ -10,9 +10,18 @@ import (
 
 func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
-		if mc.BeforeDelete != nil {
+		if mc.BeforeDelete != nil && mc.BeforeDelete.Author != nil {
+			// dont mind if the bot messages get deleted
+			if mc.BeforeDelete.Author.ID == ds.State.User.ID {
+				return
+			}
+
+			logsChannelID, err := serverDS.getServerProperty(mc.GuildID, serverPropMessageLogs)
+			if err != nil {
+				return
+			}
 			ds.ChannelMessageSendEmbed(
-				mc.ChannelID,
+				logsChannelID,
 				&discordgo.MessageEmbed{
 					Author: &discordgo.MessageEmbedAuthor{
 						Name:    mc.BeforeDelete.Author.Username,
@@ -29,9 +38,13 @@ func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 
 func onMessageUpdated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageUpdate) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageUpdate) {
-		if mc.BeforeUpdate != nil {
+		if mc.BeforeUpdate != nil && mc.Author != nil {
+			logsChannelID, err := serverDS.getServerProperty(mc.GuildID, serverPropMessageLogs)
+			if err != nil {
+				return
+			}
 			ds.ChannelMessageSendEmbed(
-				mc.ChannelID,
+				logsChannelID,
 				&discordgo.MessageEmbed{
 					Author: &discordgo.MessageEmbedAuthor{
 						Name:    mc.Author.Username,
@@ -134,7 +147,7 @@ func messageToString(m *discordgo.Message) string {
 		str += "\nAuthor: " + m.Author.Mention()
 	}
 	if m.Content != "" {
-		str += "\nContent:\n" + m.Content
+		str += "```" + m.Content + "```"
 	}
 	if m.Attachments != nil && len(m.Attachments) > 0 {
 		str += "\nAttachments:"

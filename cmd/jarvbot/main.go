@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -75,6 +76,8 @@ func initDiscordSession() *discordgo.Session {
 	backgroundCtx := context.Background()
 
 	ds.AddHandler(onMessageCreated(backgroundCtx))
+	ds.AddHandler(onMessageUpdated(backgroundCtx))
+	ds.AddHandler(onMessageDeleted(backgroundCtx))
 	ds.AddHandler(onMessageReacted(backgroundCtx))
 	ds.AddHandler(onMessageUnreacted(backgroundCtx))
 
@@ -83,6 +86,7 @@ func initDiscordSession() *discordgo.Session {
 	ds.Identify.Intents |= discordgo.IntentGuildMessages
 	ds.Identify.Intents |= discordgo.IntentGuildMessageReactions
 	ds.Identify.Intents |= discordgo.IntentDirectMessages
+	ds.State.MaxMessageCount = maxMessageCount
 
 	// Open a websocket connection to Discord and begin listening.
 	err = ds.Open()
@@ -161,15 +165,19 @@ func initSlashCommands(ds *discordgo.Session) func() {
 	}
 }
 
-// for single line strings only!
-func errorMessage(body string) string {
-	return "```diff\n- " + body + "\n```"
+func diff(body, prefix string) string {
+	lines := strings.Split(body, "\n")
+	var formattedBody string
+	for _, line := range lines {
+		formattedBody += prefix + line + "\n"
+	}
+	return "```diff\n" + formattedBody + "```"
 }
 
 func notifyIfErr(context string, err error, ds *discordgo.Session) {
 	if err != nil {
 		msg := "ERROR [" + context + "]: " + err.Error()
 		log.Println(msg)
-		sendDirectMessage(adminID, errorMessage(msg), ds)
+		sendDirectMessage(adminID, diff(msg, "- "), ds)
 	}
 }

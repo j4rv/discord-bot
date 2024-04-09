@@ -13,6 +13,11 @@ var warnMessageMinLength = 1
 var warnMessageMaxLength = 320
 
 const avatarTargetSize = "1024"
+const maxMessageCount = 25
+
+// https://discord.com/branding
+const colorYellow = 0xFEE75C
+const colorRed = 0xED4245
 
 const serverPropCustomTimeoutRoleName = "custom_timeout_role_name"
 const serverPropAnnounceHere = "announce_here"

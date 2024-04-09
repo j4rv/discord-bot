@@ -8,6 +8,44 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
+	return func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
+		if mc.BeforeDelete != nil {
+			ds.ChannelMessageSendEmbed(
+				mc.ChannelID,
+				&discordgo.MessageEmbed{
+					Author: &discordgo.MessageEmbedAuthor{
+						Name:    mc.BeforeDelete.Author.Username,
+						IconURL: mc.BeforeDelete.Author.AvatarURL(""),
+					},
+					Color:       colorRed,
+					Title:       "Message deleted",
+					Description: messageToString(mc.BeforeDelete),
+				},
+			)
+		}
+	}
+}
+
+func onMessageUpdated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageUpdate) {
+	return func(ds *discordgo.Session, mc *discordgo.MessageUpdate) {
+		if mc.BeforeUpdate != nil {
+			ds.ChannelMessageSendEmbed(
+				mc.ChannelID,
+				&discordgo.MessageEmbed{
+					Author: &discordgo.MessageEmbedAuthor{
+						Name:    mc.Author.Username,
+						IconURL: mc.Author.AvatarURL(""),
+					},
+					Color:       colorYellow,
+					Title:       "Message edited",
+					Description: messageUpdatedToString(mc.BeforeUpdate, mc.Message),
+				},
+			)
+		}
+	}
+}
+
 type UserWarning struct {
 	ID         int       `db:"UserWarning"`
 	UserID     string    `db:"DiscordUserID"`
@@ -88,4 +126,31 @@ func answerWarnings(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	} else {
 		fileRespond(ds, ic, "Damn that user has been warned a lot", fmt.Sprintf("%s_warnings.txt", user.Username), responseMsg)
 	}
+}
+
+func messageToString(m *discordgo.Message) string {
+	str := "In channel: <#" + m.ChannelID + ">"
+	if m.Author != nil {
+		str += "\nAuthor: " + m.Author.Mention()
+	}
+	if m.Content != "" {
+		str += "\nContent:\n" + m.Content
+	}
+	if m.Attachments != nil && len(m.Attachments) > 0 {
+		str += "\nAttachments:"
+		for _, a := range m.Attachments {
+			str += "\n" + a.URL
+		}
+	}
+	return str
+}
+
+func messageUpdatedToString(from, to *discordgo.Message) string {
+	str := "In channel: <#" + from.ChannelID + ">"
+	if from.Author != nil {
+		str += "\nAuthor: " + from.Author.Mention()
+	}
+	str += diff(from.Content, "- ")
+	str += diff(to.Content, "+ ")
+	return str
 }

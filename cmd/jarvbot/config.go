@@ -30,6 +30,7 @@ const timeoutDurationWhenShot = 4 * time.Minute
 const timeoutDurationWhenMisfire = 8 * time.Minute
 const timeoutDurationWhenNuclearCatastrophe = 2 * time.Minute
 
+const backupCRON = "0 0 * * 1"
 const dailyCheckInReminderCRON = "CRON_TZ=Asia/Shanghai 0 0 * * *"
 const dailyCheckInReminderMessage = `Remember to do the Daily Check-In!
 - Genshin: https://webstatic-sea.mihoyo.com/ys/event/signin-sea/index.html?act_id=e202102251931481

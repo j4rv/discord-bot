@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -381,6 +382,21 @@ func answerCharacter(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 }
 
 // CRONs
+
+func backupCRONFunc(ds *discordgo.Session) func() {
+	return func() {
+		reader, err := os.Open(dbFilename)
+		if err != nil {
+			return
+		}
+		userChannel, err := getUserChannel(adminID, ds)
+		if err != nil {
+			return
+		}
+		ds.ChannelFileSend(userChannel.ID, dbFilename, reader)
+		log.Println("Periodic backup done")
+	}
+}
 
 func dailyCheckInCRONFunc(ds *discordgo.Session) func() {
 	return func() {

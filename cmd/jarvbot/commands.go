@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"regexp"
 	"runtime/debug"
 	"sort"
@@ -45,7 +46,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.4.0"),
+	"!version":                   simpleTextResponse("v3.4.1"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -81,6 +82,7 @@ var commands = map[string]command{
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!announce":            adminOnly(answerAnnounce),
+	"!dbbackup":            adminOnly(answerDbBackup),
 	"!reboot":              adminOnly(answerReboot),
 	"!shutdown":            adminOnly(answerShutdown),
 	"!abortshutdown":       adminOnly(answerAbortShutdown),
@@ -311,6 +313,16 @@ func answerAnnounce(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
 	return errors == ""
+}
+
+func answerDbBackup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	reader, err := os.Open(dbFilename)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not open database: "+err.Error())
+		return false
+	}
+	_, err = ds.ChannelFileSend(mc.ChannelID, dbFilename, reader)
+	return err == nil
 }
 
 func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

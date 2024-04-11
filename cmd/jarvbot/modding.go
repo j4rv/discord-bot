@@ -43,6 +43,9 @@ func onMessageUpdated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			if err != nil {
 				return
 			}
+			if mc.BeforeUpdate.Content == mc.Message.Content {
+				return
+			}
 			ds.ChannelMessageSendEmbed(
 				logsChannelID,
 				&discordgo.MessageEmbed{
@@ -165,5 +168,7 @@ func messageUpdatedToString(from, to *discordgo.Message) string {
 	}
 	str += diff(from.Content, "- ")
 	str += diff(to.Content, "+ ")
+	str += fmt.Sprintf("\n[Link to message](https://discord.com/channels/%s/%s/%s)",
+		from.GuildID, from.ChannelID, from.ID)
 	return str
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"os"
 	"regexp"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -46,7 +46,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.4.1"),
+	"!version":                   simpleTextResponse("v3.5.0"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -78,11 +78,13 @@ var commands = map[string]command{
 	"!setcustomtimeoutrole": guildOnly(modOnly(answerSetCustomTimeoutRole)),
 	"!announcehere":         guildOnly(modOnly(answerAnnounceHere)),
 	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
+	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
 	// only available for the bot owner
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!announce":            adminOnly(answerAnnounce),
 	"!dbbackup":            adminOnly(answerDbBackup),
+	"!runtimestats":        adminOnly(answerRuntimeStats),
 	"!reboot":              adminOnly(answerReboot),
 	"!shutdown":            adminOnly(answerShutdown),
 	"!abortshutdown":       adminOnly(answerAbortShutdown),
@@ -96,10 +98,11 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 	}()
 
 	commandKey := strings.TrimSpace(commandPrefixRegex.FindString(fullCommand))
-	command, ok := commands[strings.ToLower(commandKey)]
+	lowercaseCommandKey := strings.ToLower(commandKey)
+	command, ok := commands[lowercaseCommandKey]
 	if ok {
 		if command(ds, mc, ctx) {
-			onSuccessCommandCall(mc)
+			onSuccessCommandCall(mc, lowercaseCommandKey)
 		}
 		return
 	}
@@ -108,13 +111,16 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 	notifyIfErr("simpleCommandResponse", err, ds)
 	if err == nil {
 		if notSpammable(simpleTextResponse(response))(ds, mc, ctx) {
-			onSuccessCommandCall(mc)
+			onSuccessCommandCall(mc, commandKey)
 		}
 	}
 }
 
-func onSuccessCommandCall(mc *discordgo.MessageCreate) {
-	log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, mc.Content)
+func onSuccessCommandCall(mc *discordgo.MessageCreate, commandKey string) {
+	log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
+	if mc.GuildID != globalGuildID {
+		commandDS.increaseCommandCountStat(mc.GuildID, commandKey)
+	}
 	channelIsSpammable, _ := commandDS.isChannelSpammable(mc.ChannelID)
 	if !channelIsSpammable {
 		resetUserCooldown(mc.Author.ID)
@@ -232,6 +238,23 @@ func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 	return err == nil
 }
 
+func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	stats, err := commandDS.guildCommandStats(mc.GuildID)
+	if err != nil {
+		notifyIfErr("answerCommandStats: get command stats", err, ds)
+		return false
+	}
+	statsMsg := ""
+	for _, s := range stats {
+		statsMsg += fmt.Sprintf("%s: %d\n", s.Command, s.Count)
+	}
+	_, err = ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
+		Title:       "Command stats",
+		Description: statsMsg,
+	})
+	return err == nil
+}
+
 // ---------- Simple command stuff ----------
 
 func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
@@ -315,14 +338,19 @@ func answerAnnounce(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	return errors == ""
 }
 
-func answerDbBackup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	reader, err := os.Open(dbFilename)
-	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, "Could not open database: "+err.Error())
-		return false
-	}
-	_, err = ds.ChannelFileSend(mc.ChannelID, dbFilename, reader)
-	return err == nil
+func answerRuntimeStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	msg := fmt.Sprintf("Number of CPUs: %d\n", runtime.NumCPU())
+	msg += fmt.Sprintf("Number of goroutines: %d\n", runtime.NumGoroutine())
+	msg += fmt.Sprintf("Total allocated memory: %.2f MBs\n", float64(mem.TotalAlloc)/1_000_000)
+	msg += fmt.Sprintf("System memory reserved: %.2f MBs\n", float64(mem.Sys)/1_000_000)
+	msg += fmt.Sprintf("Number of memory allocations: %d\n", mem.Mallocs)
+	ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
+		Title:       "Runtime stats",
+		Description: msg,
+	})
+	return true
 }
 
 func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

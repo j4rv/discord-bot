@@ -99,37 +99,22 @@ func initDiscordSession() *discordgo.Session {
 
 func initCRONs(ds *discordgo.Session) {
 	log.Println("Initiating CRONs")
-	dailyCheckInCRON := cron.New()
-	_, err := dailyCheckInCRON.AddFunc(dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))
-	if err != nil {
-		notifyIfErr("AddFunc to dailyCheckInCRON", err, ds)
-	} else {
-		dailyCheckInCRON.Start()
+
+	initCron := func(name string, cronSpec string, f func()) {
+		cronJob := cron.New()
+		_, err := cronJob.AddFunc(cronSpec, f)
+		if err != nil {
+			notifyIfErr("AddFunc to "+name, err, ds)
+		} else {
+			cronJob.Start()
+		}
 	}
 
-	parametricCRON := cron.New()
-	_, err = parametricCRON.AddFunc(parametricReminderCRON, parametricCRONFunc(ds))
-	if err != nil {
-		notifyIfErr("AddFunc to parametricCRON", err, ds)
-	} else {
-		parametricCRON.Start()
-	}
-
-	playStoreCRON := cron.New()
-	_, err = playStoreCRON.AddFunc(playStoreReminderCRON, playStoreCRONFunc(ds))
-	if err != nil {
-		notifyIfErr("AddFunc to playStoreCRON", err, ds)
-	} else {
-		playStoreCRON.Start()
-	}
-
-	r4rsCRON := cron.New()
-	_, err = r4rsCRON.AddFunc(react4RolesCRON, react4RolesCRONFunc(ds))
-	if err != nil {
-		notifyIfErr("AddFunc to react4RolesCRON", err, ds)
-	} else {
-		r4rsCRON.Start()
-	}
+	initCron("backupCRON", backupCRON, backupCRONFunc(ds))
+	initCron("dailyCheckInCRON", dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))
+	initCron("parametricCRON", parametricReminderCRON, parametricCRONFunc(ds))
+	initCron("playStoreCRON", playStoreReminderCRON, playStoreCRONFunc(ds))
+	initCron("react4RolesCRON", react4RolesCRON, react4RolesCRONFunc(ds))
 }
 
 // initSlashCommands returns a function to remove the registered slash commands for graceful shutdowns

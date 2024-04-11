@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -83,6 +84,7 @@ var commands = map[string]command{
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!announce":            adminOnly(answerAnnounce),
 	"!dbbackup":            adminOnly(answerDbBackup),
+	"!runtimestats":        adminOnly(answerRuntimeStats),
 	"!reboot":              adminOnly(answerReboot),
 	"!shutdown":            adminOnly(answerShutdown),
 	"!abortshutdown":       adminOnly(answerAbortShutdown),
@@ -323,6 +325,21 @@ func answerDbBackup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	}
 	_, err = ds.ChannelFileSend(mc.ChannelID, dbFilename, reader)
 	return err == nil
+}
+
+func answerRuntimeStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	msg := fmt.Sprintf("Number of CPUs: %d\n", runtime.NumCPU())
+	msg += fmt.Sprintf("Number of goroutines: %d\n", runtime.NumGoroutine())
+	msg += fmt.Sprintf("Total allocated memory: %.2f MBs\n", float64(mem.TotalAlloc)/1_000_000)
+	msg += fmt.Sprintf("System memory reserved: %.2f MBs\n", float64(mem.Sys)/1_000_000)
+	msg += fmt.Sprintf("Number of memory allocations: %d\n", mem.Mallocs)
+	ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
+		Title:       "Runtime stats",
+		Description: msg,
+	})
+	return true
 }
 
 func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

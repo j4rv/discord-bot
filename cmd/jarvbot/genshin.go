@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -22,7 +21,7 @@ const averagePullsNote = "**Note:** The average rolls spent on each banner inclu
 // Command Answers
 
 func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := startParametricReminder(ds, mc, ctx)
+	err := genshinDS.addOrUpdateParametricReminder(mc.Author.ID)
 	notifyIfErr("answerParametricTransformer", err, ds)
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, "I will remind you about the Parametric Transformer in 7 days!")
@@ -31,7 +30,7 @@ func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCre
 }
 
 func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := stopParametricReminder(ds, mc, ctx)
+	err := genshinDS.removeParametricReminder(mc.Author.ID)
 	notifyIfErr("answerParametricTransformerStop", err, ds)
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
@@ -40,7 +39,7 @@ func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.Messag
 }
 
 func answerPlayStore(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := startPlayStoreReminder(ds, mc, ctx)
+	err := genshinDS.addOrUpdatePlayStoreReminder(mc.Author.ID)
 	notifyIfErr("answerPlayStore", err, ds)
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, "I will remind you about the PlayStore in 7 days!")
@@ -49,7 +48,7 @@ func answerPlayStore(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx con
 }
 
 func answerPlayStoreStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := stopPlayStoreReminder(ds, mc, ctx)
+	err := genshinDS.removePlayStoreReminder(mc.Author.ID)
 	notifyIfErr("answerPlayStoreStop", err, ds)
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
@@ -139,7 +138,7 @@ func answerRandomDomainRun(ds *discordgo.Session, mc *discordgo.MessageCreate, c
 }
 
 func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := startDailyCheckInReminder(ds, mc, ctx)
+	err := genshinDS.addDailyCheckInReminder(mc.Author.ID)
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	}
@@ -148,7 +147,7 @@ func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreat
 }
 
 func answerGenshinDailyCheckInStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := stopDailyCheckInReminder(ds, mc, ctx)
+	err := genshinDS.removeDailyCheckInReminder(mc.Author.ID)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
 	}
@@ -383,21 +382,6 @@ func answerCharacter(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 
 // CRONs
 
-func backupCRONFunc(ds *discordgo.Session) func() {
-	return func() {
-		reader, err := os.Open(dbFilename)
-		if err != nil {
-			return
-		}
-		userChannel, err := getUserChannel(adminID, ds)
-		if err != nil {
-			return
-		}
-		ds.ChannelFileSend(userChannel.ID, dbFilename, reader)
-		log.Println("Periodic backup done")
-	}
-}
-
 func dailyCheckInCRONFunc(ds *discordgo.Session) func() {
 	return func() {
 		userIDs, err := genshinDS.allDailyCheckInReminderUserIDs()
@@ -439,30 +423,6 @@ func playStoreCRONFunc(ds *discordgo.Session) func() {
 			}
 		}
 	}
-}
-
-func startDailyCheckInReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
-	return genshinDS.addDailyCheckInReminder(mc.Author.ID)
-}
-
-func stopDailyCheckInReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
-	return genshinDS.removeDailyCheckInReminder(mc.Author.ID)
-}
-
-func startParametricReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
-	return genshinDS.addOrUpdateParametricReminder(mc.Author.ID)
-}
-
-func stopParametricReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
-	return genshinDS.removeParametricReminder(mc.Author.ID)
-}
-
-func startPlayStoreReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
-	return genshinDS.addOrUpdatePlayStoreReminder(mc.Author.ID)
-}
-
-func stopPlayStoreReminder(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) error {
-	return genshinDS.removePlayStoreReminder(mc.Author.ID)
 }
 
 // chars must have either 0 or 8+ elements

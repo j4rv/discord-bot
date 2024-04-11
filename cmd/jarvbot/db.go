@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"strings"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/jmoiron/sqlx"
 
 	// driver for sqlite3
@@ -23,6 +27,7 @@ func createTables(db *sqlx.DB) {
 	createTableParametricReminder(db)
 	createTablePlayStoreReminder(db)
 	createTableSimpleCommand(db)
+	createTableCommandStats(db)
 	createTableSpammableChannel(db)
 	createTableUserWarning(db)
 	createTableReact4RoleMessage(db)
@@ -65,6 +70,16 @@ func createTableSimpleCommand(db *sqlx.DB) {
 	createIndex("SimpleCommand", "Key", db)
 }
 
+func createTableCommandStats(db *sqlx.DB) {
+	createTable("CommandStats", []string{
+		"GuildID VARCHAR(20) NOT NULL DEFAULT ''",
+		"Command VARCHAR(36) NOT NULL COLLATE NOCASE",
+		"Count INTEGER NOT NULL",
+		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+		"UNIQUE(GuildID, Command)",
+	}, db)
+	createIndex("CommandStats", "GuildID", db)
+}
 func createTableSpammableChannel(db *sqlx.DB) {
 	createTable("SpammableChannel", []string{
 		"ChannelID VARCHAR(20) UNIQUE NOT NULL",
@@ -114,6 +129,12 @@ type commandDataStore struct {
 	db *sqlx.DB
 }
 
+type CommandStat struct {
+	GuildID string `db:"GuildID"`
+	Command string `db:"Command"`
+	Count   int    `db:"Count"`
+}
+
 func (c commandDataStore) addSimpleCommand(key, response, guildID string) error {
 	_, err := c.db.Exec(`INSERT INTO SimpleCommand (Key, Response, GuildID) VALUES (?, ?, ?)`,
 		key, response, guildID)
@@ -147,6 +168,20 @@ func (c commandDataStore) allSimpleCommandKeys(guildID string) ([]string, error)
 	var keys []string
 	err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ? OR GuildID = ''`, guildID)
 	return keys, err
+}
+
+func (c commandDataStore) increaseCommandCountStat(guildID, commandKey string) error {
+	_, err := c.db.Exec(`INSERT OR REPLACE INTO CommandStats (GuildID, Command, Count)
+	                     VALUES (?, ?,
+	                       COALESCE((SELECT Count FROM CommandStats WHERE GuildID=? AND Command=?), 0) + 1)`,
+		guildID, commandKey, guildID, commandKey)
+	return err
+}
+
+func (c commandDataStore) guildCommandStats(guildID string) ([]CommandStat, error) {
+	var stats []CommandStat
+	err := c.db.Select(&stats, `SELECT GuildID, Command, Count FROM CommandStats WHERE GuildID = ? ORDER BY Count DESC, Command ASC`, guildID)
+	return stats, err
 }
 
 func (c commandDataStore) addSpammableChannel(channelID string) error {
@@ -330,4 +365,31 @@ func createIndex(table, column string, db *sqlx.DB) {
 	indexName := fmt.Sprintf("%s_%s", table, column)
 	statement := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s(%s);", indexName, table, column)
 	db.MustExec(statement)
+}
+
+// backups
+
+func answerDbBackup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	reader, err := os.Open(dbFilename)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not open database: "+err.Error())
+		return false
+	}
+	_, err = ds.ChannelFileSend(mc.ChannelID, dbFilename, reader)
+	return err == nil
+}
+
+func backupCRONFunc(ds *discordgo.Session) func() {
+	return func() {
+		reader, err := os.Open(dbFilename)
+		if err != nil {
+			return
+		}
+		userChannel, err := getUserChannel(adminID, ds)
+		if err != nil {
+			return
+		}
+		ds.ChannelFileSend(userChannel.ID, dbFilename, reader)
+		log.Println("Periodic backup done")
+	}
 }

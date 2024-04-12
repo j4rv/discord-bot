@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jmoiron/sqlx"
@@ -112,6 +113,7 @@ func initCRONs(ds *discordgo.Session) {
 
 	initCron("backupCRON", backupCRON, backupCRONFunc(ds))
 	initCron("dailyCheckInCRON", dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))
+	initCron("cleanStateMessagesCRON", cleanStateMessagesCRON, cleanStateMessagesCRONFunc(ds))
 	initCron("parametricCRON", parametricReminderCRON, parametricCRONFunc(ds))
 	initCron("playStoreCRON", playStoreReminderCRON, playStoreCRONFunc(ds))
 	initCron("react4RolesCRON", react4RolesCRON, react4RolesCRONFunc(ds))
@@ -146,6 +148,28 @@ func initSlashCommands(ds *discordgo.Session) func() {
 				notifyIfErr("Deleting command: "+v.Name, err, ds)
 				log.Printf("Cannot delete '%v' command: %v", v.Name, err)
 			}
+		}
+	}
+}
+
+func cleanStateMessagesCRONFunc(ds *discordgo.Session) func() {
+	return func() {
+		log.Println("Doing state message cleanup")
+		for _, pc := range ds.State.PrivateChannels {
+			cleanStateMessagesInChannel(ds, pc)
+		}
+		for _, gc := range ds.State.Guilds {
+			for _, gc := range gc.Channels {
+				cleanStateMessagesInChannel(ds, gc)
+			}
+		}
+	}
+}
+
+func cleanStateMessagesInChannel(ds *discordgo.Session, channel *discordgo.Channel) {
+	for _, msg := range channel.Messages {
+		if msg.Timestamp.Before(time.Now().Add(-stateMessageMaxLifetime)) {
+			ds.State.MessageRemove(msg)
 		}
 	}
 }

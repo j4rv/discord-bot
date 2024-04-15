@@ -13,7 +13,7 @@ var warnMessageMinLength = 1
 var warnMessageMaxLength = 320
 
 const avatarTargetSize = "1024"
-const maxMessageCount = 40
+const maxMessageCount = 100
 
 // https://discord.com/branding
 const colorYellow = 0xFEE75C
@@ -32,7 +32,7 @@ const timeoutDurationWhenNuclearCatastrophe = 2 * time.Minute
 
 const backupCRON = "0 0 * * 1"
 const cleanStateMessagesCRON = "*/10 * * * *"
-const stateMessageMaxLifetime = 1 * time.Hour
+const stateMessageMaxLifetime = 4 * time.Hour
 const dailyCheckInReminderCRON = "CRON_TZ=Asia/Shanghai 0 0 * * *"
 const dailyCheckInReminderMessage = `Remember to do the Daily Check-In!
 - Genshin: https://webstatic-sea.mihoyo.com/ys/event/signin-sea/index.html?act_id=e202102251931481

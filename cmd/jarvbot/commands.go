@@ -347,7 +347,7 @@ func answerRuntimeStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	msg += fmt.Sprintf("Total allocated memory: %.2f MBs\n", float64(mem.TotalAlloc)/1_000_000)
 	msg += fmt.Sprintf("System memory reserved: %.2f MBs\n", float64(mem.Sys)/1_000_000)
 	msg += fmt.Sprintf("Number of memory allocations: %d\n", mem.Mallocs)
-	msg += fmt.Sprintf("GC Pause Time: %d\n", mem.PauseTotalNs)
+	msg += fmt.Sprintf("GC Pause Time (ms): %.2f\n", float64(mem.PauseTotalNs)/1_000_000)
 	msg += fmt.Sprintf("GC Pause Count: %d\n", mem.NumGC)
 	ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
 		Title:       "Runtime stats",

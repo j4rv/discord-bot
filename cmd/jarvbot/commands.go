@@ -20,6 +20,7 @@ import (
 const roleEveryone = "@everyone"
 const globalGuildID = ""
 
+var ogTwitterLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`)
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
 var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d+)>`)
@@ -33,13 +34,22 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			return
 		}
 
-		// Ignore all messages that don't start with '!'
-		if len(mc.Content) == 0 || mc.Content[0] != '!' {
+		if len(mc.Content) == 0 {
 			return
 		}
 
-		trimmedMsg := strings.TrimSpace(mc.Content)
-		processCommand(ds, mc, trimmedMsg, ctx)
+		// Process commands
+		if mc.Content[0] == '!' {
+			trimmedMsg := strings.TrimSpace(mc.Content)
+			processCommand(ds, mc, trimmedMsg, ctx)
+			return
+		}
+
+		// Twitter links replacement
+		if ogTwitterLinkRegex.MatchString(mc.Content) {
+			processMessageWithTwitterLinks(ds, mc, ctx)
+			return
+		}
 	}
 }
 
@@ -77,6 +87,7 @@ var commands = map[string]command{
 	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),
 	"!setcustomtimeoutrole": guildOnly(modOnly(answerSetCustomTimeoutRole)),
 	"!announcehere":         guildOnly(modOnly(answerAnnounceHere)),
+	"!fixtwitterlinks":      guildOnly(modOnly(answerFixTwitterLinks)),
 	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
 	// only available for the bot owner
@@ -227,6 +238,43 @@ func answerAnnounceHere(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will send announcements in this channel")
 	}
 	return err == nil
+}
+
+func answerFixTwitterLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixTwitterLinks)
+	newSetting := serverPropYes
+	if currSetting == serverPropYes {
+		newSetting = serverPropNo
+	}
+	err := serverDS.setServerProperty(mc.GuildID, serverPropFixTwitterLinks, newSetting)
+	if err == nil && newSetting == serverPropYes {
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will fix twitter links")
+	} else if err == nil && newSetting == serverPropNo {
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will not fix twitter links")
+	}
+	return err == nil
+}
+
+func processMessageWithTwitterLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixTwitterLinks)
+	if currSetting != serverPropYes {
+		return
+	}
+
+	messageContent := ogTwitterLinkRegex.ReplaceAllString(mc.Content, "https://fxtwitter.com")
+	messageContent = fmt.Sprintf("%s:\n%s", mc.Author.Mention(), messageContent)
+	_, err := ds.ChannelMessageSend(mc.ChannelID, messageContent)
+	if err != nil {
+		notifyIfErr("processMessageWithTwitterLinks::ds.ChannelMessageSend", err, ds)
+		return
+	}
+
+	ds.State.MessageRemove(mc.Message)
+	err = ds.ChannelMessageDelete(mc.ChannelID, mc.ID)
+	if err != nil {
+		notifyIfErr("processMessageWithTwitterLinks::ds.ChannelMessageDelete", err, ds)
+		return
+	}
 }
 
 func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

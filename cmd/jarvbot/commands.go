@@ -20,6 +20,7 @@ import (
 const roleEveryone = "@everyone"
 const globalGuildID = ""
 
+var ogTwitterLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`)
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
 var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d+)>`)
@@ -33,20 +34,29 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			return
 		}
 
-		// Ignore all messages that don't start with '!'
-		if len(mc.Content) == 0 || mc.Content[0] != '!' {
+		if len(mc.Content) == 0 {
 			return
 		}
 
-		trimmedMsg := strings.TrimSpace(mc.Content)
-		processCommand(ds, mc, trimmedMsg, ctx)
+		// Process commands
+		if mc.Content[0] == '!' {
+			trimmedMsg := strings.TrimSpace(mc.Content)
+			processCommand(ds, mc, trimmedMsg, ctx)
+			return
+		}
+
+		// Twitter links replacement
+		if ogTwitterLinkRegex.MatchString(mc.Content) {
+			processMessageWithTwitterLinks(ds, mc, ctx)
+			return
+		}
 	}
 }
 
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.5.2"),
+	"!version":                   simpleTextResponse("v3.6.0"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -77,6 +87,7 @@ var commands = map[string]command{
 	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),
 	"!setcustomtimeoutrole": guildOnly(modOnly(answerSetCustomTimeoutRole)),
 	"!announcehere":         guildOnly(modOnly(answerAnnounceHere)),
+	"!fixtwitterlinks":      guildOnly(modOnly(answerFixTwitterLinks)),
 	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
 	// only available for the bot owner
@@ -229,6 +240,43 @@ func answerAnnounceHere(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	return err == nil
 }
 
+func answerFixTwitterLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixTwitterLinks)
+	newSetting := serverPropYes
+	if currSetting == serverPropYes {
+		newSetting = serverPropNo
+	}
+	err := serverDS.setServerProperty(mc.GuildID, serverPropFixTwitterLinks, newSetting)
+	if err == nil && newSetting == serverPropYes {
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will fix twitter links")
+	} else if err == nil && newSetting == serverPropNo {
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will not fix twitter links")
+	}
+	return err == nil
+}
+
+func processMessageWithTwitterLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixTwitterLinks)
+	if currSetting != serverPropYes {
+		return
+	}
+
+	messageContent := ogTwitterLinkRegex.ReplaceAllString(mc.Content, "https://fxtwitter.com")
+	messageContent = fmt.Sprintf("%s:\n%s", mc.Author.Mention(), messageContent)
+	_, err := ds.ChannelMessageSend(mc.ChannelID, messageContent)
+	if err != nil {
+		notifyIfErr("processMessageWithTwitterLinks::ds.ChannelMessageSend", err, ds)
+		return
+	}
+
+	ds.State.MessageRemove(mc.Message)
+	err = ds.ChannelMessageDelete(mc.ChannelID, mc.ID)
+	if err != nil {
+		notifyIfErr("processMessageWithTwitterLinks::ds.ChannelMessageDelete", err, ds)
+		return
+	}
+}
+
 func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := serverDS.setServerProperty(mc.GuildID, serverPropMessageLogs, mc.ChannelID)
 	notifyIfErr("answerMessageLogs", err, ds)
@@ -347,7 +395,7 @@ func answerRuntimeStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	msg += fmt.Sprintf("Total allocated memory: %.2f MBs\n", float64(mem.TotalAlloc)/1_000_000)
 	msg += fmt.Sprintf("System memory reserved: %.2f MBs\n", float64(mem.Sys)/1_000_000)
 	msg += fmt.Sprintf("Number of memory allocations: %d\n", mem.Mallocs)
-	msg += fmt.Sprintf("GC Pause Time: %d\n", mem.PauseTotalNs)
+	msg += fmt.Sprintf("GC Pause Time (ms): %.2f\n", float64(mem.PauseTotalNs)/1_000_000)
 	msg += fmt.Sprintf("GC Pause Count: %d\n", mem.NumGC)
 	ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
 		Title:       "Runtime stats",

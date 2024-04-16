@@ -13,15 +13,22 @@ var warnMessageMinLength = 1
 var warnMessageMaxLength = 320
 
 const avatarTargetSize = "1024"
+
+const cleanStateMessagesCRON = "0 * * * *"
+const stateMessageMaxLifetime = 12 * time.Hour
 const maxMessageCount = 100
 
 // https://discord.com/branding
+const colorBlue = 0x5865F2
 const colorYellow = 0xFEE75C
 const colorRed = 0xED4245
 
 const serverPropCustomTimeoutRoleName = "custom_timeout_role_name"
 const serverPropAnnounceHere = "announce_here"
 const serverPropMessageLogs = "message_logs"
+const serverPropFixTwitterLinks = "fix_twitter_links"
+const serverPropYes = "Y"
+const serverPropNo = "N"
 
 const defaultTimeoutRoleName = "Shadow Realm"
 const shootMisfireChance = 0.2
@@ -31,8 +38,6 @@ const timeoutDurationWhenMisfire = 8 * time.Minute
 const timeoutDurationWhenNuclearCatastrophe = 2 * time.Minute
 
 const backupCRON = "0 0 * * 1"
-const cleanStateMessagesCRON = "*/10 * * * *"
-const stateMessageMaxLifetime = 4 * time.Hour
 const dailyCheckInReminderCRON = "CRON_TZ=Asia/Shanghai 0 0 * * *"
 const dailyCheckInReminderMessage = `Remember to do the Daily Check-In!
 - Genshin: https://webstatic-sea.mihoyo.com/ys/event/signin-sea/index.html?act_id=e202102251931481

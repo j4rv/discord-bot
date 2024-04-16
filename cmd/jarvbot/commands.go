@@ -20,6 +20,7 @@ import (
 const roleEveryone = "@everyone"
 const globalGuildID = ""
 
+var ogNonRootTwitterLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com/\S+\b`)
 var ogTwitterLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`)
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
@@ -46,7 +47,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 		}
 
 		// Twitter links replacement
-		if ogTwitterLinkRegex.MatchString(mc.Content) {
+		if ogNonRootTwitterLinkRegex.MatchString(mc.Content) {
 			processMessageWithTwitterLinks(ds, mc, ctx)
 			return
 		}
@@ -263,7 +264,10 @@ func processMessageWithTwitterLinks(ds *discordgo.Session, mc *discordgo.Message
 
 	messageContent := ogTwitterLinkRegex.ReplaceAllString(mc.Content, "https://fxtwitter.com")
 	messageContent = fmt.Sprintf("%s:\n%s", mc.Author.Mention(), messageContent)
-	_, err := ds.ChannelMessageSend(mc.ChannelID, messageContent)
+	_, err := ds.ChannelMessageSendComplex(mc.ChannelID, &discordgo.MessageSend{
+		Content:         messageContent,
+		AllowedMentions: &discordgo.MessageAllowedMentions{},
+	})
 	if err != nil {
 		notifyIfErr("processMessageWithTwitterLinks::ds.ChannelMessageSend", err, ds)
 		return

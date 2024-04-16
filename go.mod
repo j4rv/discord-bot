@@ -3,7 +3,7 @@ module github.com/j4rv/discord-bot
 go 1.18
 
 require (
-	github.com/bwmarrin/discordgo v0.27.1
+	github.com/bwmarrin/discordgo v0.28.1
 	github.com/enescakir/emoji v1.0.0
 	github.com/j4rv/genshinartis v0.0.0-20230911183910-b19c3dc323f3
 	github.com/j4rv/rollssim v0.0.0-20240404184348-3de18bb2de33

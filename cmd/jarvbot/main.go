@@ -174,6 +174,36 @@ func cleanStateMessagesInChannel(ds *discordgo.Session, channel *discordgo.Chann
 	}
 }
 
+func sendAsUserWebhook(ds *discordgo.Session, channelID string) (*discordgo.Webhook, error) {
+	hooks, err := ds.ChannelWebhooks(channelID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(hooks) == 0 {
+		return ds.WebhookCreate(channelID, "SendAsUser", ds.State.User.AvatarURL(""))
+	}
+
+	return hooks[0], nil
+}
+
+func sendAsUser(ds *discordgo.Session, user *discordgo.User, channelID string, content string) (*discordgo.Message, error) {
+	if user == nil || ds == nil || channelID == "" || content == "" {
+		return nil, nil
+	}
+
+	webhook, err := sendAsUserWebhook(ds, channelID)
+	if err != nil {
+		return nil, err
+	}
+
+	return ds.WebhookExecute(webhook.ID, webhook.Token, false, &discordgo.WebhookParams{
+		Content:   content,
+		Username:  user.GlobalName,
+		AvatarURL: user.AvatarURL(""),
+	})
+}
+
 func diff(body, prefix string) string {
 	lines := strings.Split(body, "\n")
 	var formattedBody string

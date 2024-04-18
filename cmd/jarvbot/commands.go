@@ -57,7 +57,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.6.1"),
+	"!version":                   simpleTextResponse("v3.6.2"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -263,13 +263,9 @@ func processMessageWithTwitterLinks(ds *discordgo.Session, mc *discordgo.Message
 	}
 
 	messageContent := ogTwitterLinkRegex.ReplaceAllString(mc.Content, "https://fxtwitter.com")
-	messageContent = fmt.Sprintf("%s:\n%s", mc.Author.Mention(), messageContent)
-	_, err := ds.ChannelMessageSendComplex(mc.ChannelID, &discordgo.MessageSend{
-		Content:         messageContent,
-		AllowedMentions: &discordgo.MessageAllowedMentions{},
-	})
+	_, err := sendAsUser(ds, mc.Author, mc.ChannelID, messageContent)
 	if err != nil {
-		notifyIfErr("processMessageWithTwitterLinks::ds.ChannelMessageSend", err, ds)
+		notifyIfErr("processMessageWithTwitterLinks::sendAsUser", err, ds)
 		return
 	}
 

@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -28,17 +28,20 @@ func main() {
 	ds := initDiscordSession()
 	initCRONs(ds)
 
+	var removeSlashCommands func()
 	if !noSlashCommands {
-		removeSlashCommands := initSlashCommands(ds)
-		defer removeSlashCommands()
+		removeSlashCommands = initSlashCommands(ds)
 	}
 
 	// Wait here until CTRL-C or other term signal is received.
-	log.Println("Bot is now running. Press CTRL-C to exit.")
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-	<-signalChan
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+	log.Println("Press Ctrl+C to exit")
+	<-stop
 
+	if !noSlashCommands {
+		removeSlashCommands()
+	}
 	ds.Close()
 }
 
@@ -87,6 +90,7 @@ func initDiscordSession() *discordgo.Session {
 	ds.Identify.Intents |= discordgo.IntentGuildMessages
 	ds.Identify.Intents |= discordgo.IntentGuildMessageReactions
 	ds.Identify.Intents |= discordgo.IntentDirectMessages
+	ds.Identify.Intents |= discordgo.IntentGuildWebhooks
 	ds.State.MaxMessageCount = maxMessageCount
 
 	// Open a websocket connection to Discord and begin listening.
@@ -175,10 +179,7 @@ func cleanStateMessagesInChannel(ds *discordgo.Session, channel *discordgo.Chann
 }
 
 func sendAsUserWebhook(ds *discordgo.Session, channelID string) (*discordgo.Webhook, error) {
-	hooks, err := ds.ChannelWebhooks(channelID)
-	if err != nil {
-		return nil, err
-	}
+	hooks, _ := ds.ChannelWebhooks(channelID)
 
 	if len(hooks) == 0 {
 		return ds.WebhookCreate(channelID, "SendAsUser", ds.State.User.AvatarURL(""))
@@ -194,7 +195,11 @@ func sendAsUser(ds *discordgo.Session, user *discordgo.User, channelID string, c
 
 	webhook, err := sendAsUserWebhook(ds, channelID)
 	if err != nil {
-		return nil, err
+		// webhook didn't work, let's try sending a normal silent message with a mention
+		return ds.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
+			Content:         fmt.Sprintf("%s:\n%s", user.Mention(), content),
+			AllowedMentions: &discordgo.MessageAllowedMentions{},
+		})
 	}
 
 	return ds.WebhookExecute(webhook.ID, webhook.Token, false, &discordgo.WebhookParams{

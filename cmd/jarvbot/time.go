@@ -14,8 +14,6 @@ var stringMinsRegex = regexp.MustCompile(`^(\d{1,2})m`)
 var stringSecsRegex = regexp.MustCompile(`^(\d{1,2})s`)
 
 const secondsInADay = 60 * 60 * 24
-const expensiveOperationCooldown = 5 * 60 * time.Second
-const expensiveOperationErrorMsg = "You just executed an expensive operation, please wait."
 
 func removeRoleAfterDuration(ds *discordgo.Session, guildID string, memberID string, roleID string, duration time.Duration) {
 	go func() {

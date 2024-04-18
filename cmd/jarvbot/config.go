@@ -17,6 +17,7 @@ const avatarTargetSize = "1024"
 const cleanStateMessagesCRON = "0 * * * *"
 const stateMessageMaxLifetime = 12 * time.Hour
 const maxMessageCount = 100
+const expensiveOperationCooldown = 15 * time.Second
 
 // https://discord.com/branding
 const colorBlue = 0x5865F2
@@ -57,3 +58,4 @@ const commandReceivedMessage = "Gotcha!"
 const commandSuccessMessage = "Successfully donette!"
 const commandWithTwoArgumentsError = "Something went wrong, please make sure to use the command with the following format: '!command (...) (...)'"
 const commandWithMentionError = "Something went wrong, please make sure that the command has an user mention"
+const expensiveOperationErrorMsg = "You just executed an expensive operation, please wait."

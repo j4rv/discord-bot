@@ -1,10 +1,15 @@
 package main
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // TODO make this a config file
 
 var dbFilename = "db.sqlite"
+
+var errNotFound = errors.New("not found")
 
 var zero = 0.0
 var strongboxMinAmount = 1.0

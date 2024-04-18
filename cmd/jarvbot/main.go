@@ -179,13 +179,13 @@ func cleanStateMessagesInChannel(ds *discordgo.Session, channel *discordgo.Chann
 }
 
 func sendAsUserWebhook(ds *discordgo.Session, channelID string) (*discordgo.Webhook, error) {
-	hooks, _ := ds.ChannelWebhooks(channelID)
+	hooks, err := ds.ChannelWebhooks(channelID)
 
 	if len(hooks) == 0 {
 		return ds.WebhookCreate(channelID, "SendAsUser", ds.State.User.AvatarURL(""))
 	}
 
-	return hooks[0], nil
+	return hooks[0], err
 }
 
 func sendAsUser(ds *discordgo.Session, user *discordgo.User, channelID string, content string) (*discordgo.Message, error) {

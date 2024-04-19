@@ -215,8 +215,11 @@ func sendAsUser(ds *discordgo.Session, user *discordgo.User, channelID string, c
 	// Webhook doesn't allow "replies" :(
 	if referencedMessage != nil {
 		return ds.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
-			Content:   content,
+			Content:   fmt.Sprintf("%s:\n%s", user.Mention(), content),
 			Reference: referencedMessage.Reference(),
+			AllowedMentions: &discordgo.MessageAllowedMentions{
+				RepliedUser: true,
+			},
 		})
 	}
 

@@ -32,7 +32,7 @@ const colorRed = 0xED4245
 const serverPropCustomTimeoutRoleName = "custom_timeout_role_name"
 const serverPropAnnounceHere = "announce_here"
 const serverPropMessageLogs = "message_logs"
-const serverPropFixTwitterLinks = "fix_twitter_links"
+const serverPropFixBadEmbedLinks = "fix_twitter_links"
 const serverPropYes = "Y"
 const serverPropNo = "N"
 

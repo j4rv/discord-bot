@@ -21,10 +21,17 @@ const roleEveryone = "@everyone"
 const globalGuildID = ""
 
 var ogNonRootTwitterLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com/\S+\b`)
-var ogTwitterLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`)
+var ogNonRootPixivLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?pixiv\.net/\S+\b`)
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
 var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d+)>`)
+
+var badEmbedLinkReplacements = map[*regexp.Regexp]string{
+	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`): "https://fxtwitter.com",
+	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?pixiv\.net\b`):         "https://phixiv.net",
+}
+
+var messageLinkFixToOgAuthorId = map[*discordgo.Message]string{}
 
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool
 
@@ -47,8 +54,9 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 		}
 
 		// Twitter links replacement
-		if ogNonRootTwitterLinkRegex.MatchString(mc.Content) {
-			processMessageWithTwitterLinks(ds, mc, ctx)
+		if ogNonRootTwitterLinkRegex.MatchString(mc.Content) ||
+			ogNonRootPixivLinkRegex.MatchString(mc.Content) {
+			processMessageWithBadEmbedLinks(ds, mc, ctx)
 			return
 		}
 	}
@@ -88,7 +96,7 @@ var commands = map[string]command{
 	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),
 	"!setcustomtimeoutrole": guildOnly(modOnly(answerSetCustomTimeoutRole)),
 	"!announcehere":         guildOnly(modOnly(answerAnnounceHere)),
-	"!fixtwitterlinks":      guildOnly(modOnly(answerFixTwitterLinks)),
+	"!fixbadembedlinks":     guildOnly(modOnly(answerFixBadEmbedLinks)),
 	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
 	// only available for the bot owner
@@ -241,33 +249,34 @@ func answerAnnounceHere(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	return err == nil
 }
 
-func answerFixTwitterLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixTwitterLinks)
+func answerFixBadEmbedLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixBadEmbedLinks)
 	newSetting := serverPropYes
 	if currSetting == serverPropYes {
 		newSetting = serverPropNo
 	}
-	err := serverDS.setServerProperty(mc.GuildID, serverPropFixTwitterLinks, newSetting)
+	err := serverDS.setServerProperty(mc.GuildID, serverPropFixBadEmbedLinks, newSetting)
 	if err == nil && newSetting == serverPropYes {
-		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will fix twitter links")
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will fix bad embed links")
 	} else if err == nil && newSetting == serverPropNo {
-		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will not fix twitter links")
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will not fix bad embed links")
 	}
 	return err == nil
 }
 
-var messageLinkFixToOgAuthorId = map[*discordgo.Message]string{}
-
-func processMessageWithTwitterLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixTwitterLinks)
+func processMessageWithBadEmbedLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixBadEmbedLinks)
 	if currSetting != serverPropYes {
 		return
 	}
 
-	messageContent := ogTwitterLinkRegex.ReplaceAllString(mc.Content, "https://fxtwitter.com")
+	messageContent := mc.Content
+	for rgx, rpl := range badEmbedLinkReplacements {
+		messageContent = rgx.ReplaceAllString(messageContent, rpl)
+	}
 	fixedMsg, err := sendAsUser(ds, mc.Author, mc.ChannelID, messageContent, mc.ReferencedMessage)
 	if err != nil {
-		notifyIfErr("processMessageWithTwitterLinks::sendAsUser", err, ds)
+		notifyIfErr("processMessageWithBadEmbedLinks::sendAsUser", err, ds)
 		return
 	}
 	messageLinkFixToOgAuthorId[fixedMsg] = mc.Author.ID
@@ -275,7 +284,7 @@ func processMessageWithTwitterLinks(ds *discordgo.Session, mc *discordgo.Message
 	ds.State.MessageRemove(mc.Message)
 	err = ds.ChannelMessageDelete(mc.ChannelID, mc.ID)
 	if err != nil {
-		notifyIfErr("processMessageWithTwitterLinks::ds.ChannelMessageDelete", err, ds)
+		notifyIfErr("processMessageWithBadEmbedLinks::ds.ChannelMessageDelete", err, ds)
 		return
 	}
 }

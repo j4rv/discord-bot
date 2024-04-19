@@ -129,7 +129,7 @@ func initSlashCommands(ds *discordgo.Session) func() {
 		if h, ok := slashHandlers[ic.ApplicationCommandData().Name]; ok {
 			h(ds, ic)
 		} else {
-			log.Println("ERROR couldnt add handler for slash command:", ic.ApplicationCommandData().Name)
+			notifyIfErr("Slash command not found:"+ic.ApplicationCommandData().Name, nil, ds)
 		}
 	})
 
@@ -140,9 +140,11 @@ func initSlashCommands(ds *discordgo.Session) func() {
 		if err != nil {
 			notifyIfErr("Creating command: "+slashCommand.Name, err, ds)
 			log.Printf("Cannot create '%v' command: %v", slashCommand.Name, err)
+			continue
 		}
 		registeredCommands[i] = cmd
 	}
+	log.Println("Finished registering slash commands")
 
 	return func() {
 		log.Println("Removing registered slash commands...")
@@ -167,15 +169,27 @@ func cleanStateMessagesCRONFunc(ds *discordgo.Session) func() {
 				cleanStateMessagesInChannel(ds, gc)
 			}
 		}
+		for m := range messageLinkFixToOgAuthorId {
+			if messagePastLifetime(m) {
+				delete(messageLinkFixToOgAuthorId, m)
+			}
+		}
 	}
 }
 
 func cleanStateMessagesInChannel(ds *discordgo.Session, channel *discordgo.Channel) {
 	for _, msg := range channel.Messages {
-		if msg.Timestamp.Before(time.Now().Add(-stateMessageMaxLifetime)) {
+		if messagePastLifetime(msg) {
 			ds.State.MessageRemove(msg)
 		}
 	}
+}
+
+func messagePastLifetime(msg *discordgo.Message) bool {
+	if msg == nil {
+		return true
+	}
+	return msg.Timestamp.Before(time.Now().Add(-stateMessageMaxLifetime))
 }
 
 func sendAsUserWebhook(ds *discordgo.Session, channelID string) (*discordgo.Webhook, error) {
@@ -190,9 +204,20 @@ func sendAsUserWebhook(ds *discordgo.Session, channelID string) (*discordgo.Webh
 	return ds.WebhookCreate(channelID, "SendAsUser", ds.State.User.AvatarURL(""))
 }
 
-func sendAsUser(ds *discordgo.Session, user *discordgo.User, channelID string, content string) (*discordgo.Message, error) {
+// sendAsUser sends a message as the given user
+// It will either use a Webhook when possible (to keep the sender's username and avatar)
+// Or it will send a normal message with a mention of the original user
+func sendAsUser(ds *discordgo.Session, user *discordgo.User, channelID string, content string, referencedMessage *discordgo.Message) (*discordgo.Message, error) {
 	if user == nil || ds == nil || channelID == "" || content == "" {
 		return nil, fmt.Errorf("user, ds, channelID, or content is nil")
+	}
+
+	// Webhook doesn't allow "replies" :(
+	if referencedMessage != nil {
+		return ds.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
+			Content:   content,
+			Reference: referencedMessage.Reference(),
+		})
 	}
 
 	webhook, err := sendAsUserWebhook(ds, channelID)

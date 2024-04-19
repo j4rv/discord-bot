@@ -256,6 +256,8 @@ func answerFixTwitterLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, c
 	return err == nil
 }
 
+var messageLinkFixToOgAuthorId = map[*discordgo.Message]string{}
+
 func processMessageWithTwitterLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixTwitterLinks)
 	if currSetting != serverPropYes {
@@ -263,11 +265,12 @@ func processMessageWithTwitterLinks(ds *discordgo.Session, mc *discordgo.Message
 	}
 
 	messageContent := ogTwitterLinkRegex.ReplaceAllString(mc.Content, "https://fxtwitter.com")
-	_, err := sendAsUser(ds, mc.Author, mc.ChannelID, messageContent)
+	fixedMsg, err := sendAsUser(ds, mc.Author, mc.ChannelID, messageContent, mc.ReferencedMessage)
 	if err != nil {
 		notifyIfErr("processMessageWithTwitterLinks::sendAsUser", err, ds)
 		return
 	}
+	messageLinkFixToOgAuthorId[fixedMsg] = mc.Author.ID
 
 	ds.State.MessageRemove(mc.Message)
 	err = ds.ChannelMessageDelete(mc.ChannelID, mc.ID)
@@ -275,6 +278,55 @@ func processMessageWithTwitterLinks(ds *discordgo.Session, mc *discordgo.Message
 		notifyIfErr("processMessageWithTwitterLinks::ds.ChannelMessageDelete", err, ds)
 		return
 	}
+}
+
+func answerDeleteLinkFixMessage(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	interactionUserId := interactionUser(ic).ID
+	ogAuthorId, ok := messageLinkFixToOgAuthorId[ic.Message]
+	if !ok && !isAdmin(interactionUserId) {
+		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Could not find original author, only a mod can delete that message",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	// Check if the user can delete the message
+	if interactionUserId != ogAuthorId || !isAdmin(interactionUserId) {
+		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "You did not send that message",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	// Try to delete and respond if it was successful
+	fixedMsgID := ic.ApplicationCommandData().TargetID
+	err := ds.ChannelMessageDelete(ic.ChannelID, fixedMsgID)
+	notifyIfErr("answerDeleteLinkFixMessage::ChannelMessageDelete", err, ds)
+	if err != nil {
+		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Sorry, I could not delete the message u_u",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "Message deleted ^w^",
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
 }
 
 func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

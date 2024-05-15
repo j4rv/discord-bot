@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/kylelemons/godebug/diff"
 )
 
 func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
@@ -166,8 +167,7 @@ func messageUpdatedToString(from, to *discordgo.Message) string {
 	if from.Author != nil {
 		str += "\nAuthor: " + from.Author.Mention()
 	}
-	str += diff(from.Content, "- ")
-	str += diff(to.Content, "+ ")
+	str += markdownDiffBlock(diff.Diff(from.Content, to.Content), "")
 	str += fmt.Sprintf("\n[Link to message](https://discord.com/channels/%s/%s/%s)",
 		from.GuildID, from.ChannelID, from.ID)
 	return str

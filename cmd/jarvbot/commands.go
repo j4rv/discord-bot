@@ -370,7 +370,7 @@ func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
 	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
 	if key == "" {
-		ds.ChannelMessageSend(mc.ChannelID, diff("Could not get the key from the command body", "- "))
+		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the key from the command body", "- "))
 		return false
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
@@ -386,7 +386,7 @@ func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, 
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
 	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
 	if key == "" {
-		ds.ChannelMessageSend(mc.ChannelID, diff("Could not get the key from the command body", "- "))
+		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the key from the command body", "- "))
 		return false
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")

@@ -8,6 +8,7 @@ require (
 	github.com/j4rv/genshinartis v0.0.0-20230911183910-b19c3dc323f3
 	github.com/j4rv/rollssim v0.0.0-20240404184348-3de18bb2de33
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/kylelemons/godebug v1.1.0
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/robfig/cron/v3 v3.0.1
 )

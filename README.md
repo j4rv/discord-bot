@@ -1,6 +1,6 @@
 # J4RV's Discord bot
 
-[Add it to your server!](https://discord.com/oauth2/authorize?client_id=901475699699875880&permissions=8&scope=bot)
+[Add it to your server!](https://discord.com/oauth2/authorize?client_id=901475699699875880)
 
 ## How to run:
 

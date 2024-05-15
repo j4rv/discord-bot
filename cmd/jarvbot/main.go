@@ -239,11 +239,15 @@ func sendAsUser(ds *discordgo.Session, user *discordgo.User, channelID string, c
 	})
 }
 
-func diff(body, prefix string) string {
+func markdownDiffBlock(body, prefix string) string {
 	lines := strings.Split(body, "\n")
 	var formattedBody string
-	for _, line := range lines {
-		formattedBody += prefix + line + "\n"
+	if prefix == "" {
+		formattedBody = body
+	} else {
+		for _, line := range lines {
+			formattedBody += prefix + line + "\n"
+		}
 	}
 	return "```diff\n" + formattedBody + "```"
 }
@@ -252,6 +256,6 @@ func notifyIfErr(context string, err error, ds *discordgo.Session) {
 	if err != nil {
 		msg := "ERROR [" + context + "]: " + err.Error()
 		log.Println(msg)
-		sendDirectMessage(adminID, diff(msg, "- "), ds)
+		sendDirectMessage(adminID, markdownDiffBlock(msg, "- "), ds)
 	}
 }

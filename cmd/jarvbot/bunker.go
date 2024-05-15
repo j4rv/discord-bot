@@ -140,8 +140,14 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 			if member.User.ID == ds.State.User.ID {
 				continue
 			}
-			ds.GuildMemberRoleAdd(guildID, member.User.ID, timeoutRoleID)
-			removeRoleAfterDuration(ds, guildID, member.User.ID, timeoutRoleID, timeoutDurationWhenNuclearCatastrophe)
+			if rand.Float32() <= 0.02 {
+				ds.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
+					Content:         fmt.Sprintf("%s died in the explosion!", member.User.Mention()),
+					AllowedMentions: &discordgo.MessageAllowedMentions{},
+				})
+				ds.GuildMemberRoleAdd(guildID, member.User.ID, timeoutRoleID)
+				removeRoleAfterDuration(ds, guildID, member.User.ID, timeoutRoleID, timeoutDurationWhenNuclearCatastrophe)
+			}
 		}
 		return nil
 	}

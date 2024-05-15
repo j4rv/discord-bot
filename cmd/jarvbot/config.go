@@ -20,7 +20,7 @@ var warnMessageMaxLength = 320
 const avatarTargetSize = "1024"
 
 const cleanStateMessagesCRON = "0 * * * *"
-const stateMessageMaxLifetime = 12 * time.Hour
+const stateMessageMaxLifetime = 24 * time.Hour
 const maxMessageCount = 100
 const expensiveOperationCooldown = 15 * time.Second
 

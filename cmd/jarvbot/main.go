@@ -232,7 +232,7 @@ func sendAsUser(ds *discordgo.Session, user *discordgo.User, channelID string, c
 		})
 	}
 
-	return ds.WebhookExecute(webhook.ID, webhook.Token, false, &discordgo.WebhookParams{
+	return ds.WebhookExecute(webhook.ID, webhook.Token, true, &discordgo.WebhookParams{
 		Content:   content,
 		Username:  user.GlobalName,
 		AvatarURL: user.AvatarURL(""),

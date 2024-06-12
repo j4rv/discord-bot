@@ -58,17 +58,39 @@ var models = NewWeightedSlice(map[string]int{
 	"Short female":  40,
 })
 
+var visualAdjectives = NewWeightedSlice(map[string]int{
+	"Boring":       10,
+	"Elegant":      10,
+	"Ferocious":    10,
+	"Graceful":     10,
+	"Mysterious":   10,
+	"Sickly":       10,
+	"Intimidating": 10,
+	"Muscular":     10,
+	"Fit":          10,
+	"Skinny":       10,
+	"Cute":         10,
+	"Soft":         10,
+	"Furry":        5,
+	"Bulky":        5,
+	"Brawny":       5,
+	"Barefoot":     5,
+	"Gloomy":       5,
+	"Gothic":       5,
+	"Slutty":       2,
+})
+
 var scaling = NewWeightedSlice(map[string]int{
 	"ATK":             500,
 	"HP":              200,
 	"DEF":             100,
 	"EM":              100,
-	"Energy Recharge": 30,
+	"Energy Recharge": 20,
 	"EM and ATK":      20,
 	"HP and ATK":      20,
 	"DEF and ATK":     20,
 	"Healing Bonus":   20,
-	"Shield Strength": 1,
+	"Shield Strength": 5,
 })
 
 var roles = NewWeightedSlice(map[string]int{
@@ -126,20 +148,21 @@ var weaknesses = NewWeightedSlice(map[string]int{
 })
 
 type GeneratedCharacter struct {
-	name     string
-	rarity   string
-	element  string
-	weapon   string
-	model    string
-	scaling  string
-	role     string
-	strength string
-	weakness string
+	name      string
+	rarity    string
+	element   string
+	weapon    string
+	model     string
+	adjective string
+	scaling   string
+	role      string
+	strength  string
+	weakness  string
 }
 
 func (c GeneratedCharacter) PrettyString() string {
-	return fmt.Sprintf("%s is a %s %s character.\nWeapon: %s.\nModel: %s.\nKit: %s, scales with %s, %s but %s.",
-		c.name, c.rarity, c.element, c.weapon, c.model, c.role, c.scaling, c.strength, c.weakness)
+	return fmt.Sprintf("%s is a %s %s character.\nWeapon: %s.\nModel: %s %s.\nKit: %s, scales with %s, %s but %s.",
+		c.name, c.rarity, c.element, c.weapon, c.adjective, c.model, c.role, c.scaling, c.strength, c.weakness)
 }
 
 func NewChar(name string, seedSalt int64) GeneratedCharacter {
@@ -155,6 +178,7 @@ func NewChar(name string, seedSalt int64) GeneratedCharacter {
 	result.role = roles.Random(rng)
 	result.strength = strengths.Random(rng)
 	result.weakness = weaknesses.Random(rng)
+	result.adjective = visualAdjectives.Random(rng)
 
 	return result
 }

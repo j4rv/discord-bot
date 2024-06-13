@@ -13,7 +13,7 @@ func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 	return func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
 		if mc.BeforeDelete != nil && mc.BeforeDelete.Author != nil {
 			// dont mind if bot messages get deleted
-			if mc.Author.Bot {
+			if mc.BeforeDelete.Author.Bot {
 				return
 			}
 
@@ -21,6 +21,7 @@ func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			if err != nil {
 				return
 			}
+
 			ds.ChannelMessageSendEmbed(
 				logsChannelID,
 				&discordgo.MessageEmbed{
@@ -40,6 +41,7 @@ func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 func onMessageUpdated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageUpdate) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageUpdate) {
 		if mc.BeforeUpdate != nil && mc.Author != nil {
+			// dont mind if bot messages get updated
 			if mc.Author.Bot {
 				return
 			}

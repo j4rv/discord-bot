@@ -18,7 +18,12 @@ const secondsInADay = 60 * 60 * 24
 func removeRoleAfterDuration(ds *discordgo.Session, guildID string, memberID string, roleID string, duration time.Duration) {
 	go func() {
 		time.Sleep(duration)
-		ds.GuildMemberRoleRemove(guildID, memberID, roleID)
+		err := ds.GuildMemberRoleRemove(guildID, memberID, roleID)
+		if err != nil {
+			notifyIfErr("removeRoleAfterDuration", err, ds)
+			// try again in a minute
+			removeRoleAfterDuration(ds, guildID, memberID, roleID, time.Minute)
+		}
 	}()
 }
 

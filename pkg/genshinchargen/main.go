@@ -77,7 +77,7 @@ var visualAdjectives = NewWeightedSlice(map[string]int{
 	"Barefoot":     5,
 	"Gloomy":       5,
 	"Gothic":       5,
-	"Slutty":       2,
+	"Vtuber":       2,
 })
 
 var scaling = NewWeightedSlice(map[string]int{

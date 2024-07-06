@@ -9,6 +9,8 @@ github.com/gorilla/websocket v1.5.1 h1:gmztn0JnHVt9JZquRuzLw3g4wouNVzKL15iLr/zn/
 github.com/gorilla/websocket v1.5.1/go.mod h1:x3kM2JMyaluk02fnUJpQuwD2dCS5NDG2ZHL0uE0tcaY=
 github.com/j4rv/genshinartis v0.0.0-20230911183910-b19c3dc323f3 h1:bdBq6XxKRQvZWRyunxC/Svo5cTEfJ49S75qBvOUSH9w=
 github.com/j4rv/genshinartis v0.0.0-20230911183910-b19c3dc323f3/go.mod h1:NXUI4xa2rw8D2BjTBqgT6934wIJXJgn1vG9x/FGXW4E=
+github.com/j4rv/genshinartis v0.0.0-20240510155157-e4a2078f376f h1:Qkb60dXQpQFebxNxWsebOsyZ39JJzq/1B0vWO8IvPwI=
+github.com/j4rv/genshinartis v0.0.0-20240510155157-e4a2078f376f/go.mod h1:6XYkTXc4nhiZmc3caNnjmE8TaWLAwKtRXiK/VdTAuUI=
 github.com/j4rv/rollssim v0.0.0-20240404184348-3de18bb2de33 h1:cGdwtbBohkaKAc/b4RDz/Yv0J3J7RRJktf+1RVkk9Hg=
 github.com/j4rv/rollssim v0.0.0-20240404184348-3de18bb2de33/go.mod h1:giZ+GfPdq1sGjpWZHM5YSQ7Pfz2/doB9I2uSUXl/ZxU=
 github.com/jmoiron/sqlx v1.3.5 h1:vFFPA71p1o5gAeqtEAwLU4dnX2napprKtHr7PYIcN3g=
@@ -20,6 +22,8 @@ github.com/lib/pq v1.2.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
 github.com/mattn/go-sqlite3 v1.14.6/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4A/KQRfk6bU=
 github.com/mattn/go-sqlite3 v1.14.22 h1:2gZY6PC6kBnID23Tichd1K+Z0oS6nE/XwU+Vz/5o4kU=
 github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
+github.com/mroth/weightedrand/v2 v2.1.0 h1:o1ascnB1CIVzsqlfArQQjeMy1U0NcIbBO5rfd5E/OeU=
+github.com/mroth/weightedrand/v2 v2.1.0/go.mod h1:f2faGsfOGOwc1p94wzHKKZyTpcJUW7OJ/9U4yfiNAOU=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
 github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
 golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b/go.mod h1:T9bdIzuCu7OtxOm1hfPfRQxPLYneinmdGuTeoZ9dtd4=

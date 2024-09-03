@@ -65,7 +65,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.6.10"),
+	"!version":                   simpleTextResponse("v3.6.11"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -374,6 +374,10 @@ func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 		return false
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
+	if response == "" {
+		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the response from the command body", "- "))
+		return false
+	}
 	err := commandDS.addSimpleCommand(key, response, mc.GuildID)
 	notifyIfErr("addSimpleCommand", err, ds)
 	if err == nil {
@@ -390,6 +394,10 @@ func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, 
 		return false
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
+	if response == "" {
+		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the response from the command body", "- "))
+		return false
+	}
 	err := commandDS.addSimpleCommand(key, response, globalGuildID)
 	notifyIfErr("addGlobalCommand", err, ds)
 	if err == nil {
@@ -401,6 +409,9 @@ func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, 
 func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
 	err := commandDS.removeSimpleCommand(commandBody, mc.GuildID)
+	if err == errZeroRowsAffected {
+		ds.ChannelMessageSend(mc.ChannelID, "I could not find that command! sowwy u_u")
+	}
 	notifyIfErr("removeSimpleCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
@@ -411,6 +422,9 @@ func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 func answerRemoveGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
 	err := commandDS.removeSimpleCommand(commandBody, globalGuildID)
+	if err == errZeroRowsAffected {
+		ds.ChannelMessageSend(mc.ChannelID, "I could not find that command! sowwy u_u")
+	}
 	notifyIfErr("removeGlobalCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)

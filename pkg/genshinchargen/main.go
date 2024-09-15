@@ -49,6 +49,57 @@ var rarity = NewWeightedSlice(map[string]int{
 	"2*": 1,
 })
 
+var region = NewWeightedSlice(map[string]int{
+	"Mondstadt":   100,
+	"Liyue":       100,
+	"Inazuma":     100,
+	"Sumeru":      100,
+	"Fontaine":    100,
+	"Natlan":      100,
+	"Snezhnaya":   100,
+	"Khaenri'ah":  10,
+	"Celestia":    10,
+	"Enkanomiya":  5,
+	"The Chasm":   5,
+	"Dragonspine": 5,
+})
+
+var title = NewWeightedSlice(map[string]int{
+	"None":                 200,
+	"1st Fatui Harbinger":  10,
+	"2nd Fatui Harbinger":  10,
+	"3rd Fatui Harbinger":  10,
+	"4th Fatui Harbinger":  10,
+	"5th Fatui Harbinger":  10,
+	"6th Fatui Harbinger":  10,
+	"7th Fatui Harbinger":  10,
+	"8th Fatui Harbinger":  10,
+	"9th Fatui Harbinger":  10,
+	"10th Fatui Harbinger": 10,
+	"11th Fatui Harbinger": 10,
+	"Adeptus":              70,
+	"Archon":               70,
+	"Sovereign":            50,
+	"Hexenzirkel":          50,
+	"Descender":            30,
+	"The First Who Came":   5,
+	"The Second Who Came":  5,
+	"The Primordial One":   5,
+	"Emanator":             1,
+	"Herrscher":            1,
+	"Aeon":                 1,
+})
+
+var outsideTeyvatTitles = map[string]struct{}{
+	"Descender":           {},
+	"The First Who Came":  {},
+	"The Second Who Came": {},
+	"The Primordial One":  {},
+	"Emanator":            {},
+	"Herrscher":           {},
+	"Aeon":                {},
+}
+
 var models = NewWeightedSlice(map[string]int{
 	"Tall male":     50,
 	"Tall female":   50,
@@ -68,15 +119,18 @@ var visualAdjectives = NewWeightedSlice(map[string]int{
 	"Intimidating": 10,
 	"Muscular":     10,
 	"Fit":          10,
-	"Skinny":       10,
 	"Cute":         10,
 	"Soft":         10,
+	"Skinny":       5,
 	"Furry":        5,
 	"Bulky":        5,
 	"Brawny":       5,
 	"Barefoot":     5,
 	"Gloomy":       5,
 	"Gothic":       5,
+	"Stinky":       5,
+	"Zombi":        3,
+	"Chubby":       3,
 	"Vtuber":       2,
 })
 
@@ -143,7 +197,7 @@ var weaknesses = NewWeightedSlice(map[string]int{
 	"consumes a lot of stamina to play optimally": 5,
 	"needs resistance to interruption to be good": 5,
 	"doesn't create particles":                    5,
-	"has limited range":                           5,
+	"has very limited range":                      5,
 	"can't crit":                                  2,
 })
 
@@ -151,6 +205,7 @@ type GeneratedCharacter struct {
 	name      string
 	rarity    string
 	element   string
+	region    string
 	weapon    string
 	model     string
 	adjective string
@@ -158,11 +213,16 @@ type GeneratedCharacter struct {
 	role      string
 	strength  string
 	weakness  string
+	title     string
 }
 
 func (c GeneratedCharacter) PrettyString() string {
-	return fmt.Sprintf("%s is a %s %s character.\nWeapon: %s.\nModel: %s %s.\nKit: %s, scales with %s, %s but %s.",
-		c.name, c.rarity, c.element, c.weapon, c.adjective, c.model, c.role, c.scaling, c.strength, c.weakness)
+	return fmt.Sprintf(`%s is a %s %s character from %s.
+	Weapon: %s.
+	Model: %s %s.
+	Kit: %s, scales with %s, %s but %s.
+	Title: %s.`,
+		c.name, c.rarity, c.element, c.region, c.weapon, c.adjective, c.model, c.role, c.scaling, c.strength, c.weakness, c.title)
 }
 
 func NewChar(name string, seedSalt int64) GeneratedCharacter {
@@ -179,6 +239,19 @@ func NewChar(name string, seedSalt int64) GeneratedCharacter {
 	result.strength = strengths.Random(rng)
 	result.weakness = weaknesses.Random(rng)
 	result.adjective = visualAdjectives.Random(rng)
+
+	if result.rarity == "5*" || result.rarity == "6*" || result.rarity == "7*" {
+		result.title = title.Random(rng)
+	} else {
+		result.title = "None"
+	}
+
+	_, outsideTeyvat := outsideTeyvatTitles[result.title]
+	if outsideTeyvat {
+		result.region = "outside Teyvat"
+	} else {
+		result.region = region.Random(rng)
+	}
 
 	return result
 }

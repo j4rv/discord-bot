@@ -140,7 +140,7 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 			if member.User.ID == ds.State.User.ID {
 				continue
 			}
-			if rand.Float32() <= 0.02 {
+			if rand.Float32() <= nuclearCatastropheDeathRatio {
 				ds.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
 					Content:         fmt.Sprintf("%s died in the explosion!", member.User.Mention()),
 					AllowedMentions: &discordgo.MessageAllowedMentions{},

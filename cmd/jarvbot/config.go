@@ -23,6 +23,7 @@ const cleanStateMessagesCRON = "0 * * * *"
 const stateMessageMaxLifetime = 24 * time.Hour
 const maxMessageCount = 100
 const expensiveOperationCooldown = 15 * time.Second
+const commandCooldown = time.Minute * 15
 
 // https://discord.com/branding
 const colorBlue = 0x5865F2
@@ -39,6 +40,7 @@ const serverPropNo = "N"
 const defaultTimeoutRoleName = "Shadow Realm"
 const shootMisfireChance = 0.2
 const nuclearCatastropheChance = 0.006
+const nuclearCatastropheDeathRatio = 0.015
 const timeoutDurationWhenShot = 4 * time.Minute
 const timeoutDurationWhenMisfire = 8 * time.Minute
 const timeoutDurationWhenNuclearCatastrophe = 2 * time.Minute

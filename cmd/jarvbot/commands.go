@@ -570,8 +570,6 @@ func notSpammable(wrapped command) command {
 
 var lastUserCommandTime = map[string]time.Time{}
 
-const commandCooldown = time.Minute * 15
-
 func resetUserCooldown(userID string) {
 	lastUserCommandTime[userID] = time.Now()
 }

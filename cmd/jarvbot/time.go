@@ -20,9 +20,14 @@ func removeRoleAfterDuration(ds *discordgo.Session, guildID string, memberID str
 		time.Sleep(duration)
 		err := ds.GuildMemberRoleRemove(guildID, memberID, roleID)
 		if err != nil {
-			notifyIfErr("removeRoleAfterDuration", err, ds)
-			// try again in a minute
-			removeRoleAfterDuration(ds, guildID, memberID, roleID, time.Minute)
+			guild, err := ds.Guild(guildID)
+			if err == nil {
+				notifyIfErr("removeRoleAfterDuration in guild: "+guild.Name, err, ds)
+			} else {
+				notifyIfErr("removeRoleAfterDuration in guild with ID: "+guildID, err, ds)
+			}
+			// try again later
+			removeRoleAfterDuration(ds, guildID, memberID, roleID, 2*time.Minute)
 		}
 	}()
 }

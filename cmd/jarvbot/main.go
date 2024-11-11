@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -28,17 +28,20 @@ func main() {
 	ds := initDiscordSession()
 	initCRONs(ds)
 
+	var removeSlashCommands func()
 	if !noSlashCommands {
-		removeSlashCommands := initSlashCommands(ds)
-		defer removeSlashCommands()
+		removeSlashCommands = initSlashCommands(ds)
 	}
 
 	// Wait here until CTRL-C or other term signal is received.
-	log.Println("Bot is now running. Press CTRL-C to exit.")
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-	<-signalChan
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+	log.Println("Press Ctrl+C to exit")
+	<-stop
 
+	if !noSlashCommands {
+		removeSlashCommands()
+	}
 	ds.Close()
 }
 
@@ -76,6 +79,7 @@ func initDiscordSession() *discordgo.Session {
 
 	backgroundCtx := context.Background()
 
+	//ds.AddHandler(onGuildJoin(backgroundCtx))
 	ds.AddHandler(onMessageCreated(backgroundCtx))
 	ds.AddHandler(onMessageUpdated(backgroundCtx))
 	ds.AddHandler(onMessageDeleted(backgroundCtx))
@@ -87,6 +91,7 @@ func initDiscordSession() *discordgo.Session {
 	ds.Identify.Intents |= discordgo.IntentGuildMessages
 	ds.Identify.Intents |= discordgo.IntentGuildMessageReactions
 	ds.Identify.Intents |= discordgo.IntentDirectMessages
+	ds.Identify.Intents |= discordgo.IntentGuildWebhooks
 	ds.State.MaxMessageCount = maxMessageCount
 
 	// Open a websocket connection to Discord and begin listening.
@@ -125,7 +130,7 @@ func initSlashCommands(ds *discordgo.Session) func() {
 		if h, ok := slashHandlers[ic.ApplicationCommandData().Name]; ok {
 			h(ds, ic)
 		} else {
-			log.Println("ERROR couldnt add handler for slash command:", ic.ApplicationCommandData().Name)
+			notifyIfErr("Slash command not found:"+ic.ApplicationCommandData().Name, nil, ds)
 		}
 	})
 
@@ -136,9 +141,11 @@ func initSlashCommands(ds *discordgo.Session) func() {
 		if err != nil {
 			notifyIfErr("Creating command: "+slashCommand.Name, err, ds)
 			log.Printf("Cannot create '%v' command: %v", slashCommand.Name, err)
+			continue
 		}
 		registeredCommands[i] = cmd
 	}
+	log.Println("Finished registering slash commands")
 
 	return func() {
 		log.Println("Removing registered slash commands...")
@@ -163,52 +170,85 @@ func cleanStateMessagesCRONFunc(ds *discordgo.Session) func() {
 				cleanStateMessagesInChannel(ds, gc)
 			}
 		}
+		for m := range messageLinkFixToOgAuthorId {
+			if messagePastLifetime(m) {
+				delete(messageLinkFixToOgAuthorId, m)
+			}
+		}
 	}
 }
 
 func cleanStateMessagesInChannel(ds *discordgo.Session, channel *discordgo.Channel) {
 	for _, msg := range channel.Messages {
-		if msg.Timestamp.Before(time.Now().Add(-stateMessageMaxLifetime)) {
+		if messagePastLifetime(msg) {
 			ds.State.MessageRemove(msg)
 		}
 	}
 }
 
-func sendAsUserWebhook(ds *discordgo.Session, channelID string) (*discordgo.Webhook, error) {
-	hooks, err := ds.ChannelWebhooks(channelID)
-	if err != nil {
-		return nil, err
+func messagePastLifetime(msg *discordgo.Message) bool {
+	if msg == nil {
+		return true
 	}
-
-	if len(hooks) == 0 {
-		return ds.WebhookCreate(channelID, "SendAsUser", ds.State.User.AvatarURL(""))
-	}
-
-	return hooks[0], nil
+	return msg.Timestamp.Before(time.Now().Add(-stateMessageMaxLifetime))
 }
 
-func sendAsUser(ds *discordgo.Session, user *discordgo.User, channelID string, content string) (*discordgo.Message, error) {
+func sendAsUserWebhook(ds *discordgo.Session, channelID string) (*discordgo.Webhook, error) {
+	hooks, _ := ds.ChannelWebhooks(channelID)
+
+	for _, hook := range hooks {
+		if hook.Name == "SendAsUser" {
+			return hook, nil
+		}
+	}
+
+	return ds.WebhookCreate(channelID, "SendAsUser", ds.State.User.AvatarURL(""))
+}
+
+// sendAsUser sends a message as the given user
+// It will either use a Webhook when possible (to keep the sender's username and avatar)
+// Or it will send a normal message with a mention of the original user
+func sendAsUser(ds *discordgo.Session, user *discordgo.User, channelID string, content string, referencedMessage *discordgo.Message) (*discordgo.Message, error) {
 	if user == nil || ds == nil || channelID == "" || content == "" {
-		return nil, nil
+		return nil, fmt.Errorf("user, ds, channelID, or content is nil")
+	}
+
+	// Webhook doesn't allow "replies" :(
+	if referencedMessage != nil {
+		return ds.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
+			Content:   fmt.Sprintf("%s:\n%s", user.Mention(), content),
+			Reference: referencedMessage.Reference(),
+			AllowedMentions: &discordgo.MessageAllowedMentions{
+				RepliedUser: true,
+			},
+		})
 	}
 
 	webhook, err := sendAsUserWebhook(ds, channelID)
 	if err != nil {
-		return nil, err
+		// webhook didn't work, let's try sending a normal silent message with a mention
+		return ds.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
+			Content:         fmt.Sprintf("%s:\n%s", user.Mention(), content),
+			AllowedMentions: &discordgo.MessageAllowedMentions{},
+		})
 	}
 
-	return ds.WebhookExecute(webhook.ID, webhook.Token, false, &discordgo.WebhookParams{
+	return ds.WebhookExecute(webhook.ID, webhook.Token, true, &discordgo.WebhookParams{
 		Content:   content,
 		Username:  user.GlobalName,
 		AvatarURL: user.AvatarURL(""),
 	})
 }
 
-func diff(body, prefix string) string {
+func markdownDiffBlock(body, prefix string) string {
 	lines := strings.Split(body, "\n")
 	var formattedBody string
-	for _, line := range lines {
-		formattedBody += prefix + line + "\n"
+	if prefix == "" {
+		formattedBody = body
+	} else {
+		for _, line := range lines {
+			formattedBody += prefix + line + "\n"
+		}
 	}
 	return "```diff\n" + formattedBody + "```"
 }
@@ -217,6 +257,6 @@ func notifyIfErr(context string, err error, ds *discordgo.Session) {
 	if err != nil {
 		msg := "ERROR [" + context + "]: " + err.Error()
 		log.Println(msg)
-		sendDirectMessage(adminID, diff(msg, "- "), ds)
+		sendDirectMessage(adminID, markdownDiffBlock(msg, "- "), ds)
 	}
 }

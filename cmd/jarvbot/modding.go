@@ -6,13 +6,20 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/kylelemons/godebug/diff"
 )
+
+func onGuildJoin(ctx context.Context) func(ds *discordgo.Session, gc *discordgo.GuildCreate) {
+	return func(ds *discordgo.Session, gc *discordgo.GuildCreate) {
+		sendDirectMessage(adminID, fmt.Sprintf("Joined guild: %s with id: %s", gc.Name, gc.ID), ds)
+	}
+}
 
 func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
 		if mc.BeforeDelete != nil && mc.BeforeDelete.Author != nil {
-			// dont mind if the bot messages get deleted
-			if mc.BeforeDelete.Author.ID == ds.State.User.ID {
+			// dont mind if bot messages get deleted
+			if mc.BeforeDelete.Author.Bot {
 				return
 			}
 
@@ -20,6 +27,7 @@ func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			if err != nil {
 				return
 			}
+
 			ds.ChannelMessageSendEmbed(
 				logsChannelID,
 				&discordgo.MessageEmbed{
@@ -39,13 +47,20 @@ func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 func onMessageUpdated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageUpdate) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageUpdate) {
 		if mc.BeforeUpdate != nil && mc.Author != nil {
+			// dont mind if bot messages get updated
+			if mc.Author.Bot {
+				return
+			}
+
 			logsChannelID, err := serverDS.getServerProperty(mc.GuildID, serverPropMessageLogs)
 			if err != nil {
 				return
 			}
+
 			if mc.BeforeUpdate.Content == mc.Message.Content {
 				return
 			}
+
 			ds.ChannelMessageSendEmbed(
 				logsChannelID,
 				&discordgo.MessageEmbed{
@@ -166,8 +181,7 @@ func messageUpdatedToString(from, to *discordgo.Message) string {
 	if from.Author != nil {
 		str += "\nAuthor: " + from.Author.Mention()
 	}
-	str += diff(from.Content, "- ")
-	str += diff(to.Content, "+ ")
+	str += markdownDiffBlock(diff.Diff(from.Content, to.Content), "")
 	str += fmt.Sprintf("\n[Link to message](https://discord.com/channels/%s/%s/%s)",
 		from.GuildID, from.ChannelID, from.ID)
 	return str

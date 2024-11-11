@@ -21,10 +21,17 @@ const roleEveryone = "@everyone"
 const globalGuildID = ""
 
 var ogNonRootTwitterLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com/\S+\b`)
-var ogTwitterLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`)
+var ogNonRootPixivLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?pixiv\.net/\S+\b`)
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
 var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d+)>`)
+
+var badEmbedLinkReplacements = map[*regexp.Regexp]string{
+	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`): "https://fxtwitter.com",
+	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?pixiv\.net\b`):         "https://phixiv.net",
+}
+
+var messageLinkFixToOgAuthorId = map[*discordgo.Message]string{}
 
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool
 
@@ -47,8 +54,9 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 		}
 
 		// Twitter links replacement
-		if ogNonRootTwitterLinkRegex.MatchString(mc.Content) {
-			processMessageWithTwitterLinks(ds, mc, ctx)
+		if ogNonRootTwitterLinkRegex.MatchString(mc.Content) ||
+			ogNonRootPixivLinkRegex.MatchString(mc.Content) {
+			processMessageWithBadEmbedLinks(ds, mc, ctx)
 			return
 		}
 	}
@@ -57,7 +65,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.6.2"),
+	"!version":                   simpleTextResponse("v3.7.0"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -71,29 +79,33 @@ var commands = map[string]command{
 	"!randomdomainrun":           notSpammable(answerRandomDomainRun),
 	"!remindme":                  notSpammable(answerRemindme),
 	"!roll":                      notSpammable(answerRoll),
+	"!shoot":                     notSpammable(answerShoot),
+	"!pp":                        notSpammable(answerPP),
 	// hidden or easter eggs
 	"!hello":        notSpammable(answerHello),
 	"!liquid":       notSpammable(answerLiquid),
 	"!don":          notSpammable(answerDon),
-	"!shoot":        notSpammable(answerShoot),
 	"!sniper_shoot": notSpammable(answerSniperShoot),
-	"!pp":           notSpammable(answerPP),
 	// only available for discord mods
 	"!roleids":              guildOnly((answerRoleIDs)),
 	"!react4roles":          guildOnly((answerMakeReact4RolesMsg)),
 	"!addcommand":           guildOnly((answerAddCommand)),
 	"!removecommand":        guildOnly((answerRemoveCommand)),
+	"!deletecommand":        guildOnly((answerRemoveCommand)),
+	"!commandcreator":       guildOnly((answerCommandCreator)),
 	"!listcommands":         modOnly(answerListCommands),
 	"!allowspamming":        guildOnly(modOnly(answerAllowSpamming)),
 	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),
 	"!setcustomtimeoutrole": guildOnly(modOnly(answerSetCustomTimeoutRole)),
 	"!announcehere":         guildOnly(modOnly(answerAnnounceHere)),
-	"!fixtwitterlinks":      guildOnly(modOnly(answerFixTwitterLinks)),
+	"!fixbadembedlinks":     guildOnly(modOnly(answerFixBadEmbedLinks)),
 	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
 	// only available for the bot owner
+	"!guildlist":           adminOnly(answerGuildList),
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
+	"!deleteglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!announce":            adminOnly(answerAnnounce),
 	"!dbbackup":            adminOnly(answerDbBackup),
 	"!runtimestats":        adminOnly(answerRuntimeStats),
@@ -160,11 +172,11 @@ func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 
 func answerPP(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	seed, err := strconv.ParseInt(mc.Author.ID, 10, 64)
-	seed *= unixDay()
 	notifyIfErr("answerPP: parsing user id: "+mc.Author.ID, err, ds)
 	if err != nil {
 		return false
 	}
+	seed *= unixDay()
 	pp := ppgen.NewPenisWithSeed(seed)
 	_, err = ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%s's penis: %s", mc.Author.Mention(), pp))
 	return err == nil
@@ -241,40 +253,93 @@ func answerAnnounceHere(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	return err == nil
 }
 
-func answerFixTwitterLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixTwitterLinks)
+func answerFixBadEmbedLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixBadEmbedLinks)
 	newSetting := serverPropYes
 	if currSetting == serverPropYes {
 		newSetting = serverPropNo
 	}
-	err := serverDS.setServerProperty(mc.GuildID, serverPropFixTwitterLinks, newSetting)
+	err := serverDS.setServerProperty(mc.GuildID, serverPropFixBadEmbedLinks, newSetting)
 	if err == nil && newSetting == serverPropYes {
-		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will fix twitter links")
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will fix bad embed links")
 	} else if err == nil && newSetting == serverPropNo {
-		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will not fix twitter links")
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will not fix bad embed links")
 	}
 	return err == nil
 }
 
-func processMessageWithTwitterLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixTwitterLinks)
+func processMessageWithBadEmbedLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	currSetting, _ := serverDS.getServerProperty(mc.GuildID, serverPropFixBadEmbedLinks)
 	if currSetting != serverPropYes {
 		return
 	}
 
-	messageContent := ogTwitterLinkRegex.ReplaceAllString(mc.Content, "https://fxtwitter.com")
-	_, err := sendAsUser(ds, mc.Author, mc.ChannelID, messageContent)
+	messageContent := mc.Content
+	for rgx, rpl := range badEmbedLinkReplacements {
+		messageContent = rgx.ReplaceAllString(messageContent, rpl)
+	}
+	fixedMsg, err := sendAsUser(ds, mc.Author, mc.ChannelID, messageContent, mc.ReferencedMessage)
 	if err != nil {
-		notifyIfErr("processMessageWithTwitterLinks::sendAsUser", err, ds)
+		notifyIfErr("processMessageWithBadEmbedLinks::sendAsUser", err, ds)
 		return
 	}
+	messageLinkFixToOgAuthorId[fixedMsg] = mc.Author.ID
 
 	ds.State.MessageRemove(mc.Message)
 	err = ds.ChannelMessageDelete(mc.ChannelID, mc.ID)
 	if err != nil {
-		notifyIfErr("processMessageWithTwitterLinks::ds.ChannelMessageDelete", err, ds)
+		notifyIfErr("processMessageWithBadEmbedLinks::ds.ChannelMessageDelete", err, ds)
 		return
 	}
+}
+
+func answerDeleteLinkFixMessage(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	interactionUserId := interactionUser(ic).ID
+	ogAuthorId, ok := messageLinkFixToOgAuthorId[ic.Message]
+	if !ok && !isAdmin(interactionUserId) {
+		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Could not find original author, only a mod can delete that message",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	// Check if the user can delete the message
+	if interactionUserId != ogAuthorId || !isAdmin(interactionUserId) {
+		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "You did not send that message",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	// Try to delete and respond if it was successful
+	fixedMsgID := ic.ApplicationCommandData().TargetID
+	err := ds.ChannelMessageDelete(ic.ChannelID, fixedMsgID)
+	notifyIfErr("answerDeleteLinkFixMessage::ChannelMessageDelete", err, ds)
+	if err != nil {
+		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Sorry, I could not delete the message u_u",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "Message deleted ^w^",
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
 }
 
 func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
@@ -303,17 +368,35 @@ func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	return err == nil
 }
 
+func answerGuildList(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	guilds, err := ds.UserGuilds(100, "", "", true)
+	if err != nil {
+		notifyIfErr("answerGuildList", err, ds)
+		return false
+	}
+	guildsMsg := ""
+	for _, g := range guilds {
+		guildsMsg += fmt.Sprintf("%s [%s] - Member count %d - Presence count %d\n", g.Name, g.ID, g.ApproximateMemberCount, g.ApproximatePresenceCount)
+	}
+	_, err = ds.ChannelMessageSend(mc.ChannelID, guildsMsg)
+	return err == nil
+}
+
 // ---------- Simple command stuff ----------
 
 func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
 	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
 	if key == "" {
-		ds.ChannelMessageSend(mc.ChannelID, diff("Could not get the key from the command body", "- "))
+		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the key from the command body", "- "))
 		return false
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
-	err := commandDS.addSimpleCommand(key, response, mc.GuildID)
+	if response == "" {
+		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the response from the command body", "- "))
+		return false
+	}
+	err := commandDS.addSimpleCommand(key, response, mc.GuildID, mc.Author.ID)
 	notifyIfErr("addSimpleCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
@@ -325,11 +408,15 @@ func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, 
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
 	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
 	if key == "" {
-		ds.ChannelMessageSend(mc.ChannelID, diff("Could not get the key from the command body", "- "))
+		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the key from the command body", "- "))
 		return false
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
-	err := commandDS.addSimpleCommand(key, response, globalGuildID)
+	if response == "" {
+		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the response from the command body", "- "))
+		return false
+	}
+	err := commandDS.addSimpleCommand(key, response, globalGuildID, mc.Author.ID)
 	notifyIfErr("addGlobalCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
@@ -340,6 +427,9 @@ func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, 
 func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
 	err := commandDS.removeSimpleCommand(commandBody, mc.GuildID)
+	if err == errZeroRowsAffected {
+		ds.ChannelMessageSend(mc.ChannelID, "I could not find that command! sowwy u_u")
+	}
 	notifyIfErr("removeSimpleCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
@@ -347,9 +437,33 @@ func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 	return err == nil
 }
 
+func answerCommandCreator(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	if commandBody == "" {
+		return false
+	}
+	if commandBody[0] != '!' {
+		commandBody = "!" + commandBody
+	}
+
+	creator, err := commandDS.getCommandCreator(commandBody, mc.GuildID)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not find command creator. I'm sowwy u_u")
+		return false
+	}
+	ds.ChannelMessageSendComplex(mc.ChannelID, &discordgo.MessageSend{
+		Content:         fmt.Sprintf("Command creator: <@%s>", creator),
+		AllowedMentions: &discordgo.MessageAllowedMentions{},
+	})
+	return true
+}
+
 func answerRemoveGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
 	err := commandDS.removeSimpleCommand(commandBody, globalGuildID)
+	if err == errZeroRowsAffected {
+		ds.ChannelMessageSend(mc.ChannelID, "I could not find that command! sowwy u_u")
+	}
 	notifyIfErr("removeGlobalCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
@@ -494,8 +608,6 @@ func notSpammable(wrapped command) command {
 // ---------- Cooldowns ----------
 
 var lastUserCommandTime = map[string]time.Time{}
-
-const commandCooldown = time.Minute * 15
 
 func resetUserCooldown(userID string) {
 	lastUserCommandTime[userID] = time.Now()

@@ -288,19 +288,24 @@ var slashCommands = []*discordgo.ApplicationCommand{
 			},
 		},
 	},
+	{
+		Name: "Delete LinkFix Message",
+		Type: discordgo.MessageApplicationCommand,
+	},
 }
 
 var slashHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-	"help":              answerHelp,
-	"8ball":             answer8ball,
-	"avatar":            answerAvatar,
-	"genshin_chances":   expensiveSlashCommand(answerGenshinChance),
-	"star_rail_chances": expensiveSlashCommand(answerStarRailChance),
-	"strongbox":         expensiveSlashCommand(answerStrongbox),
-	"character":         answerCharacter,
-	"abyss_challenge":   answerAbyssChallenge,
-	"warn":              answerWarn,
-	"warnings":          answerWarnings,
+	"help":                   answerHelp,
+	"8ball":                  answer8ball,
+	"avatar":                 answerAvatar,
+	"genshin_chances":        expensiveSlashCommand(answerGenshinChance),
+	"star_rail_chances":      expensiveSlashCommand(answerStarRailChance),
+	"strongbox":              expensiveSlashCommand(answerStrongbox),
+	"character":              answerCharacter,
+	"abyss_challenge":        answerAbyssChallenge,
+	"warn":                   answerWarn,
+	"warnings":               answerWarnings,
+	"Delete LinkFix Message": answerDeleteLinkFixMessage,
 }
 
 func expensiveSlashCommand(expensiveOp func(ds *discordgo.Session, ic *discordgo.InteractionCreate)) func(ds *discordgo.Session, ic *discordgo.InteractionCreate) {

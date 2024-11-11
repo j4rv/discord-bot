@@ -14,13 +14,21 @@ var stringMinsRegex = regexp.MustCompile(`^(\d{1,2})m`)
 var stringSecsRegex = regexp.MustCompile(`^(\d{1,2})s`)
 
 const secondsInADay = 60 * 60 * 24
-const expensiveOperationCooldown = 5 * 60 * time.Second
-const expensiveOperationErrorMsg = "You just executed an expensive operation, please wait."
 
 func removeRoleAfterDuration(ds *discordgo.Session, guildID string, memberID string, roleID string, duration time.Duration) {
 	go func() {
 		time.Sleep(duration)
-		ds.GuildMemberRoleRemove(guildID, memberID, roleID)
+		err := ds.GuildMemberRoleRemove(guildID, memberID, roleID)
+		if err != nil {
+			guild, err := ds.Guild(guildID)
+			if err == nil {
+				notifyIfErr("removeRoleAfterDuration in guild: "+guild.Name, err, ds)
+			} else {
+				notifyIfErr("removeRoleAfterDuration in guild with ID: "+guildID, err, ds)
+			}
+			// try again later
+			removeRoleAfterDuration(ds, guildID, memberID, roleID, 2*time.Minute)
+		}
 	}()
 }
 

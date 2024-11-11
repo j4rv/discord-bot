@@ -79,6 +79,7 @@ func initDiscordSession() *discordgo.Session {
 
 	backgroundCtx := context.Background()
 
+	//ds.AddHandler(onGuildJoin(backgroundCtx))
 	ds.AddHandler(onMessageCreated(backgroundCtx))
 	ds.AddHandler(onMessageUpdated(backgroundCtx))
 	ds.AddHandler(onMessageDeleted(backgroundCtx))

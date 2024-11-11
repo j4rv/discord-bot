@@ -79,18 +79,20 @@ var commands = map[string]command{
 	"!randomdomainrun":           notSpammable(answerRandomDomainRun),
 	"!remindme":                  notSpammable(answerRemindme),
 	"!roll":                      notSpammable(answerRoll),
+	"!shoot":                     notSpammable(answerShoot),
+	"!pp":                        notSpammable(answerPP),
 	// hidden or easter eggs
 	"!hello":        notSpammable(answerHello),
 	"!liquid":       notSpammable(answerLiquid),
 	"!don":          notSpammable(answerDon),
-	"!shoot":        notSpammable(answerShoot),
 	"!sniper_shoot": notSpammable(answerSniperShoot),
-	"!pp":           notSpammable(answerPP),
 	// only available for discord mods
 	"!roleids":              guildOnly((answerRoleIDs)),
 	"!react4roles":          guildOnly((answerMakeReact4RolesMsg)),
 	"!addcommand":           guildOnly((answerAddCommand)),
 	"!removecommand":        guildOnly((answerRemoveCommand)),
+	"!deletecommand":        guildOnly((answerRemoveCommand)),
+	"!commandcreator":       guildOnly((answerCommandCreator)),
 	"!listcommands":         modOnly(answerListCommands),
 	"!allowspamming":        guildOnly(modOnly(answerAllowSpamming)),
 	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),
@@ -100,8 +102,10 @@ var commands = map[string]command{
 	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
 	// only available for the bot owner
+	"!guildlist":           adminOnly(answerGuildList),
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
+	"!deleteglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!announce":            adminOnly(answerAnnounce),
 	"!dbbackup":            adminOnly(answerDbBackup),
 	"!runtimestats":        adminOnly(answerRuntimeStats),
@@ -168,11 +172,11 @@ func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 
 func answerPP(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	seed, err := strconv.ParseInt(mc.Author.ID, 10, 64)
-	seed *= unixDay()
 	notifyIfErr("answerPP: parsing user id: "+mc.Author.ID, err, ds)
 	if err != nil {
 		return false
 	}
+	seed *= unixDay()
 	pp := ppgen.NewPenisWithSeed(seed)
 	_, err = ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%s's penis: %s", mc.Author.Mention(), pp))
 	return err == nil
@@ -364,6 +368,20 @@ func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	return err == nil
 }
 
+func answerGuildList(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	guilds, err := ds.UserGuilds(100, "", "", true)
+	if err != nil {
+		notifyIfErr("answerGuildList", err, ds)
+		return false
+	}
+	guildsMsg := ""
+	for _, g := range guilds {
+		guildsMsg += fmt.Sprintf("%s [%s] - Member count %d - Presence count %d\n", g.Name, g.ID, g.ApproximateMemberCount, g.ApproximatePresenceCount)
+	}
+	_, err = ds.ChannelMessageSend(mc.ChannelID, guildsMsg)
+	return err == nil
+}
+
 // ---------- Simple command stuff ----------
 
 func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
@@ -378,7 +396,7 @@ func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the response from the command body", "- "))
 		return false
 	}
-	err := commandDS.addSimpleCommand(key, response, mc.GuildID)
+	err := commandDS.addSimpleCommand(key, response, mc.GuildID, mc.Author.ID)
 	notifyIfErr("addSimpleCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
@@ -398,7 +416,7 @@ func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, 
 		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the response from the command body", "- "))
 		return false
 	}
-	err := commandDS.addSimpleCommand(key, response, globalGuildID)
+	err := commandDS.addSimpleCommand(key, response, globalGuildID, mc.Author.ID)
 	notifyIfErr("addGlobalCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
@@ -417,6 +435,27 @@ func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
 	return err == nil
+}
+
+func answerCommandCreator(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	if commandBody == "" {
+		return false
+	}
+	if commandBody[0] != '!' {
+		commandBody = "!" + commandBody
+	}
+
+	creator, err := commandDS.getCommandCreator(commandBody, mc.GuildID)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not find command creator. I'm sowwy u_u")
+		return false
+	}
+	ds.ChannelMessageSendComplex(mc.ChannelID, &discordgo.MessageSend{
+		Content:         fmt.Sprintf("Command creator: <@%s>", creator),
+		AllowedMentions: &discordgo.MessageAllowedMentions{},
+	})
+	return true
 }
 
 func answerRemoveGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

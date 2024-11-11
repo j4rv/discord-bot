@@ -52,18 +52,21 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	timeoutRole, err := getTimeoutRole(ds, mc.GuildID)
 	notifyIfErr("answerShoot: get timeout role", err, ds)
 	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not find the Timeout Role, maybe I'm missing permissions or it does not exist :(")
 		return false
 	}
 
 	shooter, err := ds.GuildMember(mc.GuildID, mc.Author.ID)
 	notifyIfErr("answerShoot: get shooter member", err, ds)
 	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not find you in this server, maybe I'm missing permissions u_u")
 		return false
 	}
 
 	target, err := ds.GuildMember(mc.GuildID, match[1])
 	notifyIfErr("answerShoot: get target member", err, ds)
 	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Couldn't find member with user ID: "+match[1]+", maybe I'm missing permissions u_u")
 		return false
 	}
 

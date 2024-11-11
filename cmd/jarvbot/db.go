@@ -65,6 +65,7 @@ func createTableSimpleCommand(db *sqlx.DB) {
 		"Response TEXT NOT NULL",
 		"GuildID VARCHAR(20) NOT NULL DEFAULT ''",
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+		"CreatedBy VARCHAR(20)",
 		"UNIQUE(Key, GuildID)",
 	}, db)
 	createIndex("SimpleCommand", "Key", db)
@@ -135,9 +136,9 @@ type CommandStat struct {
 	Count   int    `db:"Count"`
 }
 
-func (c commandDataStore) addSimpleCommand(key, response, guildID string) error {
-	_, err := c.db.Exec(`INSERT INTO SimpleCommand (Key, Response, GuildID) VALUES (?, ?, ?)`,
-		key, response, guildID)
+func (c commandDataStore) addSimpleCommand(key, response, guildID, creatorUserID string) error {
+	_, err := c.db.Exec(`INSERT INTO SimpleCommand (Key, Response, GuildID, CreatedBy) VALUES (?, ?, ?, ?)`,
+		key, response, guildID, creatorUserID)
 	return err
 }
 
@@ -154,9 +155,16 @@ func (c commandDataStore) removeSimpleCommand(key, guildID string) error {
 	return nil
 }
 
+func (c commandDataStore) getCommandCreator(key, guildID string) (string, error) {
+	var creator string
+	err := c.db.Get(&creator, `SELECT CreatedBy FROM SimpleCommand WHERE Key = ? AND (GuildID = ?) COLLATE NOCASE`,
+		key, guildID)
+	return creator, err
+}
+
 func (c commandDataStore) simpleCommandResponse(key, guildID string) (string, error) {
 	var response []string
-	err := c.db.Select(&response, `SELECT Response FROM SimpleCommand WHERE Key = ? AND (GuildID = ? OR GuildID = '') COLLATE NOCASE`,
+	err := c.db.Select(&response, `SELECT Response FROM SimpleCommand WHERE Key = ? AND (GuildID = ?) COLLATE NOCASE`,
 		key, guildID)
 	if len(response) == 0 {
 		return "", err

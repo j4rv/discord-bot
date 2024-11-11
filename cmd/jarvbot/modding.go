@@ -9,6 +9,12 @@ import (
 	"github.com/kylelemons/godebug/diff"
 )
 
+func onGuildJoin(ctx context.Context) func(ds *discordgo.Session, gc *discordgo.GuildCreate) {
+	return func(ds *discordgo.Session, gc *discordgo.GuildCreate) {
+		sendDirectMessage(adminID, fmt.Sprintf("Joined guild: %s with id: %s", gc.Name, gc.ID), ds)
+	}
+}
+
 func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
 		if mc.BeforeDelete != nil && mc.BeforeDelete.Author != nil {

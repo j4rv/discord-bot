@@ -22,6 +22,8 @@ var noSlashCommands bool
 
 const discordMaxMessageLength = 2000
 
+var abortChannel chan os.Signal
+
 func main() {
 	initFlags()
 	initDB()
@@ -34,10 +36,10 @@ func main() {
 	}
 
 	// Wait here until CTRL-C or other term signal is received.
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
+	abortChannel = make(chan os.Signal, 1)
+	signal.Notify(abortChannel, os.Interrupt)
 	log.Println("Press Ctrl+C to exit")
-	<-stop
+	<-abortChannel
 
 	if !noSlashCommands {
 		removeSlashCommands()

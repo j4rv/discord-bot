@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"regexp"
 	"runtime"
 	"runtime/debug"
@@ -102,6 +103,7 @@ var commands = map[string]command{
 	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
 	// only available for the bot owner
+	"!abort":               adminOnly(answerAbort),
 	"!guildlist":           adminOnly(answerGuildList),
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
@@ -536,6 +538,13 @@ func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 }
 
 // ---------- Server commands ----------
+
+func answerAbort(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := ds.Close()
+	notifyIfErr("abort", err, ds)
+	abortChannel <- os.Interrupt
+	return err == nil
+}
 
 func answerReboot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := reboot()

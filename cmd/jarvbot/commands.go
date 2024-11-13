@@ -66,7 +66,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.7.0"),
+	"!version":                   simpleTextResponse("v3.7.1"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -88,12 +88,12 @@ var commands = map[string]command{
 	"!don":          notSpammable(answerDon),
 	"!sniper_shoot": notSpammable(answerSniperShoot),
 	// only available for discord mods
-	"!roleids":              guildOnly((answerRoleIDs)),
-	"!react4roles":          guildOnly((answerMakeReact4RolesMsg)),
-	"!addcommand":           guildOnly((answerAddCommand)),
-	"!removecommand":        guildOnly((answerRemoveCommand)),
-	"!deletecommand":        guildOnly((answerRemoveCommand)),
-	"!commandcreator":       guildOnly((answerCommandCreator)),
+	"!roleids":              guildOnly(modOnly(answerRoleIDs)),
+	"!react4roles":          guildOnly(modOnly(answerMakeReact4RolesMsg)),
+	"!addcommand":           guildOnly(modOnly(answerAddCommand)),
+	"!removecommand":        guildOnly(modOnly(answerRemoveCommand)),
+	"!deletecommand":        guildOnly(modOnly(answerRemoveCommand)),
+	"!commandcreator":       guildOnly(modOnly(answerCommandCreator)),
 	"!listcommands":         modOnly(answerListCommands),
 	"!allowspamming":        guildOnly(modOnly(answerAllowSpamming)),
 	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),

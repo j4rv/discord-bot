@@ -1,8 +1,6 @@
 # J4RV's Discord bot
 
-[Add it to your server!](https://discord.com/oauth2/authorize?client_id=901475699699875880)
-
-## How to run:
+## How to run it yourself:
 
  - Needs Golang 1.20+
  - Windows: 

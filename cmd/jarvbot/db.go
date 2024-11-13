@@ -172,10 +172,15 @@ func (c commandDataStore) simpleCommandResponse(key, guildID string) (string, er
 	return response[0], err
 }
 
-func (c commandDataStore) allSimpleCommandKeys(guildID string) ([]string, error) {
+func (c commandDataStore) allSimpleCommandKeys(guildID string, includeGlobal bool) ([]string, error) {
 	var keys []string
-	err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ? OR GuildID = ''`, guildID)
-	return keys, err
+	if !includeGlobal {
+		err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ?`, guildID)
+		return keys, err
+	} else {
+		err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ? OR GuildID = ''`, guildID)
+		return keys, err
+	}
 }
 
 func (c commandDataStore) increaseCommandCountStat(guildID, commandKey string) error {

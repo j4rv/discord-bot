@@ -66,7 +66,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.7.1"),
+	"!version":                   simpleTextResponse("v3.7.2"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -95,6 +95,8 @@ var commands = map[string]command{
 	"!deletecommand":        guildOnly(modOnly(answerRemoveCommand)),
 	"!commandcreator":       guildOnly(modOnly(answerCommandCreator)),
 	"!listcommands":         modOnly(answerListCommands),
+	"!listservercommands":   guildOnly(modOnly(answerListGuildCommands)),
+	"!listglobalcommands":   guildOnly(modOnly(answerListGlobalCommands)),
 	"!allowspamming":        guildOnly(modOnly(answerAllowSpamming)),
 	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),
 	"!setcustomtimeoutrole": guildOnly(modOnly(answerSetCustomTimeoutRole)),
@@ -521,7 +523,7 @@ func answerRuntimeStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 }
 
 func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	keys, err := commandDS.allSimpleCommandKeys(mc.GuildID)
+	keys, err := commandDS.allSimpleCommandKeys(mc.GuildID, true)
 	notifyIfErr("answerListCommands::allSimpleCommandKeys", err, ds)
 	if len(keys) != 0 {
 		sort.Strings(keys)
@@ -530,7 +532,41 @@ func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 			msg += k + "\n"
 		}
 		ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
-			Title:       "Simple commands",
+			Title:       "All simple commands available",
+			Description: msg,
+		})
+	}
+	return err == nil
+}
+
+func answerListGuildCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	keys, err := commandDS.allSimpleCommandKeys(mc.GuildID, false)
+	notifyIfErr("answerListCommands::allSimpleCommandKeys", err, ds)
+	if len(keys) != 0 {
+		sort.Strings(keys)
+		msg := ""
+		for _, k := range keys {
+			msg += k + "\n"
+		}
+		ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
+			Title:       "Simple commands created in this server",
+			Description: msg,
+		})
+	}
+	return err == nil
+}
+
+func answerListGlobalCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	keys, err := commandDS.allSimpleCommandKeys("", false)
+	notifyIfErr("answerListCommands::allSimpleCommandKeys", err, ds)
+	if len(keys) != 0 {
+		sort.Strings(keys)
+		msg := ""
+		for _, k := range keys {
+			msg += k + "\n"
+		}
+		ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
+			Title:       "All global commands available",
 			Description: msg,
 		})
 	}

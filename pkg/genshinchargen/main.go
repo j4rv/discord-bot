@@ -218,10 +218,10 @@ type GeneratedCharacter struct {
 
 func (c GeneratedCharacter) PrettyString() string {
 	return fmt.Sprintf(`%s is a %s %s character from %s.
-	Weapon: %s.
-	Model: %s %s.
-	Kit: %s, scales with %s, %s but %s.
-	Title: %s.`,
+Weapon: %s.
+Model: %s %s.
+Kit: %s, scales with %s, %s but %s.
+Title: %s.`,
 		c.name, c.rarity, c.element, c.region, c.weapon, c.adjective, c.model, c.role, c.scaling, c.strength, c.weakness, c.title)
 }
 

@@ -201,6 +201,22 @@ var weaknesses = NewWeightedSlice(map[string]int{
 	"can't crit":                                  2,
 })
 
+var rating = NewWeightedSlice(map[string]int{
+	"-1/10": 2,
+	"0/10":  10,
+	"1/10":  30,
+	"2/10":  30,
+	"3/10":  30,
+	"4/10":  40,
+	"5/10":  50,
+	"6/10":  60,
+	"7/10":  60,
+	"8/10":  50,
+	"9/10":  40,
+	"10/10": 30,
+	"11/10": 2,
+})
+
 type GeneratedCharacter struct {
 	name      string
 	rarity    string
@@ -214,6 +230,7 @@ type GeneratedCharacter struct {
 	strength  string
 	weakness  string
 	title     string
+	rating    string
 }
 
 func (c GeneratedCharacter) PrettyString() string {
@@ -221,8 +238,9 @@ func (c GeneratedCharacter) PrettyString() string {
 Weapon: %s.
 Model: %s %s.
 Kit: %s, scales with %s, %s but %s.
-Title: %s.`,
-		c.name, c.rarity, c.element, c.region, c.weapon, c.adjective, c.model, c.role, c.scaling, c.strength, c.weakness, c.title)
+Title: %s.
+Leaker Rating: %s.`,
+		c.name, c.rarity, c.element, c.region, c.weapon, c.adjective, c.model, c.role, c.scaling, c.strength, c.weakness, c.title, c.rating)
 }
 
 func NewChar(name string, seedSalt int64) GeneratedCharacter {
@@ -239,6 +257,7 @@ func NewChar(name string, seedSalt int64) GeneratedCharacter {
 	result.strength = strengths.Random(rng)
 	result.weakness = weaknesses.Random(rng)
 	result.adjective = visualAdjectives.Random(rng)
+	result.rating = rating.Random(rng)
 
 	if result.rarity == "5*" || result.rarity == "6*" || result.rarity == "7*" {
 		result.title = title.Random(rng)

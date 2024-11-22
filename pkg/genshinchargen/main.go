@@ -65,7 +65,7 @@ var region = NewWeightedSlice(map[string]int{
 })
 
 var title = NewWeightedSlice(map[string]int{
-	"None":                 200,
+	"None":                 250,
 	"1st Fatui Harbinger":  10,
 	"2nd Fatui Harbinger":  10,
 	"3rd Fatui Harbinger":  10,
@@ -85,9 +85,9 @@ var title = NewWeightedSlice(map[string]int{
 	"The First Who Came":   5,
 	"The Second Who Came":  5,
 	"The Primordial One":   5,
-	"Emanator":             1,
-	"Herrscher":            1,
-	"Aeon":                 1,
+	"Emanator":             2,
+	"Herrscher":            2,
+	"Aeon":                 2,
 })
 
 var outsideTeyvatTitles = map[string]struct{}{
@@ -148,17 +148,19 @@ var scaling = NewWeightedSlice(map[string]int{
 })
 
 var roles = NewWeightedSlice(map[string]int{
-	"On-field DPS":            10,
-	"Off-field DPS":           7,
-	"NA DPS":                  5,
-	"Buffer":                  5,
-	"Healer":                  5,
-	"Shielder":                4,
-	"Plunge DPS":              3,
-	"Physical DPS":            3,
-	"Healer DPS":              3,
-	"Healer and shielder":     2,
-	"Healer and shielder DPS": 1,
+	"On-field DPS":            100,
+	"Off-field DPS":           70,
+	"Buffer":                  50,
+	"Healer":                  40,
+	"Shielder":                40,
+	"NA DPS":                  30,
+	"Physical DPS":            30,
+	"Plunge DPS":              20,
+	"Healer and shielder":     20,
+	"Healer DPS":              10,
+	"Healer and buffer":       10,
+	"Shielder and buffer":     10,
+	"Healer and shielder DPS": 5,
 })
 
 var strengths = NewWeightedSlice(map[string]int{
@@ -198,7 +200,7 @@ var weaknesses = NewWeightedSlice(map[string]int{
 	"needs resistance to interruption to be good": 5,
 	"doesn't create particles":                    5,
 	"has very limited range":                      5,
-	"can't crit":                                  2,
+	"can't crit":                                  3,
 })
 
 var rating = NewWeightedSlice(map[string]int{

@@ -28,8 +28,6 @@ func isMod(ds *discordgo.Session, userID, channelID string) bool {
 		notifyIfErr(fmt.Sprintf("ERROR isMod failed for user %s in channel %s\n", userID, channelID), err, ds)
 		return false
 	}
-	log.Println(perms)
-	log.Println(perms & discordgo.PermissionAdministrator)
 	return perms&discordgo.PermissionAdministrator != 0
 }
 

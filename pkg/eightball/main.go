@@ -2,8 +2,7 @@ package eightball
 
 import "math/rand"
 
-var responses = []string{
-	// "yes"
+var yesResponses = []string{
 	"Yes.",
 	"Sí.",
 	"It is certain.",
@@ -19,22 +18,9 @@ var responses = []string{
 	"I'm afraid so.",
 	"*nods*",
 	"Yes, yes, yes, yes!",
+}
 
-	// "neutral"
-	"Reply hazy, try again.",
-	"Ask again later.",
-	"Better not tell you now.",
-	"Cannot predict now.",
-	"Concentrate and ask again.",
-	"Stop asking questions.",
-	"Trust me, you don't want to hear the answer.",
-	"Why do you want to know?",
-	"It is fifty fifty.",
-	"I don't get paid enough to answer that.",
-	"Fuck you.",
-	"Cu... come again?",
-
-	// "no"
+var noResponses = []string{
 	"No.",
 	"Nay, nope, nein, non.",
 	"Nah.",
@@ -52,7 +38,36 @@ var responses = []string{
 	"No, no, no, no!",
 }
 
+var neutralResponses = []string{
+	"Reply hazy, try again.",
+	"Ask again later.",
+	"Better not tell you now.",
+	"Cannot predict now.",
+	"Concentrate and ask again.",
+	"Stop asking questions.",
+	"Trust me, you don't want to hear the answer.",
+	"Why do you want to know?",
+	"It is fifty fifty.",
+	"I don't get paid enough to answer that.",
+	"Fuck you.",
+	"Cu... come again?",
+}
+
 func Response() string {
-	index := rand.Intn(len(responses))
-	return responses[index]
+	rng := rand.Float64()
+	neutralChance := 0.10
+	yesChance := 0.45
+
+	if rng < neutralChance {
+		index := rand.Intn(len(neutralResponses))
+		return neutralResponses[index]
+	}
+
+	if rng < neutralChance+yesChance {
+		index := rand.Intn(len(yesResponses))
+		return yesResponses[index]
+	}
+
+	index := rand.Intn(len(noResponses))
+	return noResponses[index]
 }

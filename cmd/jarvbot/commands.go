@@ -66,7 +66,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.7.3"),
+	"!version":                   simpleTextResponse("v3.7.4"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
@@ -433,6 +433,7 @@ func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 	err := commandDS.removeSimpleCommand(commandBody, mc.GuildID)
 	if err == errZeroRowsAffected {
 		ds.ChannelMessageSend(mc.ChannelID, "I could not find that command! sowwy u_u")
+		return false
 	}
 	notifyIfErr("removeSimpleCommand", err, ds)
 	if err == nil {

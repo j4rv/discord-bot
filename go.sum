@@ -7,12 +7,10 @@ github.com/go-sql-driver/mysql v1.6.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LB
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/gorilla/websocket v1.5.1 h1:gmztn0JnHVt9JZquRuzLw3g4wouNVzKL15iLr/zn/QY=
 github.com/gorilla/websocket v1.5.1/go.mod h1:x3kM2JMyaluk02fnUJpQuwD2dCS5NDG2ZHL0uE0tcaY=
-github.com/j4rv/genshinartis v0.0.0-20230911183910-b19c3dc323f3 h1:bdBq6XxKRQvZWRyunxC/Svo5cTEfJ49S75qBvOUSH9w=
-github.com/j4rv/genshinartis v0.0.0-20230911183910-b19c3dc323f3/go.mod h1:NXUI4xa2rw8D2BjTBqgT6934wIJXJgn1vG9x/FGXW4E=
 github.com/j4rv/genshinartis v0.0.0-20240510155157-e4a2078f376f h1:Qkb60dXQpQFebxNxWsebOsyZ39JJzq/1B0vWO8IvPwI=
 github.com/j4rv/genshinartis v0.0.0-20240510155157-e4a2078f376f/go.mod h1:6XYkTXc4nhiZmc3caNnjmE8TaWLAwKtRXiK/VdTAuUI=
-github.com/j4rv/rollssim v0.0.0-20240404184348-3de18bb2de33 h1:cGdwtbBohkaKAc/b4RDz/Yv0J3J7RRJktf+1RVkk9Hg=
-github.com/j4rv/rollssim v0.0.0-20240404184348-3de18bb2de33/go.mod h1:giZ+GfPdq1sGjpWZHM5YSQ7Pfz2/doB9I2uSUXl/ZxU=
+github.com/j4rv/rollssim v0.0.0-20240816172414-ef8ab34e52a8 h1:UObrMf/hmM55QchJRbN3X7sXjC4xwmy2i3ewaFjH6GQ=
+github.com/j4rv/rollssim v0.0.0-20240816172414-ef8ab34e52a8/go.mod h1:giZ+GfPdq1sGjpWZHM5YSQ7Pfz2/doB9I2uSUXl/ZxU=
 github.com/jmoiron/sqlx v1.3.5 h1:vFFPA71p1o5gAeqtEAwLU4dnX2napprKtHr7PYIcN3g=
 github.com/jmoiron/sqlx v1.3.5/go.mod h1:nRVWtLre0KfCLJvgxzCsLVMogSvQ1zNJtpYr2Ccp0mQ=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=

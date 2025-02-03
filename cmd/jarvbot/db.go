@@ -164,7 +164,11 @@ func (c commandDataStore) getCommandCreator(key, guildID string) (string, error)
 
 func (c commandDataStore) simpleCommandResponse(key, guildID string) (string, error) {
 	var response []string
-	err := c.db.Select(&response, `SELECT Response FROM SimpleCommand WHERE Key = ? AND (GuildID = ?) COLLATE NOCASE`,
+	err := c.db.Select(&response, `
+		SELECT Response FROM SimpleCommand
+		WHERE Key = ? AND (GuildID = ? OR GuildID = '') COLLATE NOCASE
+		ORDER BY CASE WHEN GuildID = '' THEN 0 ELSE 1 END
+		LIMIT 1`,
 		key, guildID)
 	if len(response) == 0 {
 		return "", err

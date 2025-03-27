@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -17,6 +18,12 @@ func onGuildJoin(ctx context.Context) func(ds *discordgo.Session, gc *discordgo.
 
 func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
+		defer func() {
+			if r := recover(); r != nil {
+				notifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageDeleted: %s\n%s", r, string(debug.Stack())), ds)
+			}
+		}()
+
 		if mc.BeforeDelete != nil && mc.BeforeDelete.Author != nil {
 			// dont mind if bot messages get deleted
 			if mc.BeforeDelete.Author.Bot {
@@ -46,7 +53,13 @@ func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 
 func onMessageUpdated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageUpdate) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageUpdate) {
-		if mc.BeforeUpdate != nil && mc.Author != nil {
+		defer func() {
+			if r := recover(); r != nil {
+				notifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageUpdated: %s\n%s", r, string(debug.Stack())), ds)
+			}
+		}()
+
+		if mc != nil && mc.BeforeUpdate != nil && mc.Author != nil {
 			// dont mind if bot messages get updated
 			if mc.Author.Bot {
 				return

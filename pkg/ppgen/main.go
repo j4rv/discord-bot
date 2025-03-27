@@ -147,6 +147,39 @@ var sussyDick2 = `
 ⠀⠀⠀⠀⠈⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⠻⣿⣿⣿⡿⠁
 ⠀⠀⠀⠀⠀⠀⠈⠙⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠉⠀⠙⠛⠉⠀⠀`
 
+var ogreDick = `
+·------------ O G R E · D I C K ------------·
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣀⠀⠀⣖⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠊⠀⠀⠔⡓⠊⡊⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡲⠤⠔⣡⡤⠄⠈⣁⣀⠱⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀⠐⠒⠊⢀⡤⠀⠱⢦⡤⣀⢄⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢤⢼⡀⠐⠶⠬⠵⠂⠀⡀⢀⡇⠀⡸⠙⠢⢄⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⡠⠺⠸⢻⡈⠢⢄⡀⠀⣀⠔⣠⠞⠺⢣⢡⠀⠀⠀⠑⣄⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⡜⠀⢠⢰⣇⠙⠦⡀⠠⢀⣶⡓⠁⠀⠈⠀⢸⠀⠀⠀⠀⠀⠢⠀
+⠀⠀⠀⠀⠀⠀⠀⡜⠀⠀⠈⡇⢀⠀⡈⡟⠛⠃⢃⠤⠰⠦⠀⠠⠤⠲⣤⣜⠄⠀⠀⡇
+⠀⠀⠀⠀⠀⠀⢰⠀⠀⠡⢰⣧⠽⠒⠒⠁⠀⠀⠀⠉⠉⠉⠉⠉⠉⢰⣻⠀⠀⠀⠀⡇
+⠀⠀⠀⠀⠀⠀⠘⡀⠀⠈⠉⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣇⠀⠀⠀⠰⠀
+⠀⠀⠀⠀⠀⠀⠀⠑⠄⠀⠀⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⠉⠉⠐⠒⡇⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠈⠢⡎⢸⢦⣀⠀⠀⠀⠀⠀⠀⠀⣀⣠⣴⠾⠋⣆⣀⣀⡀⠇⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⠀⠙⠻⠶⠶⣶⡶⠶⠿⠛⠉⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢳⢄⡀⠀⢀⣀⣠⣤⣀⠀⣀⡠⡔⠃⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣤⣶⣾⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⣀⣤⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⢆⠀⠀⠀⠸
+⠀⠀⠀⠀⢀⣴⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⢸⣀⣤⣼⠆
+⢀⣴⣶⣝⢷⡝⢿⣿⣿⠿⠛⡤⠒⣰⣿⣿⢣⣿⣿⣿⣿⡇⢠⠋⠋⠁⠣⡀
+⣼⣿⣿⣿⣿⣧⠻⡌⠋⠀⠀⠉⢰⣿⣿⡏⣸⣿⣿⣿⣿⣿⠘⠤⠀⠤⠔⠃
+⠙⣿⣿⣿⡇⠋⠀⠀⠀⠀⠀⠀⠀⠈⠻⢿⠇⢻⣿⣿⣿⣿⡟
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠁
+`
+
+var paintDick = `
+⠀⠖⠖⡆⠀⠀⠀⠀⣀⣀⣀⠀⠀
+⢸⠀⠀⡗⠐⠉⠁⠀⠀⣇⡤⠽⡆
+⠀⢉⡟⠳⡄⠀⠀⠀⢀⣇⣀⡴⠃
+⠀⡏⠀⠀⡸⠉⠉⠉⠁⠀⠀⠀⠀
+⠀⠙⠒⠚⠁⠀⠀⠀⠀⠀⠀⠀⠀
+`
+
 func NewPenis() string {
 	return NewPenisWithSeed(time.Now().Unix())
 }
@@ -154,12 +187,19 @@ func NewPenis() string {
 func NewPenisWithSeed(seed int64) string {
 	rng := rand.New(rand.NewSource(seed))
 	superRareRng := rng.Float64()
-	if superRareRng <= 0.001 {
+
+	superRareTotalChance := 0.003
+	superRareIndividualChance := superRareTotalChance / 5
+	if superRareRng <= 1*superRareIndividualChance {
 		return bigDickAscii1
-	} else if superRareRng <= 0.002 {
+	} else if superRareRng <= 2*superRareIndividualChance {
 		return sussyDick
-	} else if superRareRng <= 0.003 {
+	} else if superRareRng <= 3*superRareIndividualChance {
 		return sussyDick2
+	} else if superRareRng <= 4*superRareIndividualChance {
+		return ogreDick
+	} else if superRareRng <= 5*superRareIndividualChance {
+		return paintDick
 	}
 
 	if rng.Float64() <= 0.5 {

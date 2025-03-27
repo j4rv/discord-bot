@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -38,6 +39,16 @@ type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context)
 
 func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
+		defer func() {
+			if r := recover(); r != nil {
+				notifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageCreated: %s\n%s", r, string(debug.Stack())), ds)
+			}
+		}()
+
+		if mc == nil || mc.Author == nil {
+			return
+		}
+
 		// Ignore all messages created by the bot itself
 		if mc.Author.ID == ds.State.User.ID {
 			return
@@ -66,8 +77,10 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.7.5"),
+	"!version":                   simpleTextResponse("v3.7.6"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
+	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
+	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
 	"!genshindailycheckin":       answerGenshinDailyCheckIn,
 	"!genshindailycheckinstop":   answerGenshinDailyCheckInStop,
 	"!parametrictransformer":     answerParametricTransformer,
@@ -110,12 +123,13 @@ var commands = map[string]command{
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!deleteglobalcommand": adminOnly(answerRemoveGlobalCommand),
-	"!announce":            adminOnly(answerAnnounce),
-	"!dbbackup":            adminOnly(answerDbBackup),
-	"!runtimestats":        adminOnly(answerRuntimeStats),
-	"!reboot":              adminOnly(answerReboot),
-	"!shutdown":            adminOnly(answerShutdown),
-	"!abortshutdown":       adminOnly(answerAbortShutdown),
+	//"!setserverprop":       adminOnly(answerSetServerProp),
+	"!announce":      adminOnly(answerAnnounce),
+	"!dbbackup":      adminOnly(answerDbBackup),
+	"!runtimestats":  adminOnly(answerRuntimeStats),
+	"!reboot":        adminOnly(answerReboot),
+	"!shutdown":      adminOnly(answerShutdown),
+	"!abortshutdown": adminOnly(answerAbortShutdown),
 }
 
 func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullCommand string, ctx context.Context) {
@@ -474,6 +488,27 @@ func answerRemoveGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreat
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
 	return err == nil
+}
+
+func answerSetServerProperty(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	fs := flag.NewFlagSet("setserverprop", flag.ContinueOnError)
+	id := fs.String("id", "", "Server ID")
+	name := fs.String("name", "", "Property name")
+	value := fs.String("value", "", "Property value")
+	args := strings.Split(commandBody, " ")
+	err := fs.Parse(args)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not parse the flags: "+err.Error())
+		return false
+	}
+	err = serverDS.setServerProperty(*id, *name, *value)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not save the property: "+err.Error())
+		return false
+	}
+	ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
+	return true
 }
 
 func answerAnnounce(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

@@ -76,7 +76,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.8.1"),
+	"!version":                   simpleTextResponse("v3.8.2"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -575,6 +575,12 @@ func answerAnnounce(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
 	return errors == ""
+}
+
+func answerDbBackup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := doDbBackup(ds)
+	notifyIfErr("dbBackup", err, ds)
+	return err == nil
 }
 
 func answerRuntimeStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

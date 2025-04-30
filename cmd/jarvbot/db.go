@@ -1,26 +1,33 @@
 package main
 
 import (
-	"context"
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/yeka/zip"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jmoiron/sqlx"
 
 	// driver for sqlite3
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 )
 
 var moddingDS moddingDataStore
 var genshinDS genshinDataStore
 var commandDS commandDataStore
 var serverDS serverDataStore
+var dbMaintenance dbMaintenanceService
 
 var errZeroRowsAffected = errors.New("zero rows were affected")
+var errDuplicateCommand = errors.New("a command with the same name already exists in this server")
 
 func createTables(db *sqlx.DB) {
 	createTableDailyCheckInReminder(db)
@@ -139,6 +146,12 @@ type CommandStat struct {
 func (c commandDataStore) addSimpleCommand(key, response, guildID, creatorUserID string) error {
 	_, err := c.db.Exec(`INSERT INTO SimpleCommand (Key, Response, GuildID, CreatedBy) VALUES (?, ?, ?, ?)`,
 		key, response, guildID, creatorUserID)
+	if err != nil {
+		var sqliteErr sqlite3.Error
+		if errors.As(err, &sqliteErr) && sqliteErr.Code == sqlite3.ErrConstraint {
+			return errDuplicateCommand
+		}
+	}
 	return err
 }
 
@@ -164,7 +177,11 @@ func (c commandDataStore) getCommandCreator(key, guildID string) (string, error)
 
 func (c commandDataStore) simpleCommandResponse(key, guildID string) (string, error) {
 	var response []string
-	err := c.db.Select(&response, `SELECT Response FROM SimpleCommand WHERE Key = ? AND (GuildID = ?) COLLATE NOCASE`,
+	err := c.db.Select(&response, `
+		SELECT Response FROM SimpleCommand
+		WHERE Key = ? AND (GuildID = ? OR GuildID = '') COLLATE NOCASE
+		ORDER BY CASE WHEN GuildID = '' THEN 0 ELSE 1 END
+		LIMIT 1`,
 		key, guildID)
 	if len(response) == 0 {
 		return "", err
@@ -183,6 +200,17 @@ func (c commandDataStore) allSimpleCommandKeys(guildID string, includeGlobal boo
 	}
 }
 
+func (c commandDataStore) paginatedSimpleCommandKeys(guildID string, includeGlobal bool, page int, pageSize int) ([]string, error) {
+	var keys []string
+	if !includeGlobal {
+		err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ? ORDER BY Key LIMIT ? OFFSET ?`, guildID, pageSize, (page-1)*pageSize)
+		return keys, err
+	} else {
+		err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ? OR GuildID = '' ORDER BY Key LIMIT ? OFFSET ?`, guildID, pageSize, (page-1)*pageSize)
+		return keys, err
+	}
+}
+
 func (c commandDataStore) increaseCommandCountStat(guildID, commandKey string) error {
 	_, err := c.db.Exec(`INSERT OR REPLACE INTO CommandStats (GuildID, Command, Count)
 	                     VALUES (?, ?,
@@ -194,6 +222,12 @@ func (c commandDataStore) increaseCommandCountStat(guildID, commandKey string) e
 func (c commandDataStore) guildCommandStats(guildID string) ([]CommandStat, error) {
 	var stats []CommandStat
 	err := c.db.Select(&stats, `SELECT GuildID, Command, Count FROM CommandStats WHERE GuildID = ? ORDER BY Count DESC, Command ASC`, guildID)
+	return stats, err
+}
+
+func (c commandDataStore) paginatedGuildCommandStats(guildID string, page int, pageSize int) ([]CommandStat, error) {
+	var stats []CommandStat
+	err := c.db.Select(&stats, `SELECT GuildID, Command, Count FROM CommandStats WHERE GuildID = ? ORDER BY Count DESC, Command ASC LIMIT ? OFFSET ?`, guildID, pageSize, (page-1)*pageSize)
 	return stats, err
 }
 
@@ -363,6 +397,22 @@ func (s *serverDataStore) getServerProperties(propertyName string) ([]ServerProp
 	return properties, err
 }
 
+// maintenance
+
+type dbMaintenanceService struct {
+	db *sqlx.DB
+}
+
+func (s dbMaintenanceService) vacuum() error {
+	_, err := s.db.Exec(`VACUUM`)
+	return err
+}
+
+func (s dbMaintenanceService) analyze() error {
+	_, err := s.db.Exec(`ANALYZE`)
+	return err
+}
+
 // methods for repetitive stuff
 
 func createTable(table string, columns []string, db *sqlx.DB) {
@@ -382,27 +432,81 @@ func createIndex(table, column string, db *sqlx.DB) {
 
 // backups
 
-func answerDbBackup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+func doDbBackup(ds *discordgo.Session) error {
+	adminChannel, err := getUserChannel(adminID, ds)
+	if err != nil {
+		return errors.New("Could not get admin channel: " + err.Error())
+	}
+
 	reader, err := os.Open(dbFilename)
 	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, "Could not open database: "+err.Error())
-		return false
+		return errors.New("Could not open database: " + err.Error())
 	}
-	_, err = ds.ChannelFileSend(mc.ChannelID, dbFilename, reader)
-	return err == nil
+	defer reader.Close()
+
+	zippedBackup, err := createEncryptedZipReader(reader, backupPassword)
+	if err != nil {
+		return errors.New("Could not create encrypted zip reader: " + err.Error())
+	}
+
+	todayStr := time.Now().Format("2006-01-02")
+	_, err = ds.ChannelFileSend(adminChannel.ID, "jarvbot_db_"+todayStr+".zip", zippedBackup)
+	if err != nil {
+		return errors.New("Could not send backup: " + err.Error())
+	}
+
+	return nil
 }
 
 func backupCRONFunc(ds *discordgo.Session) func() {
 	return func() {
-		reader, err := os.Open(dbFilename)
+		dbMaintenance.vacuum()
+		log.Println("Database vacuum done")
+
+		dbMaintenance.analyze()
+		log.Println("Database analyze done")
+
+		err := doDbBackup(ds)
 		if err != nil {
-			return
+			log.Println(err)
+		} else {
+			log.Println("Periodic backup done")
 		}
-		userChannel, err := getUserChannel(adminID, ds)
-		if err != nil {
-			return
-		}
-		ds.ChannelFileSend(userChannel.ID, dbFilename, reader)
-		log.Println("Periodic backup done")
 	}
+}
+
+// createEncryptedZipReader returns a reader for a zip file with the given file encrypted inside using the given password and AES256Encryption
+func createEncryptedZipReader(fileToZip *os.File, password string) (io.Reader, error) {
+	var buf bytes.Buffer
+	zipWriter := zip.NewWriter(&buf)
+
+	fileToZipBase := filepath.Base(fileToZip.Name())
+	fileInfo, err := fileToZip.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	header := &zip.FileHeader{
+		Name:   fileToZipBase,
+		Method: zip.Deflate,
+	}
+	header.SetModTime(fileInfo.ModTime())
+	header.SetMode(fileInfo.Mode())
+
+	encryptedWriter, err := zipWriter.Encrypt(header.Name, password, zip.AES256Encryption)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = io.Copy(encryptedWriter, fileToZip)
+	if err != nil {
+		return nil, err
+	}
+
+	err = zipWriter.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return &buf, nil
 }

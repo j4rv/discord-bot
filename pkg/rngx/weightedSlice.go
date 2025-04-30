@@ -1,4 +1,4 @@
-package genshinchargen
+package rngx
 
 import (
 	"log"

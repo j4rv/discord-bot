@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+
+	"github.com/j4rv/discord-bot/pkg/rngx"
 )
 
-var elements = NewWeightedSlice(map[string]int{
+var elements = rngx.NewWeightedSlice(map[string]int{
 	"Pyro":      100,
 	"Hydro":     100,
 	"Electro":   100,
@@ -16,14 +18,18 @@ var elements = NewWeightedSlice(map[string]int{
 	"Anemo":     100,
 	"Geo":       100,
 	"Dendro":    100,
+	"Physical":  1,
+	"Ether":     1,
+	"Frost":     1,
 	"Abyss":     1,
 	"Solar":     1,
+	"Lunar":     1,
 	"Omni":      1,
 	"Quantum":   1,
 	"Imaginary": 1,
 })
 
-var weapon = NewWeightedSlice(map[string]int{
+var weapon = rngx.NewWeightedSlice(map[string]int{
 	"Sword":                   1000,
 	"Claymore":                1000,
 	"Polearm":                 1000,
@@ -32,7 +38,12 @@ var weapon = NewWeightedSlice(map[string]int{
 	"Catalyst (ranged)":       700,
 	"Catalyst (melee)":        300,
 	"Dual swords":             5,
+	"Bombs":                   5,
 	"Gun":                     5,
+	"Axe":                     5,
+	"Fan":                     2,
+	"Bike":                    2,
+	"Hammer":                  2,
 	"Shotgun":                 2,
 	"Scythe":                  2,
 	"Brawler":                 2,
@@ -40,7 +51,7 @@ var weapon = NewWeightedSlice(map[string]int{
 	"Sword and Shield":        2,
 })
 
-var rarity = NewWeightedSlice(map[string]int{
+var rarity = rngx.NewWeightedSlice(map[string]int{
 	"7*": 1,
 	"6*": 10,
 	"5*": 1000,
@@ -49,7 +60,7 @@ var rarity = NewWeightedSlice(map[string]int{
 	"2*": 1,
 })
 
-var region = NewWeightedSlice(map[string]int{
+var region = rngx.NewWeightedSlice(map[string]int{
 	"Mondstadt":   100,
 	"Liyue":       100,
 	"Inazuma":     100,
@@ -64,8 +75,8 @@ var region = NewWeightedSlice(map[string]int{
 	"Dragonspine": 5,
 })
 
-var title = NewWeightedSlice(map[string]int{
-	"None":                 200,
+var title = rngx.NewWeightedSlice(map[string]int{
+	"None":                 250,
 	"1st Fatui Harbinger":  10,
 	"2nd Fatui Harbinger":  10,
 	"3rd Fatui Harbinger":  10,
@@ -85,9 +96,11 @@ var title = NewWeightedSlice(map[string]int{
 	"The First Who Came":   5,
 	"The Second Who Came":  5,
 	"The Primordial One":   5,
-	"Emanator":             1,
-	"Herrscher":            1,
-	"Aeon":                 1,
+	"The Creator":          2,
+	"The Sacrifice":        2,
+	"Emanator":             2,
+	"Herrscher":            2,
+	"Aeon":                 2,
 })
 
 var outsideTeyvatTitles = map[string]struct{}{
@@ -95,21 +108,23 @@ var outsideTeyvatTitles = map[string]struct{}{
 	"The First Who Came":  {},
 	"The Second Who Came": {},
 	"The Primordial One":  {},
+	"The Creator":         {},
+	"The Sacrifice":       {},
 	"Emanator":            {},
 	"Herrscher":           {},
 	"Aeon":                {},
 }
 
-var models = NewWeightedSlice(map[string]int{
+var models = rngx.NewWeightedSlice(map[string]int{
 	"Tall male":     50,
 	"Tall female":   50,
-	"Medium male":   100,
-	"Medium female": 100,
+	"Medium male":   80,
+	"Medium female": 80,
 	"Short male":    40,
 	"Short female":  40,
 })
 
-var visualAdjectives = NewWeightedSlice(map[string]int{
+var visualAdjectives = rngx.NewWeightedSlice(map[string]int{
 	"Boring":       10,
 	"Elegant":      10,
 	"Ferocious":    10,
@@ -121,47 +136,57 @@ var visualAdjectives = NewWeightedSlice(map[string]int{
 	"Fit":          10,
 	"Cute":         10,
 	"Soft":         10,
+	"Furry":        10,
 	"Skinny":       5,
-	"Furry":        5,
+	"Chubby":       5,
 	"Bulky":        5,
 	"Brawny":       5,
 	"Barefoot":     5,
 	"Gloomy":       5,
+	"Edgy":         5,
+	"Smug":         5,
 	"Gothic":       5,
 	"Stinky":       5,
+	"Dirty":        5,
+	"Angelic":      5,
+	"Demonic":      5,
+	"Robotic":      5,
+	"Vtuber":       5,
 	"Zombi":        3,
-	"Chubby":       3,
-	"Vtuber":       2,
+	"Skeletal":     3,
+	"Ghostly":      3,
 })
 
-var scaling = NewWeightedSlice(map[string]int{
+var scaling = rngx.NewWeightedSlice(map[string]int{
 	"ATK":             500,
 	"HP":              200,
 	"DEF":             100,
 	"EM":              100,
-	"Energy Recharge": 20,
 	"EM and ATK":      20,
 	"HP and ATK":      20,
 	"DEF and ATK":     20,
-	"Healing Bonus":   20,
+	"Energy Recharge": 10,
+	"Healing Bonus":   10,
 	"Shield Strength": 5,
 })
 
-var roles = NewWeightedSlice(map[string]int{
-	"On-field DPS":            10,
-	"Off-field DPS":           7,
-	"NA DPS":                  5,
-	"Buffer":                  5,
-	"Healer":                  5,
-	"Shielder":                4,
-	"Plunge DPS":              3,
-	"Physical DPS":            3,
-	"Healer DPS":              3,
-	"Healer and shielder":     2,
-	"Healer and shielder DPS": 1,
+var roles = rngx.NewWeightedSlice(map[string]int{
+	"On-field DPS":            100,
+	"Off-field DPS":           70,
+	"Buffer":                  50,
+	"Healer":                  40,
+	"Shielder":                40,
+	"NA DPS":                  30,
+	"Physical DPS":            30,
+	"Plunge DPS":              20,
+	"Healer and shielder":     20,
+	"Healer DPS":              10,
+	"Healer and buffer":       10,
+	"Shielder and buffer":     10,
+	"Healer and shielder DPS": 5,
 })
 
-var strengths = NewWeightedSlice(map[string]int{
+var strengths = rngx.NewWeightedSlice(map[string]int{
 	"has good AOE":                              10,
 	"excels in single-target damage":            10,
 	"has good elemental application":            10,
@@ -180,7 +205,7 @@ var strengths = NewWeightedSlice(map[string]int{
 	"can shred defense":                         2,
 })
 
-var weaknesses = NewWeightedSlice(map[string]int{
+var weaknesses = rngx.NewWeightedSlice(map[string]int{
 	"has energy issues":                           8,
 	"very hard to play":                           8,
 	"needs constellations to be good":             8,
@@ -198,7 +223,23 @@ var weaknesses = NewWeightedSlice(map[string]int{
 	"needs resistance to interruption to be good": 5,
 	"doesn't create particles":                    5,
 	"has very limited range":                      5,
-	"can't crit":                                  2,
+	"can't crit":                                  3,
+})
+
+var rating = rngx.NewWeightedSlice(map[string]int{
+	"-1/10": 2,
+	"0/10":  10,
+	"1/10":  20,
+	"2/10":  25,
+	"3/10":  30,
+	"4/10":  40,
+	"5/10":  50,
+	"6/10":  60,
+	"7/10":  70,
+	"8/10":  60,
+	"9/10":  40,
+	"10/10": 30,
+	"11/10": 2,
 })
 
 type GeneratedCharacter struct {
@@ -214,6 +255,7 @@ type GeneratedCharacter struct {
 	strength  string
 	weakness  string
 	title     string
+	rating    string
 }
 
 func (c GeneratedCharacter) PrettyString() string {
@@ -221,8 +263,9 @@ func (c GeneratedCharacter) PrettyString() string {
 Weapon: %s.
 Model: %s %s.
 Kit: %s, scales with %s, %s but %s.
-Title: %s.`,
-		c.name, c.rarity, c.element, c.region, c.weapon, c.adjective, c.model, c.role, c.scaling, c.strength, c.weakness, c.title)
+Title: %s.
+Leaker Rating: %s.`,
+		c.name, c.rarity, c.element, c.region, c.weapon, c.adjective, c.model, c.role, c.scaling, c.strength, c.weakness, c.title, c.rating)
 }
 
 func NewChar(name string, seedSalt int64) GeneratedCharacter {
@@ -239,6 +282,7 @@ func NewChar(name string, seedSalt int64) GeneratedCharacter {
 	result.strength = strengths.Random(rng)
 	result.weakness = weaknesses.Random(rng)
 	result.adjective = visualAdjectives.Random(rng)
+	result.rating = rating.Random(rng)
 
 	if result.rarity == "5*" || result.rarity == "6*" || result.rarity == "7*" {
 		result.title = title.Random(rng)

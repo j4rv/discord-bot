@@ -18,6 +18,7 @@ import (
 // FLAGS
 var token string
 var adminID string
+var backupPassword string
 var noSlashCommands bool
 
 const discordMaxMessageLength = 2000
@@ -50,6 +51,7 @@ func main() {
 func initFlags() {
 	flag.StringVar(&token, "token", "", "Bot Token")
 	flag.StringVar(&adminID, "adminID", "", "The ID of the bot's admin")
+	flag.StringVar(&backupPassword, "backupPassword", "changeme", "Password for periodic backups")
 	flag.BoolVar(&noSlashCommands, "noSlashCommands", false, "The bot will not init slash commands, boots faster.")
 	flag.Parse()
 	if token == "" {
@@ -70,6 +72,7 @@ func initDB() {
 	commandDS = commandDataStore{db}
 	moddingDS = moddingDataStore{db}
 	serverDS = serverDataStore{db}
+	dbMaintenance = dbMaintenanceService{db}
 }
 
 func initDiscordSession() *discordgo.Session {
@@ -118,7 +121,7 @@ func initCRONs(ds *discordgo.Session) {
 		}
 	}
 
-	initCron("backupCRON", backupCRON, backupCRONFunc(ds))
+	initCron("dbBackupCRON", backupCRON, backupCRONFunc(ds))
 	initCron("dailyCheckInCRON", dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))
 	initCron("cleanStateMessagesCRON", cleanStateMessagesCRON, cleanStateMessagesCRONFunc(ds))
 	initCron("parametricCRON", parametricReminderCRON, parametricCRONFunc(ds))
@@ -205,6 +208,19 @@ func sendAsUserWebhook(ds *discordgo.Session, channelID string) (*discordgo.Webh
 	}
 
 	return ds.WebhookCreate(channelID, "SendAsUser", ds.State.User.AvatarURL(""))
+}
+
+func fileMessageSend(ds *discordgo.Session, channelId, messageContent, fileName, fileData string) (*discordgo.Message, error) {
+	return ds.ChannelMessageSendComplex(channelId, &discordgo.MessageSend{
+		Content: messageContent,
+		Files: []*discordgo.File{
+			{
+				ContentType: "text/plain",
+				Name:        fileName,
+				Reader:      strings.NewReader(fileData),
+			},
+		},
+	})
 }
 
 // sendAsUser sends a message as the given user

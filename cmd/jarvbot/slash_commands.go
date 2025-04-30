@@ -353,7 +353,7 @@ func textRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, textRes
 	return response, err
 }
 
-func fileRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, messageContent, fileName, fileData string) {
+func interactionFileRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, messageContent, fileName, fileData string) {
 	err := ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{

@@ -16,6 +16,8 @@ var strongboxMinAmount = 1.0
 var strongboxMaxAmount = 1000.0
 var warnMessageMinLength = 1
 var warnMessageMaxLength = 320
+var discordMessageMaxLength = 1900
+var commandKeyMaxLength = 32
 
 const avatarTargetSize = "1024"
 
@@ -34,6 +36,7 @@ const serverPropCustomTimeoutRoleName = "custom_timeout_role_name"
 const serverPropAnnounceHere = "announce_here"
 const serverPropMessageLogs = "message_logs"
 const serverPropFixBadEmbedLinks = "fix_twitter_links"
+const serverPropMaxSimpleCommands = "max_simple_commands"
 const serverPropYes = "Y"
 const serverPropNo = "N"
 
@@ -51,7 +54,7 @@ const dailyCheckInReminderMessage = `Remember to do the Daily Check-In!
 - [Genshin Impact](https://webstatic-sea.mihoyo.com/ys/event/signin-sea/index.html?act_id=e202102251931481)
 - [Honkai: Star Rail](https://act.hoyolab.com/bbs/event/signin/hkrpg/index.html?act_id=e202303301540311)
 - [Zenless Zone Zero](https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091)
-Use !genshindailycheckinstop if you want to stop these reminders.`
+Use !mihoyodailycheckinstop if you want to stop these reminders.`
 const parametricReminderCRON = "0 * * * *"
 const parametricReminderMessage = "Remember to use the Parametric Transformer!\nI will remind you again in 7 days.\nUse !parametrictransformerstop if you want to stop these reminders."
 const playStoreReminderCRON = "0 * * * *"

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"runtime/debug"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -56,8 +57,14 @@ func (r React4RoleMessage) FormattedEmojiString() string {
 
 func onMessageReacted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageReactionAdd) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageReactionAdd) {
+		defer func() {
+			if r := recover(); r != nil {
+				notifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageReacted: %s\n%s", r, string(debug.Stack())), ds)
+			}
+		}()
+
 		// Ignore all reacts by the bot itself
-		if mc.UserID == ds.State.User.ID {
+		if mc == nil || mc.UserID == ds.State.User.ID {
 			return
 		}
 
@@ -88,8 +95,14 @@ func onMessageReacted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 
 func onMessageUnreacted(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageReactionRemove) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageReactionRemove) {
+		defer func() {
+			if r := recover(); r != nil {
+				notifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageUnreacted: %s\n%s", r, string(debug.Stack())), ds)
+			}
+		}()
+
 		// Ignore all reacts by the bot itself
-		if mc.UserID == ds.State.User.ID {
+		if mc == nil || mc.UserID == ds.State.User.ID {
 			return
 		}
 

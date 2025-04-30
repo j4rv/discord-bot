@@ -168,7 +168,7 @@ func answerWarnings(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	if len(responseMsg) < discordMaxMessageLength {
 		textRespond(ds, ic, responseMsg)
 	} else {
-		fileRespond(ds, ic, "Damn that user has been warned a lot", fmt.Sprintf("%s_warnings.txt", user.Username), responseMsg)
+		interactionFileRespond(ds, ic, "Damn that user has been warned a lot", fmt.Sprintf("%s_warnings.txt", user.Username), responseMsg)
 	}
 }
 

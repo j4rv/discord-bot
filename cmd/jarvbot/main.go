@@ -207,6 +207,19 @@ func sendAsUserWebhook(ds *discordgo.Session, channelID string) (*discordgo.Webh
 	return ds.WebhookCreate(channelID, "SendAsUser", ds.State.User.AvatarURL(""))
 }
 
+func fileMessageSend(ds *discordgo.Session, channelId, messageContent, fileName, fileData string) (*discordgo.Message, error) {
+	return ds.ChannelMessageSendComplex(channelId, &discordgo.MessageSend{
+		Content: messageContent,
+		Files: []*discordgo.File{
+			{
+				ContentType: "text/plain",
+				Name:        fileName,
+				Reader:      strings.NewReader(fileData),
+			},
+		},
+	})
+}
+
 // sendAsUser sends a message as the given user
 // It will either use a Webhook when possible (to keep the sender's username and avatar)
 // Or it will send a normal message with a mention of the original user

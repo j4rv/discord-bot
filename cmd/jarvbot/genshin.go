@@ -368,7 +368,7 @@ func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 		return
 	}
 
-	fileRespond(ds, ic, message, "StrongboxResult.json", string(good))
+	interactionFileRespond(ds, ic, message, "StrongboxResult.json", string(good))
 }
 
 func answerAbyssChallenge(ds *discordgo.Session, ic *discordgo.InteractionCreate) {

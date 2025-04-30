@@ -12,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	// driver for sqlite3
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 )
 
 var moddingDS moddingDataStore
@@ -21,6 +21,7 @@ var commandDS commandDataStore
 var serverDS serverDataStore
 
 var errZeroRowsAffected = errors.New("zero rows were affected")
+var errDuplicateCommand = errors.New("a command with the same name already exists in this server")
 
 func createTables(db *sqlx.DB) {
 	createTableDailyCheckInReminder(db)
@@ -139,6 +140,12 @@ type CommandStat struct {
 func (c commandDataStore) addSimpleCommand(key, response, guildID, creatorUserID string) error {
 	_, err := c.db.Exec(`INSERT INTO SimpleCommand (Key, Response, GuildID, CreatedBy) VALUES (?, ?, ?, ?)`,
 		key, response, guildID, creatorUserID)
+	if err != nil {
+		var sqliteErr sqlite3.Error
+		if errors.As(err, &sqliteErr) && sqliteErr.Code == sqlite3.ErrConstraint {
+			return errDuplicateCommand
+		}
+	}
 	return err
 }
 
@@ -187,6 +194,17 @@ func (c commandDataStore) allSimpleCommandKeys(guildID string, includeGlobal boo
 	}
 }
 
+func (c commandDataStore) paginatedSimpleCommandKeys(guildID string, includeGlobal bool, page int, pageSize int) ([]string, error) {
+	var keys []string
+	if !includeGlobal {
+		err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ? ORDER BY Key LIMIT ? OFFSET ?`, guildID, pageSize, (page-1)*pageSize)
+		return keys, err
+	} else {
+		err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ? OR GuildID = '' ORDER BY Key LIMIT ? OFFSET ?`, guildID, pageSize, (page-1)*pageSize)
+		return keys, err
+	}
+}
+
 func (c commandDataStore) increaseCommandCountStat(guildID, commandKey string) error {
 	_, err := c.db.Exec(`INSERT OR REPLACE INTO CommandStats (GuildID, Command, Count)
 	                     VALUES (?, ?,
@@ -198,6 +216,12 @@ func (c commandDataStore) increaseCommandCountStat(guildID, commandKey string) e
 func (c commandDataStore) guildCommandStats(guildID string) ([]CommandStat, error) {
 	var stats []CommandStat
 	err := c.db.Select(&stats, `SELECT GuildID, Command, Count FROM CommandStats WHERE GuildID = ? ORDER BY Count DESC, Command ASC`, guildID)
+	return stats, err
+}
+
+func (c commandDataStore) paginatedGuildCommandStats(guildID string, page int, pageSize int) ([]CommandStat, error) {
+	var stats []CommandStat
+	err := c.db.Select(&stats, `SELECT GuildID, Command, Count FROM CommandStats WHERE GuildID = ? ORDER BY Count DESC, Command ASC LIMIT ? OFFSET ?`, guildID, pageSize, (page-1)*pageSize)
 	return stats, err
 }
 

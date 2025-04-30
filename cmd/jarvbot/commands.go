@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -77,7 +76,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.7.6"),
+	"!version":                   simpleTextResponse("v3.8.0"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -370,7 +369,13 @@ func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 }
 
 func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	stats, err := commandDS.guildCommandStats(mc.GuildID)
+	pageInt, err := parsePaginatedCommand(mc.Content)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Invalid page number")
+		return false
+	}
+
+	stats, err := commandDS.paginatedGuildCommandStats(mc.GuildID, pageInt, 20)
 	if err != nil {
 		notifyIfErr("answerCommandStats: get command stats", err, ds)
 		return false
@@ -380,14 +385,15 @@ func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 		statsMsg += fmt.Sprintf("%s: %d\n", s.Command, s.Count)
 	}
 	_, err = ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
-		Title:       "Command stats",
-		Description: statsMsg,
+		Title:       "Command stats - Page " + strconv.Itoa(pageInt),
+		Description: "```" + statsMsg + "```",
 	})
 	return err == nil
 }
 
+// TODO Add pagination with afterGuildID
 func answerGuildList(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	guilds, err := ds.UserGuilds(100, "", "", true)
+	guilds, err := ds.UserGuilds(200, "", "", true)
 	if err != nil {
 		notifyIfErr("answerGuildList", err, ds)
 		return false
@@ -396,7 +402,17 @@ func answerGuildList(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx con
 	for _, g := range guilds {
 		guildsMsg += fmt.Sprintf("%s [%s] - Member count %d - Presence count %d\n", g.Name, g.ID, g.ApproximateMemberCount, g.ApproximatePresenceCount)
 	}
-	_, err = ds.ChannelMessageSend(mc.ChannelID, guildsMsg)
+
+	if len(guildsMsg) < discordMessageMaxLength {
+		_, err = ds.ChannelMessageSend(mc.ChannelID, guildsMsg)
+	} else {
+		fileMessageSend(ds, mc.ChannelID, guildsMsg, "guilds.txt", guildsMsg)
+	}
+
+	if len(guilds) >= 199 {
+		ds.ChannelMessageSend(mc.ChannelID, "Too many guilds to list, please implement pagination uwu")
+	}
+
 	return err == nil
 }
 
@@ -406,19 +422,31 @@ func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
 	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
 	if key == "" {
-		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the key from the command body", "- "))
+		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the key from the command body u_u", "- "))
+		return false
+	}
+	if len(key) > commandKeyMaxLength {
+		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("That command key is too long! :<", "- "))
 		return false
 	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
 	if response == "" {
-		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the response from the command body", "- "))
+		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the response from the command body u_u", "- "))
 		return false
 	}
+
 	err := commandDS.addSimpleCommand(key, response, mc.GuildID, mc.Author.ID)
-	notifyIfErr("addSimpleCommand", err, ds)
-	if err == nil {
-		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
+	if err != nil {
+		if err == errDuplicateCommand {
+			ds.ChannelMessageSend(mc.ChannelID, "Could not create the command: "+err.Error())
+		} else {
+			ds.ChannelMessageSend(mc.ChannelID, "Could not create the command :(")
+			notifyIfErr("addCommand", err, ds)
+		}
+		return false
 	}
+
+	ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	return err == nil
 }
 
@@ -434,11 +462,19 @@ func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, 
 		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the response from the command body", "- "))
 		return false
 	}
+
 	err := commandDS.addSimpleCommand(key, response, globalGuildID, mc.Author.ID)
-	notifyIfErr("addGlobalCommand", err, ds)
-	if err == nil {
-		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
+	if err != nil {
+		if err == errDuplicateCommand {
+			ds.ChannelMessageSend(mc.ChannelID, "Could not create the command: "+err.Error())
+		} else {
+			ds.ChannelMessageSend(mc.ChannelID, "Could not create the command :(")
+			notifyIfErr("addCommand", err, ds)
+		}
+		return false
 	}
+
+	ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	return err == nil
 }
 
@@ -558,55 +594,42 @@ func answerRuntimeStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	return true
 }
 
-func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	keys, err := commandDS.allSimpleCommandKeys(mc.GuildID, true)
-	notifyIfErr("answerListCommands::allSimpleCommandKeys", err, ds)
+func genericListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, onlyGlobal, includeGlobal bool, responseTitle string) bool {
+	pageInt, err := parsePaginatedCommand(mc.Content)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Invalid page number")
+		return false
+	}
+
+	guildId := mc.GuildID
+	if onlyGlobal {
+		guildId = ""
+	}
+
+	keys, err := commandDS.paginatedSimpleCommandKeys(guildId, includeGlobal, pageInt, 50)
+	notifyIfErr("answerListCommands::"+responseTitle, err, ds)
 	if len(keys) != 0 {
-		sort.Strings(keys)
-		msg := ""
-		for _, k := range keys {
-			msg += k + "\n"
-		}
+		tableStr := formatInColumns(keys, 2)
 		ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
-			Title:       "All simple commands available",
-			Description: msg,
+			Title:       responseTitle + " - Page " + strconv.Itoa(pageInt),
+			Description: "```" + tableStr + "```",
 		})
+	} else {
+		ds.ChannelMessageSend(mc.ChannelID, "No commands found")
 	}
 	return err == nil
+}
+
+func answerListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	return genericListCommands(ds, mc, false, true, "All commands available")
 }
 
 func answerListGuildCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	keys, err := commandDS.allSimpleCommandKeys(mc.GuildID, false)
-	notifyIfErr("answerListCommands::allSimpleCommandKeys", err, ds)
-	if len(keys) != 0 {
-		sort.Strings(keys)
-		msg := ""
-		for _, k := range keys {
-			msg += k + "\n"
-		}
-		ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
-			Title:       "Simple commands created in this server",
-			Description: msg,
-		})
-	}
-	return err == nil
+	return genericListCommands(ds, mc, false, false, "All commands available in this server")
 }
 
 func answerListGlobalCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	keys, err := commandDS.allSimpleCommandKeys("", false)
-	notifyIfErr("answerListCommands::allSimpleCommandKeys", err, ds)
-	if len(keys) != 0 {
-		sort.Strings(keys)
-		msg := ""
-		for _, k := range keys {
-			msg += k + "\n"
-		}
-		ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
-			Title:       "All global commands available",
-			Description: msg,
-		})
-	}
-	return err == nil
+	return genericListCommands(ds, mc, true, true, "All global commands available")
 }
 
 // ---------- Server commands ----------

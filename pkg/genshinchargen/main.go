@@ -103,8 +103,8 @@ var outsideTeyvatTitles = map[string]struct{}{
 var models = NewWeightedSlice(map[string]int{
 	"Tall male":     50,
 	"Tall female":   50,
-	"Medium male":   100,
-	"Medium female": 100,
+	"Medium male":   80,
+	"Medium female": 80,
 	"Short male":    40,
 	"Short female":  40,
 })

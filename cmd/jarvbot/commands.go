@@ -76,7 +76,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.8.0"),
+	"!version":                   simpleTextResponse("v3.8.1"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -393,23 +393,24 @@ func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 
 // TODO Add pagination with afterGuildID
 func answerGuildList(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	guilds, err := ds.UserGuilds(200, "", "", true)
+	guilds, err := ds.UserGuilds(100, "", "", true)
 	if err != nil {
 		notifyIfErr("answerGuildList", err, ds)
 		return false
 	}
 	guildsMsg := ""
 	for _, g := range guilds {
-		guildsMsg += fmt.Sprintf("%s [%s] - Member count %d - Presence count %d\n", g.Name, g.ID, g.ApproximateMemberCount, g.ApproximatePresenceCount)
+		guildsMsg += fmt.Sprintf(`%s
+ - ID %s
+ - Member count %d
+ - Presence count %d
+
+ `, g.Name, g.ID, g.ApproximateMemberCount, g.ApproximatePresenceCount)
 	}
 
-	if len(guildsMsg) < discordMessageMaxLength {
-		_, err = ds.ChannelMessageSend(mc.ChannelID, guildsMsg)
-	} else {
-		fileMessageSend(ds, mc.ChannelID, guildsMsg, "guilds.txt", guildsMsg)
-	}
+	fileMessageSend(ds, mc.ChannelID, "Guilds", "guilds.md", guildsMsg)
 
-	if len(guilds) >= 199 {
+	if len(guilds) >= 99 {
 		ds.ChannelMessageSend(mc.ChannelID, "Too many guilds to list, please implement pagination uwu")
 	}
 

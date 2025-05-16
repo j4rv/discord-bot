@@ -36,6 +36,11 @@ var messageLinkFixToOgAuthorId = map[*discordgo.Message]string{}
 
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool
 
+type paginatedQueryInput struct {
+	Page  int    `short:"p" long:"page" default:"1"`
+	Query string `short:"q" long:"query"`
+}
+
 func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
 		defer func() {
@@ -76,7 +81,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.8.2"),
+	"!version":                   simpleTextResponse("v3.8.3"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -369,23 +374,25 @@ func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 }
 
 func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	pageInt, err := parsePaginatedCommand(mc.Content)
+	var input paginatedQueryInput
+	err := parseCommandArgs(&input, mc.Content)
 	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, "Invalid page number")
+		notifyIfErr("answerCommandStats: parseCommandArgs", err, ds)
 		return false
 	}
 
-	stats, err := commandDS.paginatedGuildCommandStats(mc.GuildID, pageInt, 20)
+	stats, err := commandDS.paginatedGuildCommandStats(mc.GuildID, input.Page, 20, input.Query)
 	if err != nil {
 		notifyIfErr("answerCommandStats: get command stats", err, ds)
 		return false
 	}
+
 	statsMsg := ""
 	for _, s := range stats {
 		statsMsg += fmt.Sprintf("%s: %d\n", s.Command, s.Count)
 	}
 	_, err = ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
-		Title:       "Command stats - Page " + strconv.Itoa(pageInt),
+		Title:       "Command stats - Page " + strconv.Itoa(input.Page),
 		Description: "```" + statsMsg + "```",
 	})
 	return err == nil
@@ -602,9 +609,10 @@ func answerRuntimeStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 }
 
 func genericListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, onlyGlobal, includeGlobal bool, responseTitle string) bool {
-	pageInt, err := parsePaginatedCommand(mc.Content)
+	var input paginatedQueryInput
+	err := parseCommandArgs(&input, mc.Content)
 	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, "Invalid page number")
+		notifyIfErr("genericListCommands: parseCommandArgs", err, ds)
 		return false
 	}
 
@@ -613,12 +621,12 @@ func genericListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, onl
 		guildId = ""
 	}
 
-	keys, err := commandDS.paginatedSimpleCommandKeys(guildId, includeGlobal, pageInt, 50)
+	keys, err := commandDS.paginatedSimpleCommandKeys(guildId, includeGlobal, input.Page, 50, input.Query)
 	notifyIfErr("answerListCommands::"+responseTitle, err, ds)
 	if len(keys) != 0 {
 		tableStr := formatInColumns(keys, 2)
 		ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
-			Title:       responseTitle + " - Page " + strconv.Itoa(pageInt),
+			Title:       responseTitle + " - Page " + strconv.Itoa(input.Page),
 			Description: "```" + tableStr + "```",
 		})
 	} else {

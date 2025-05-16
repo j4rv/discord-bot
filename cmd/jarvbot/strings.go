@@ -1,48 +1,20 @@
 package main
 
 import (
-	"errors"
-	"flag"
 	"fmt"
-	"strconv"
 	"strings"
+
+	"github.com/jessevdk/go-flags"
 )
 
-func parseCommandToMap(input string, expectedFlags []string) map[string]string {
-	fs := flag.NewFlagSet("parseCommandToMap", flag.ContinueOnError)
-	results := make(map[string]*string)
-
-	// Register each expected flag dynamically
-	for _, name := range expectedFlags {
-		results[name] = fs.String(name, "", "dynamic flag")
+func parseCommandArgs(opts interface{}, input string) error {
+	args := strings.Fields(input)
+	if len(args) > 0 {
+		args = args[1:]
 	}
 
-	// Parse args (skip the command name)
-	args := strings.Fields(input)[1:]
-	_ = fs.Parse(args)
-
-	// Extract actual values into a result map
-	out := make(map[string]string)
-	for name, ptr := range results {
-		if ptr != nil && *ptr != "" {
-			out[name] = *ptr
-		}
-	}
-
-	return out
-}
-
-func parsePaginatedCommand(input string) (int, error) {
-	argMap := parseCommandToMap(input, []string{"page"})
-	page := argMap["page"]
-	if page == "" || page == "0" {
-		page = "1"
-	}
-	pageInt, err := strconv.Atoi(page)
-	if pageInt < 0 {
-		return pageInt, errors.New("page number cannot be negative")
-	}
-	return pageInt, err
+	_, err := flags.ParseArgs(opts, args)
+	return err
 }
 
 func formatInColumns(items []string, columns int) string {

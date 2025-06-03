@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -190,17 +191,25 @@ func (c commandDataStore) simpleCommandResponse(key, guildID string) (string, er
 }
 
 func (c commandDataStore) pickRandomCommandStartingWith(key, guildID string) (string, error) {
-	var response []string
-	err := c.db.Select(&response, `
-		SELECT Key FROM SimpleCommand
-		WHERE Key LIKE ? AND (GuildID = ? OR GuildID = '') COLLATE NOCASE
-		ORDER BY RANDOM()
-		LIMIT 1`,
+	// first pick a random index
+	var count int
+	err := c.db.Get(&count, `
+		SELECT COUNT(*) FROM SimpleCommand
+		WHERE Key LIKE ? AND (GuildID = ? OR GuildID = '') COLLATE NOCASE`,
 		key+"%", guildID)
-	if len(response) == 0 {
+	if err != nil || count == 0 {
 		return "", err
 	}
-	return response[0], err
+
+	// then find the key at that index
+	offset := rand.Intn(count)
+	var result string
+	err = c.db.Get(&result, `
+		SELECT Key FROM SimpleCommand
+		WHERE Key LIKE ? AND (GuildID = ? OR GuildID = '') COLLATE NOCASE
+		LIMIT 1 OFFSET ?`,
+		key+"%", guildID, offset)
+	return result, err
 }
 
 func (c commandDataStore) paginatedSimpleCommandKeys(guildID string, includeGlobal bool, page, pageSize int, query string) ([]string, error) {

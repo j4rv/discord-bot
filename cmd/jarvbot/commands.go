@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/pkg/ppgen"
@@ -81,7 +82,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.8.3"),
+	"!version":                   simpleTextResponse("v3.8.4"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -153,6 +154,12 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 		return
 	}
 
+	if isRandomCommand(fullCommand) {
+		var err error
+		commandKey, err = commandDS.pickRandomCommandStartingWith(commandKey, mc.GuildID)
+		notifyIfErr("pickRandomCommandStartingWith", err, ds)
+	}
+
 	response, err := commandDS.simpleCommandResponse(commandKey, mc.GuildID)
 	notifyIfErr("simpleCommandResponse", err, ds)
 	if err == nil {
@@ -160,6 +167,15 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 			onSuccessCommandCall(mc, commandKey)
 		}
 	}
+}
+
+// Checks if the message has the format !asdasd*. The "!" should have been checked previously
+func isRandomCommand(fullCommand string) bool {
+	r, _ := utf8.DecodeLastRuneInString(fullCommand)
+	if r != '*' {
+		return false
+	}
+	return len(strings.Fields(fullCommand)) == 1
 }
 
 func onSuccessCommandCall(mc *discordgo.MessageCreate, commandKey string) {

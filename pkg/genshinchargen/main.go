@@ -256,6 +256,7 @@ type GeneratedCharacter struct {
 	weakness  string
 	title     string
 	rating    string
+	gcsimDps  float64
 }
 
 func (c GeneratedCharacter) PrettyString() string {
@@ -264,8 +265,9 @@ Weapon: %s.
 Model: %s %s.
 Kit: %s, scales with %s, %s but %s.
 Title: %s.
-Leaker Rating: %s.`,
-		c.name, c.rarity, c.element, c.region, c.weapon, c.adjective, c.model, c.role, c.scaling, c.strength, c.weakness, c.title, c.rating)
+Leaker Rating: %s.
+Best GCSim DPS: %.0f.`,
+		c.name, c.rarity, c.element, c.region, c.weapon, c.adjective, c.model, c.role, c.scaling, c.strength, c.weakness, c.title, c.rating, c.gcsimDps)
 }
 
 func NewChar(name string, seedSalt int64) GeneratedCharacter {
@@ -283,6 +285,13 @@ func NewChar(name string, seedSalt int64) GeneratedCharacter {
 	result.weakness = weaknesses.Random(rng)
 	result.adjective = visualAdjectives.Random(rng)
 	result.rating = rating.Random(rng)
+	result.gcsimDps = rng.Float64()*70000 + 30000
+	rareDpsRng := rng.Float64()
+	if rareDpsRng < 0.05 {
+		result.gcsimDps -= 40000
+	} else if rareDpsRng > 0.95 {
+		result.gcsimDps += 40000
+	}
 
 	if result.rarity == "5*" || result.rarity == "6*" || result.rarity == "7*" {
 		result.title = title.Random(rng)

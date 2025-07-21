@@ -22,7 +22,7 @@ func removeRoleAfterDuration(ds *discordgo.Session, guildID string, memberID str
 		if err != nil {
 			if duration >= 24*time.Hour {
 				guild, _ := ds.Guild(guildID)
-				notifyIfErr("removeRoleAfterDuration failed after many retries on guild "+guild.Name+" (id: "+guildID+")", err, ds)
+				serverNotifyIfErr("removeRoleAfterDuration failed after many retries on guild "+guild.Name+" (id: "+guildID+")", err, guildID, ds)
 				return
 			}
 			// try again later

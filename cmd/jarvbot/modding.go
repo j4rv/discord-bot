@@ -20,7 +20,7 @@ func onMessageDeleted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 	return func(ds *discordgo.Session, mc *discordgo.MessageDelete) {
 		defer func() {
 			if r := recover(); r != nil {
-				notifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageDeleted: %s\n%s", r, string(debug.Stack())), ds)
+				adminNotifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageDeleted: %s\n%s", r, string(debug.Stack())), ds)
 			}
 		}()
 
@@ -55,7 +55,7 @@ func onMessageUpdated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 	return func(ds *discordgo.Session, mc *discordgo.MessageUpdate) {
 		defer func() {
 			if r := recover(); r != nil {
-				notifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageUpdated: %s\n%s", r, string(debug.Stack())), ds)
+				adminNotifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageUpdated: %s\n%s", r, string(debug.Stack())), ds)
 			}
 		}()
 
@@ -107,7 +107,7 @@ func (u UserWarning) ShortString() string {
 
 func answerRoleIDs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	roles, err := ds.GuildRoles(mc.GuildID)
-	notifyIfErr("answerRoleIDs", err, ds)
+	adminNotifyIfErr("answerRoleIDs", err, ds)
 	if err != nil {
 		return false
 	}

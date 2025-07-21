@@ -25,7 +25,7 @@ func isAdmin(userID string) bool {
 func isMod(ds *discordgo.Session, userID, channelID string) bool {
 	perms, err := ds.UserChannelPermissions(userID, channelID)
 	if err != nil {
-		notifyIfErr(fmt.Sprintf("ERROR isMod failed for user %s in channel %s\n", userID, channelID), err, ds)
+		adminNotifyIfErr(fmt.Sprintf("ERROR isMod failed for user %s in channel %s\n", userID, channelID), err, ds)
 		return false
 	}
 	return perms&discordgo.PermissionAdministrator != 0

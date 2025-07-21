@@ -22,7 +22,7 @@ func answerLiquid(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx contex
 
 func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	timeoutRole, err := getTimeoutRole(ds, mc.GuildID)
-	notifyIfErr("answerDon, couldn't get timeoutRole", err, ds)
+	serverNotifyIfErr("answerDon, couldn't get timeoutRole", err, mc.GuildID, ds)
 	if err != nil {
 		return false
 	}
@@ -33,7 +33,7 @@ func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.C
 	}
 
 	err = ds.GuildMemberRoleAdd(mc.GuildID, mc.Author.ID, timeoutRole.ID)
-	notifyIfErr("answerDon, couldn't add timeoutRole", err, ds)
+	serverNotifyIfErr("answerDon, couldn't add timeoutRole", err, mc.GuildID, ds)
 	if err != nil {
 		return false
 	}
@@ -50,28 +50,28 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	}
 
 	timeoutRole, err := getTimeoutRole(ds, mc.GuildID)
-	notifyIfErr("answerShoot: get timeout role", err, ds)
+	serverNotifyIfErr("answerShoot: get timeout role", err, mc.GuildID, ds)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Could not find the Timeout Role, maybe I'm missing permissions or it does not exist :(")
 		return false
 	}
 
 	shooter, err := ds.GuildMember(mc.GuildID, mc.Author.ID)
-	notifyIfErr("answerShoot: get shooter member", err, ds)
+	serverNotifyIfErr("answerShoot: get shooter member", err, mc.GuildID, ds)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Could not find you in this server, maybe I'm missing permissions u_u")
 		return false
 	}
 
 	target, err := ds.GuildMember(mc.GuildID, match[1])
-	notifyIfErr("answerShoot: get target member", err, ds)
+	serverNotifyIfErr("answerShoot: get target member", err, mc.GuildID, ds)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Couldn't find member with user ID: "+match[1]+", maybe I'm missing permissions u_u")
 		return false
 	}
 
 	err = shoot(ds, mc.ChannelID, mc.GuildID, shooter, target, timeoutRole.ID)
-	notifyIfErr("answerShoot: shoot", err, ds)
+	serverNotifyIfErr("answerShoot: shoot", err, mc.GuildID, ds)
 	return err == nil
 }
 
@@ -87,14 +87,14 @@ func answerSniperShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 	}
 
 	target, err := ds.GuildMember(bunkerServerID, targetID)
-	notifyIfErr("answerShoot: get target member", err, ds)
+	serverNotifyIfErr("answerShoot: get target member", err, mc.GuildID, ds)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Couldn't find Bunker member with user ID: "+targetID)
 		return false
 	}
 
 	timeoutRole, err := getTimeoutRole(ds, bunkerServerID)
-	notifyIfErr("answerSniperShoot: get timeout role", err, ds)
+	serverNotifyIfErr("answerSniperShoot: get timeout role", err, mc.GuildID, ds)
 	if err != nil {
 		return false
 	}

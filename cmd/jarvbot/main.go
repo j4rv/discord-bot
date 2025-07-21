@@ -50,7 +50,7 @@ func main() {
 
 func initFlags() {
 	flag.StringVar(&token, "token", "", "Bot Token")
-	flag.StringVar(&adminID, "adminID", "", "The ID of the bot's admin")
+	flag.StringVar(&adminID, "adminID", "195538857675063298", "The ID of the bot's admin")
 	flag.StringVar(&backupPassword, "backupPassword", "changeme", "Password for periodic backups")
 	flag.BoolVar(&noSlashCommands, "noSlashCommands", false, "The bot will not init slash commands, boots faster.")
 	flag.Parse()
@@ -115,7 +115,7 @@ func initCRONs(ds *discordgo.Session) {
 		cronJob := cron.New()
 		_, err := cronJob.AddFunc(cronSpec, f)
 		if err != nil {
-			notifyIfErr("AddFunc to "+name, err, ds)
+			adminNotifyIfErr("AddFunc to "+name, err, ds)
 		} else {
 			cronJob.Start()
 		}
@@ -135,7 +135,7 @@ func initSlashCommands(ds *discordgo.Session) func() {
 		if h, ok := slashHandlers[ic.ApplicationCommandData().Name]; ok {
 			h(ds, ic)
 		} else {
-			notifyIfErr("Slash command not found:"+ic.ApplicationCommandData().Name, nil, ds)
+			adminNotifyIfErr("Slash command not found:"+ic.ApplicationCommandData().Name, nil, ds)
 		}
 	})
 
@@ -144,7 +144,7 @@ func initSlashCommands(ds *discordgo.Session) func() {
 		log.Println("Registering command:", slashCommand.Name)
 		cmd, err := ds.ApplicationCommandCreate(ds.State.User.ID, "", slashCommand)
 		if err != nil {
-			notifyIfErr("Creating command: "+slashCommand.Name, err, ds)
+			adminNotifyIfErr("Creating command: "+slashCommand.Name, err, ds)
 			log.Printf("Cannot create '%v' command: %v", slashCommand.Name, err)
 			continue
 		}
@@ -157,7 +157,7 @@ func initSlashCommands(ds *discordgo.Session) func() {
 		for _, v := range registeredCommands {
 			err := ds.ApplicationCommandDelete(ds.State.User.ID, "", v.ID)
 			if err != nil {
-				notifyIfErr("Deleting command: "+v.Name, err, ds)
+				adminNotifyIfErr("Deleting command: "+v.Name, err, ds)
 				log.Printf("Cannot delete '%v' command: %v", v.Name, err)
 			}
 		}
@@ -271,10 +271,22 @@ func markdownDiffBlock(body, prefix string) string {
 	return "```diff\n" + formattedBody + "```"
 }
 
-func notifyIfErr(context string, err error, ds *discordgo.Session) {
+func adminNotifyIfErr(context string, err error, ds *discordgo.Session) {
 	if err != nil {
 		msg := "ERROR [" + context + "]: " + err.Error()
 		log.Println(msg)
 		sendDirectMessage(adminID, markdownDiffBlock(msg, "- "), ds)
+	}
+}
+
+func serverNotifyIfErr(context string, err error, serverID string, ds *discordgo.Session) {
+	if err != nil {
+		channelID, err2 := serverDS.getServerProperty(serverID, serverPropErrorsHere)
+		if err2 != nil {
+			return
+		}
+		msg := "ERROR [" + context + "]: " + err.Error()
+		ds.ChannelMessageSend(channelID, msg)
+		log.Printf("%s (Server %s)", msg, serverID)
 	}
 }

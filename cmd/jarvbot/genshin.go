@@ -22,7 +22,6 @@ const averagePullsNote = "**Note:** The average rolls spent on each banner inclu
 
 func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := genshinDS.addOrUpdateParametricReminder(mc.Author.ID)
-	notifyIfErr("answerParametricTransformer", err, ds)
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, "I will remind you about the Parametric Transformer in 7 days!")
 	}
@@ -31,7 +30,6 @@ func answerParametricTransformer(ds *discordgo.Session, mc *discordgo.MessageCre
 
 func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := genshinDS.removeParametricReminder(mc.Author.ID)
-	notifyIfErr("answerParametricTransformerStop", err, ds)
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
 	}
@@ -40,7 +38,6 @@ func answerParametricTransformerStop(ds *discordgo.Session, mc *discordgo.Messag
 
 func answerPlayStore(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := genshinDS.addOrUpdatePlayStoreReminder(mc.Author.ID)
-	notifyIfErr("answerPlayStore", err, ds)
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, "I will remind you about the PlayStore in 7 days!")
 	}
@@ -49,7 +46,6 @@ func answerPlayStore(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx con
 
 func answerPlayStoreStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := genshinDS.removePlayStoreReminder(mc.Author.ID)
-	notifyIfErr("answerPlayStoreStop", err, ds)
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
 	}
@@ -142,7 +138,6 @@ func answerGenshinDailyCheckIn(ds *discordgo.Session, mc *discordgo.MessageCreat
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	}
-	notifyIfErr("answerGenshinDailyCheckIn", err, ds)
 	return err == nil
 }
 
@@ -151,7 +146,6 @@ func answerGenshinDailyCheckInStop(ds *discordgo.Session, mc *discordgo.MessageC
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
 	}
-	notifyIfErr("answerGenshinDailyCheckInStop", err, ds)
 	return err == nil
 }
 
@@ -160,7 +154,7 @@ func answerGenshinDailyCheckInStop(ds *discordgo.Session, mc *discordgo.MessageC
 func answerGenshinChance(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	defer func() {
 		if r := recover(); r != nil {
-			notifyIfErr("answerGenshinChance panic", fmt.Errorf("%v", r), ds)
+			adminNotifyIfErr("answerGenshinChance panic", fmt.Errorf("%v", r), ds)
 		}
 	}()
 	options := optionMap(ic.ApplicationCommandData().Options)
@@ -206,7 +200,7 @@ func answerGenshinChance(ds *discordgo.Session, ic *discordgo.InteractionCreate)
 	}
 
 	_, err := textRespond(ds, ic, formatGenshinChanceResult(cumResult, successCount))
-	notifyIfErr("answerGenshinChance", err, ds)
+	serverNotifyIfErr("answerGenshinChance", err, ic.GuildID, ds)
 }
 
 func formatGenshinChanceResult(result rollssim.WantedRollsResult, successCount int) string {
@@ -258,7 +252,7 @@ func formatGenshinChanceResult(result rollssim.WantedRollsResult, successCount i
 func answerStarRailChance(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	defer func() {
 		if r := recover(); r != nil {
-			notifyIfErr("answerStarRailChance panic", fmt.Errorf("%v", r), ds)
+			adminNotifyIfErr("answerStarRailChance panic", fmt.Errorf("%v", r), ds)
 		}
 	}()
 	options := optionMap(ic.ApplicationCommandData().Options)
@@ -303,7 +297,7 @@ func answerStarRailChance(ds *discordgo.Session, ic *discordgo.InteractionCreate
 	}
 
 	_, err := textRespond(ds, ic, formatStarRailChanceResult(cumResult, successCount))
-	notifyIfErr("answerStarRailChance", err, ds)
+	serverNotifyIfErr("answerStarRailChance", err, ic.GuildID, ds)
 }
 
 func formatStarRailChanceResult(result rollssim.WantedRollsResult, successCount int) string {
@@ -363,7 +357,7 @@ func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 
 	good, err := json.Marshal(artis.ExportToGOOD(arts))
 	if err != nil {
-		notifyIfErr("answerStrongbox_jsonMarshal", err, ds)
+		serverNotifyIfErr("answerStrongbox_jsonMarshal", err, ic.GuildID, ds)
 		textRespond(ds, ic, "Oops, error")
 		return
 	}
@@ -385,7 +379,7 @@ func answerCharacter(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 func dailyCheckInCRONFunc(ds *discordgo.Session) func() {
 	return func() {
 		userIDs, err := genshinDS.allDailyCheckInReminderUserIDs()
-		notifyIfErr("allDailyCheckInReminderUserIDs", err, ds)
+		adminNotifyIfErr("allDailyCheckInReminderUserIDs", err, ds)
 		if len(userIDs) > 0 {
 			log.Printf("Reminding %d users to do the Daily CheckIn", len(userIDs))
 			for _, userID := range userIDs {
@@ -398,13 +392,13 @@ func dailyCheckInCRONFunc(ds *discordgo.Session) func() {
 func parametricCRONFunc(ds *discordgo.Session) func() {
 	return func() {
 		userIDs, err := genshinDS.allParametricReminderUserIDsToBeReminded()
-		notifyIfErr("allParametricReminderUserIDsToBeReminded", err, ds)
+		adminNotifyIfErr("allParametricReminderUserIDsToBeReminded", err, ds)
 		if len(userIDs) > 0 {
 			log.Printf("Reminding %d users to use the Parametric Transformer", len(userIDs))
 			for _, userID := range userIDs {
 				sendDirectMessage(userID, parametricReminderMessage, ds)
 				err := genshinDS.addOrUpdateParametricReminder(userID)
-				notifyIfErr("addOrUpdateParametricReminder", err, ds)
+				adminNotifyIfErr("addOrUpdateParametricReminder", err, ds)
 			}
 		}
 	}
@@ -413,13 +407,13 @@ func parametricCRONFunc(ds *discordgo.Session) func() {
 func playStoreCRONFunc(ds *discordgo.Session) func() {
 	return func() {
 		userIDs, err := genshinDS.allPlayStoreReminderUserIDsToBeReminded()
-		notifyIfErr("allPlayStoreReminderUserIDsToBeReminded", err, ds)
+		adminNotifyIfErr("allPlayStoreReminderUserIDsToBeReminded", err, ds)
 		if len(userIDs) > 0 {
 			log.Printf("Reminding %d users to get the Play Store prize", len(userIDs))
 			for _, userID := range userIDs {
 				sendDirectMessage(userID, playStoreReminderMessage, ds)
 				err := genshinDS.addOrUpdatePlayStoreReminder(userID)
-				notifyIfErr("addOrUpdatePlayStoreReminder", err, ds)
+				adminNotifyIfErr("addOrUpdatePlayStoreReminder", err, ds)
 			}
 		}
 	}

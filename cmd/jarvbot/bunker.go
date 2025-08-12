@@ -75,6 +75,16 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	return err == nil
 }
 
+func answerNukeTest(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	timeoutRole, err := getTimeoutRole(ds, mc.GuildID)
+	serverNotifyIfErr("answerNukeTest: get timeout role", err, mc.GuildID, ds)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not find the Timeout Role, maybe I'm missing permissions or it does not exist :(")
+		return false
+	}
+	return handleNuke(ds, mc.ChannelID, mc.GuildID, timeoutRole.ID) == nil
+}
+
 func answerSniperShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	if mc.Author == nil {
 		return false
@@ -121,49 +131,99 @@ func setCustomTimeoutRole(ds *discordgo.Session, guildID string, roleName string
 // Internal functions
 
 func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *discordgo.Member, target *discordgo.Member, timeoutRoleID string) error {
-	shooterHasRoleAlready := isMemberInRole(shooter, timeoutRoleID)
-	if shooterHasRoleAlready {
+	if isMemberInRole(shooter, timeoutRoleID) {
 		ds.ChannelMessageSend(channelID, "Shadow Realmed people can't shoot dummy")
 		return nil
 	}
 
-	targetHasRoleAlready := isMemberInRole(target, timeoutRoleID)
-	if targetHasRoleAlready {
+	if isMemberInRole(target, timeoutRoleID) {
 		ds.ChannelMessageSend(channelID, "https://giphy.com/gifs/the-simpsons-stop-hes-already-dead-JCAZQKoMefkoX6TyTb")
 		return nil
 	}
 
+	// Nuke logic
 	if rand.Float32() <= nuclearCatastropheChance {
-		ds.ChannelMessageSend(channelID, "https://c.tenor.com/fxSZIUDpQIMAAAAC/explosion-nichijou.gif")
-		members, err := ds.GuildMembers(guildID, "0", 1000)
+		return handleNuke(ds, channelID, guildID, timeoutRoleID)
+	}
+
+	// Miss logic
+	if rand.Float32() <= shootMisfireChance || target.User.Bot {
+		ds.ChannelMessageSend(channelID, "OOPS! You missed :3c")
+		err := ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID)
 		if err != nil {
-			return fmt.Errorf("guild members: %w", err)
+			removeRoleAfterDuration(ds, guildID, shooter.User.ID, timeoutRoleID, timeoutDurationWhenMisfire)
 		}
+		return nil
+	}
+
+	// Normal shot
+	ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got shot!", target.User.Mention()))
+	err := ds.GuildMemberRoleAdd(guildID, target.User.ID, timeoutRoleID)
+	if err != nil {
+		removeRoleAfterDuration(ds, guildID, target.User.ID, timeoutRoleID, timeoutDurationWhenShot)
+	}
+	return nil
+}
+
+func handleNuke(ds *discordgo.Session, channelID, guildID, timeoutRoleID string) error {
+	memberAfter := ""
+	var survivors []*discordgo.Member
+	var dead []*discordgo.Member
+
+	for {
+		members, err := ds.GuildMembers(guildID, memberAfter, 1000)
+		if err != nil {
+			return fmt.Errorf("could not get guild members: %w", err)
+		}
+
 		for _, member := range members {
-			if member.User.ID == ds.State.User.ID {
+			if member.User.Bot {
 				continue
 			}
+
 			if rand.Float32() <= nuclearCatastropheDeathRatio {
-				ds.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
-					Content:         fmt.Sprintf("%s died in the explosion!", member.User.Mention()),
-					AllowedMentions: &discordgo.MessageAllowedMentions{},
-				})
-				ds.GuildMemberRoleAdd(guildID, member.User.ID, timeoutRoleID)
-				removeRoleAfterDuration(ds, guildID, member.User.ID, timeoutRoleID, timeoutDurationWhenNuclearCatastrophe)
+				dead = append(dead, member)
+			} else {
+				survivors = append(survivors, member)
 			}
 		}
-		return nil
+
+		if len(members) < 1000 {
+			break
+		}
+		memberAfter = members[len(members)-1].User.ID
 	}
 
-	if rand.Float32() <= shootMisfireChance || target.User.ID == ds.State.User.ID {
-		ds.ChannelMessageSend(channelID, "OOPS! You missed :3c")
-		ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID)
-		removeRoleAfterDuration(ds, guildID, shooter.User.ID, timeoutRoleID, timeoutDurationWhenMisfire)
-		return nil
+	// Minimum deaths (for tiny servers)
+	if len(dead) < nuclearCatastropheMinDeaths && len(survivors) > 0 {
+		needed := nuclearCatastropheMinDeaths - len(dead)
+		if needed > len(survivors) {
+			needed = len(survivors)
+		}
+
+		rand.Shuffle(len(survivors), func(i, j int) {
+			survivors[i], survivors[j] = survivors[j], survivors[i]
+		})
+		dead = append(dead, survivors[:needed]...)
+		survivors = survivors[needed:]
 	}
 
-	ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got shot!", target.User.Mention()))
-	ds.GuildMemberRoleAdd(guildID, target.User.ID, timeoutRoleID)
-	removeRoleAfterDuration(ds, guildID, target.User.ID, timeoutRoleID, timeoutDurationWhenShot)
+	// Maximum deaths (for huge servers)
+	if len(dead) > nuclearCatastropheMaxDeaths {
+		rand.Shuffle(len(dead), func(i, j int) {
+			dead[i], dead[j] = dead[j], dead[i]
+		})
+		dead = dead[:nuclearCatastropheMaxDeaths]
+	}
+
+	ds.ChannelMessageSend(channelID, "https://c.tenor.com/fxSZIUDpQIMAAAAC/explosion-nichijou.gif")
+	for _, member := range dead {
+		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s died in the explosion!", member.User.Mention()))
+		err := ds.GuildMemberRoleAdd(guildID, member.User.ID, timeoutRoleID)
+		if err != nil {
+			removeRoleAfterDuration(ds, guildID, member.User.ID, timeoutRoleID, timeoutDurationWhenNuclearCatastrophe)
+		}
+	}
+
 	return nil
 }

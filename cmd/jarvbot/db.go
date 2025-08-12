@@ -191,7 +191,6 @@ func (c commandDataStore) simpleCommandResponse(key, guildID string) (string, er
 }
 
 func (c commandDataStore) pickRandomCommandStartingWith(key, guildID string) (string, error) {
-	// first pick a random index
 	var count int
 	err := c.db.Get(&count, `
 		SELECT COUNT(*) FROM SimpleCommand
@@ -201,7 +200,6 @@ func (c commandDataStore) pickRandomCommandStartingWith(key, guildID string) (st
 		return "", err
 	}
 
-	// then find the key at that index
 	offset := rand.Intn(count)
 	var result string
 	err = c.db.Get(&result, `

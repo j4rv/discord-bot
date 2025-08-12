@@ -83,7 +83,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.8.5"),
+	"!version":                   simpleTextResponse("v3.8.6"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -110,6 +110,7 @@ var commands = map[string]command{
 	"!roleids":              guildOnly(modOnly(answerRoleIDs)),
 	"!react4roles":          guildOnly(modOnly(answerMakeReact4RolesMsg)),
 	"!addcommand":           guildOnly(modOnly(answerAddCommand)),
+	"!replacecommand":       guildOnly(modOnly(answerReplaceCommand)),
 	"!removecommand":        guildOnly(modOnly(answerRemoveCommand)),
 	"!deletecommand":        guildOnly(modOnly(answerRemoveCommand)),
 	"!commandcreator":       guildOnly(modOnly(answerCommandCreator)),
@@ -125,6 +126,7 @@ var commands = map[string]command{
 	"!fixbadembedlinks":     guildOnly(modOnly(answerFixBadEmbedLinks)),
 	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
+	"!nuketest":             guildOnly(modOnly(answerNukeTest)),
 	// only available for the bot owner
 	"!abort":               adminOnly(answerAbort),
 	"!guildlist":           adminOnly(answerGuildList),
@@ -460,36 +462,41 @@ func answerGuildList(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx con
 
 // ---------- Simple command stuff ----------
 
+func validateAndAddCommand(key, response, guildID, creatorUserID string) error {
+	if key == "" {
+		return errors.New("Command keys can't be empty")
+	}
+	if len(key) > commandKeyMaxLength {
+		return errors.New("That command key is too long! :<")
+	}
+	if response == "" {
+		return errors.New("Command responses can't be empty u_u")
+	}
+
+	return commandDS.addSimpleCommand(key, response, guildID, creatorUserID)
+}
+
 func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
 	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
-	if key == "" {
-		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the key from the command body u_u", "- "))
-		return false
-	}
-	if len(key) > commandKeyMaxLength {
-		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("That command key is too long! :<", "- "))
-		return false
-	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
-	if response == "" {
-		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the response from the command body u_u", "- "))
-		return false
-	}
 
-	err := commandDS.addSimpleCommand(key, response, mc.GuildID, mc.Author.ID)
+	err := validateAndAddCommand(key, response, mc.GuildID, mc.Author.ID)
 	if err != nil {
-		if err == errDuplicateCommand {
-			ds.ChannelMessageSend(mc.ChannelID, "Could not create the command: "+err.Error())
-		} else {
-			ds.ChannelMessageSend(mc.ChannelID, "Could not create the command :(")
-			serverNotifyIfErr("addCommand", err, mc.GuildID, ds)
-		}
+		ds.ChannelMessageSend(mc.ChannelID, "Could not create the command: "+err.Error())
 		return false
 	}
 
 	ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	return err == nil
+}
+
+func answerReplaceCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
+	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
+
+	commandDS.removeSimpleCommand(key, mc.GuildID)
+	return answerAddCommand(ds, mc, ctx)
 }
 
 func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

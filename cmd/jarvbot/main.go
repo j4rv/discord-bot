@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/jmoiron/sqlx"
 	"github.com/robfig/cron/v3"
@@ -26,6 +29,11 @@ const discordMaxMessageLength = 2000
 var abortChannel chan os.Signal
 
 func main() {
+	// for pprof
+	go func() {
+		log.Println(http.ListenAndServe("127.0.0.1:6060", nil))
+	}()
+
 	initFlags()
 	initDB()
 	ds := initDiscordSession()

@@ -150,7 +150,7 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 	if rand.Float32() <= shootMisfireChance || target.User.Bot {
 		ds.ChannelMessageSend(channelID, "OOPS! You missed :3c")
 		err := ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID)
-		if err != nil {
+		if err == nil {
 			removeRoleAfterDuration(ds, guildID, shooter.User.ID, timeoutRoleID, timeoutDurationWhenMisfire)
 		}
 		return nil
@@ -159,7 +159,7 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 	// Normal shot
 	ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got shot!", target.User.Mention()))
 	err := ds.GuildMemberRoleAdd(guildID, target.User.ID, timeoutRoleID)
-	if err != nil {
+	if err == nil {
 		removeRoleAfterDuration(ds, guildID, target.User.ID, timeoutRoleID, timeoutDurationWhenShot)
 	}
 	return nil
@@ -220,7 +220,7 @@ func handleNuke(ds *discordgo.Session, channelID, guildID, timeoutRoleID string)
 	for _, member := range dead {
 		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s died in the explosion!", member.User.Mention()))
 		err := ds.GuildMemberRoleAdd(guildID, member.User.ID, timeoutRoleID)
-		if err != nil {
+		if err == nil {
 			removeRoleAfterDuration(ds, guildID, member.User.ID, timeoutRoleID, timeoutDurationWhenNuclearCatastrophe)
 		}
 	}

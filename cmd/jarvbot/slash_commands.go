@@ -349,7 +349,7 @@ func textRespond(ds *discordgo.Session, ic *discordgo.InteractionCreate, textRes
 		},
 	}
 	err := ds.InteractionRespond(ic.Interaction, response)
-	notifyIfErr("textRespond", err, ds)
+	serverNotifyIfErr("textRespond", err, ic.GuildID, ds)
 	return response, err
 }
 
@@ -367,7 +367,7 @@ func interactionFileRespond(ds *discordgo.Session, ic *discordgo.InteractionCrea
 			},
 		},
 	})
-	notifyIfErr("fileRespond", err, ds)
+	serverNotifyIfErr("fileRespond", err, ic.GuildID, ds)
 }
 
 // Slash Command answers

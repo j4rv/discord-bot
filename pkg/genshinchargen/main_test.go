@@ -24,3 +24,11 @@ func TestNewChar(t *testing.T) {
 	char = NewChar("Timmie", 4)
 	t.Log(char.PrettyString())
 }
+
+func TestNewCharRandom(t *testing.T) {
+	name := "Test"
+	for i := 0; i < 100; i++ {
+		char := NewChar(name, int64(i))
+		t.Log(char.PrettyString())
+	}
+}

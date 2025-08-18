@@ -59,7 +59,7 @@ func onMessageReacted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 	return func(ds *discordgo.Session, mc *discordgo.MessageReactionAdd) {
 		defer func() {
 			if r := recover(); r != nil {
-				notifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageReacted: %s\n%s", r, string(debug.Stack())), ds)
+				adminNotifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageReacted: %s\n%s", r, string(debug.Stack())), ds)
 			}
 		}()
 
@@ -70,7 +70,7 @@ func onMessageReacted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 
 		r4rs, err := moddingDS.react4Roles(mc.ChannelID, mc.MessageID)
 		if err != nil {
-			notifyIfErr("onMessageReacted::react4Roles", err, ds)
+			serverNotifyIfErr("onMessageReacted::react4Roles", err, mc.GuildID, ds)
 			return
 		}
 
@@ -84,7 +84,7 @@ func onMessageReacted(ctx context.Context) func(ds *discordgo.Session, mc *disco
 
 				action := fmt.Sprintf("Added role %s to user %s in %s", r4r.RoleID, mc.UserID, mc.GuildID)
 				err := ds.GuildMemberRoleAdd(mc.GuildID, mc.UserID, r4r.RoleID)
-				notifyIfErr(action, err, ds)
+				serverNotifyIfErr(action, err, mc.GuildID, ds)
 				if err != nil {
 					log.Println(action)
 				}
@@ -97,7 +97,7 @@ func onMessageUnreacted(ctx context.Context) func(ds *discordgo.Session, mc *dis
 	return func(ds *discordgo.Session, mc *discordgo.MessageReactionRemove) {
 		defer func() {
 			if r := recover(); r != nil {
-				notifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageUnreacted: %s\n%s", r, string(debug.Stack())), ds)
+				adminNotifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageUnreacted: %s\n%s", r, string(debug.Stack())), ds)
 			}
 		}()
 
@@ -108,14 +108,14 @@ func onMessageUnreacted(ctx context.Context) func(ds *discordgo.Session, mc *dis
 
 		r4rs, err := moddingDS.react4Roles(mc.ChannelID, mc.MessageID)
 		if err != nil {
-			notifyIfErr("onMessageUnreacted::react4Roles", err, ds)
+			serverNotifyIfErr("onMessageUnreacted::react4Roles", err, mc.GuildID, ds)
 			return
 		}
 		for _, r4r := range r4rs {
 			if r4r.IsMyEmoji(mc.Emoji) {
 				action := fmt.Sprintf("Removed role %s from user %s in %s", r4r.RoleID, mc.UserID, mc.GuildID)
 				err := ds.GuildMemberRoleRemove(mc.GuildID, mc.UserID, r4r.RoleID)
-				notifyIfErr(action, err, ds)
+				serverNotifyIfErr(action, err, mc.GuildID, ds)
 				if err != nil {
 					log.Println(action)
 				}
@@ -154,12 +154,12 @@ func answerMakeReact4RolesMsg(ds *discordgo.Session, mc *discordgo.MessageCreate
 		} else {
 			err = ds.MessageReactionAdd(response.ChannelID, response.ID, r4r.EmojiName+":"+r4r.EmojiID)
 		}
-		notifyIfErr("answerMakeReact4RolesMsg::MessageReactionAdd", err, ds)
+		serverNotifyIfErr("answerMakeReact4RolesMsg::MessageReactionAdd", err, mc.GuildID, ds)
 	}
 
 	err = moddingDS.addReact4Roles(r4rs)
 	if err != nil {
-		notifyIfErr("answerReact4Roles::addReact4Roles", err, ds)
+		serverNotifyIfErr("answerReact4Roles::addReact4Roles", err, mc.GuildID, ds)
 		ds.ChannelMessageSend(mc.ChannelID, "Something went wrong, blame Jarv :3c")
 		return false
 	}
@@ -174,7 +174,7 @@ func react4RolesCRONFunc(ds *discordgo.Session) func() {
 		// Checks which R4Rs can be removed from DB
 		r4rs, err := moddingDS.allReact4Roles()
 		if err != nil {
-			notifyIfErr("react4RolesCRONFunc", err, ds)
+			adminNotifyIfErr("react4RolesCRONFunc", err, ds)
 			return
 		}
 		for _, r4r := range r4rs {

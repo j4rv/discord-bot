@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/pkg/ppgen"
@@ -37,11 +39,16 @@ var messageLinkFixToOgAuthorId = map[*discordgo.Message]string{}
 
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool
 
+type paginatedQueryInput struct {
+	Page  int    `short:"p" long:"page" default:"1"`
+	Query string `short:"q" long:"query"`
+}
+
 func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
 		defer func() {
 			if r := recover(); r != nil {
-				notifyIfErr("onMessageReacted", fmt.Errorf("panic in onMessageCreated: %s\n%s", r, string(debug.Stack())), ds)
+				log.Printf("panic in onMessageCreated: %s\n%s", r, string(debug.Stack()))
 			}
 		}()
 
@@ -68,7 +75,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.8.2"),
+	"!version":                   simpleTextResponse("v3.8.6"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -96,6 +103,7 @@ var commands = map[string]command{
 	"!roleids":              guildOnly(modOnly(answerRoleIDs)),
 	"!react4roles":          guildOnly(modOnly(answerMakeReact4RolesMsg)),
 	"!addcommand":           guildOnly(modOnly(answerAddCommand)),
+	"!replacecommand":       guildOnly(modOnly(answerReplaceCommand)),
 	"!removecommand":        guildOnly(modOnly(answerRemoveCommand)),
 	"!deletecommand":        guildOnly(modOnly(answerRemoveCommand)),
 	"!commandcreator":       guildOnly(modOnly(answerCommandCreator)),
@@ -105,10 +113,13 @@ var commands = map[string]command{
 	"!allowspamming":        guildOnly(modOnly(answerAllowSpamming)),
 	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),
 	"!setcustomtimeoutrole": guildOnly(modOnly(answerSetCustomTimeoutRole)),
+	"!errorshere":           guildOnly(modOnly(answerErrorsHere)),
+	"!testerror":            guildOnly(modOnly(answerTestError)),
 	"!announcehere":         guildOnly(modOnly(answerAnnounceHere)),
 	"!fixbadembedlinks":     guildOnly(modOnly(answerFixBadEmbedLinks)),
 	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
+	"!nuketest":             guildOnly(modOnly(answerNukeTest)),
 	// only available for the bot owner
 	"!abort":               adminOnly(answerAbort),
 	"!guildlist":           adminOnly(answerGuildList),
@@ -127,7 +138,7 @@ var commands = map[string]command{
 func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullCommand string, ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			notifyIfErr("processCommand", fmt.Errorf("panic in command %s: %s\n%s", fullCommand, r, string(debug.Stack())), ds)
+			log.Printf("panic in processCommand: %s\n%s", r, string(debug.Stack()))
 		}
 	}()
 
@@ -141,13 +152,28 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 		return
 	}
 
+	if isRandomCommand(fullCommand) {
+		var err error
+		commandKey, err = commandDS.pickRandomCommandStartingWith(commandKey, mc.GuildID)
+		adminNotifyIfErr("pickRandomCommandStartingWith", err, ds)
+	}
+
 	response, err := commandDS.simpleCommandResponse(commandKey, mc.GuildID)
-	notifyIfErr("simpleCommandResponse", err, ds)
+	adminNotifyIfErr("simpleCommandResponse", err, ds)
 	if err == nil {
 		if notSpammable(simpleTextResponse(response))(ds, mc, ctx) {
 			onSuccessCommandCall(mc, commandKey)
 		}
 	}
+}
+
+// Checks if the message has the format !asdasd*. The "!" should have been checked previously
+func isRandomCommand(fullCommand string) bool {
+	r, _ := utf8.DecodeLastRuneInString(fullCommand)
+	if r != '*' {
+		return false
+	}
+	return len(strings.Fields(fullCommand)) == 1
 }
 
 func onSuccessCommandCall(mc *discordgo.MessageCreate, commandKey string) {
@@ -182,7 +208,7 @@ func answerHello(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 
 func answerPP(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	seed, err := strconv.ParseInt(mc.Author.ID, 10, 64)
-	notifyIfErr("answerPP: parsing user id: "+mc.Author.ID, err, ds)
+	serverNotifyIfErr("answerPP: parsing user id: "+mc.Author.ID, err, mc.GuildID, ds)
 	if err != nil {
 		return false
 	}
@@ -240,7 +266,7 @@ func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.
 
 func answerAllowSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := commandDS.addSpammableChannel(mc.ChannelID)
-	notifyIfErr("addSpammableChannel", err, ds)
+	serverNotifyIfErr("addSpammableChannel", err, mc.GuildID, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	}
@@ -249,11 +275,11 @@ func answerAllowSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 
 func answerPreventSpamming(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := commandDS.removeSpammableChannel(mc.ChannelID)
-	notifyIfErr("removeSpammableChannel", err, ds)
+	serverNotifyIfErr("removeSpammableChannel", err, mc.GuildID, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	}
-	notifyIfErr("MessageReactionAdd", err, ds)
+	serverNotifyIfErr("MessageReactionAdd", err, mc.GuildID, ds)
 	return err == nil
 }
 
@@ -268,7 +294,7 @@ func answerSetCustomTimeoutRole(ds *discordgo.Session, mc *discordgo.MessageCrea
 	}
 
 	err = setCustomTimeoutRole(ds, guildID, timeoutRoleName)
-	notifyIfErr("setCustomTimeoutRole", err, ds)
+	serverNotifyIfErr("setCustomTimeoutRole", err, mc.GuildID, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Custom timeout role set to '%s'", timeoutRoleName))
 	}
@@ -277,11 +303,25 @@ func answerSetCustomTimeoutRole(ds *discordgo.Session, mc *discordgo.MessageCrea
 
 func answerAnnounceHere(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := serverDS.setServerProperty(mc.GuildID, serverPropAnnounceHere, mc.ChannelID)
-	notifyIfErr("answerAnnounceHere", err, ds)
+	serverNotifyIfErr("answerAnnounceHere", err, mc.GuildID, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will send announcements in this channel")
 	}
 	return err == nil
+}
+
+func answerErrorsHere(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := serverDS.setServerProperty(mc.GuildID, serverPropErrorsHere, mc.ChannelID)
+	serverNotifyIfErr("answerErrorsHere", err, mc.GuildID, ds)
+	if err == nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will send the errors in this channel")
+	}
+	return err == nil
+}
+
+func answerTestError(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	serverNotifyIfErr("Test", errors.New("this is a test"), mc.GuildID, ds)
+	return true
 }
 
 func answerFixBadEmbedLinks(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
@@ -306,12 +346,13 @@ func processMessageWithBadEmbedLinks(ds *discordgo.Session, mc *discordgo.Messag
 	}
 
 	messageContent := mc.Content
+	// TODO remove tracking query parameters?
 	for rgx, rpl := range badEmbedLinkReplacements {
 		messageContent = rgx.ReplaceAllString(messageContent, rpl)
 	}
 	fixedMsg, err := sendAsUser(ds, mc.Author, mc.ChannelID, messageContent, mc.ReferencedMessage)
 	if err != nil {
-		notifyIfErr("processMessageWithBadEmbedLinks::sendAsUser", err, ds)
+		serverNotifyIfErr("processMessageWithBadEmbedLinks::sendAsUser", err, mc.GuildID, ds)
 		return
 	}
 	messageLinkFixToOgAuthorId[fixedMsg] = mc.Author.ID
@@ -319,7 +360,7 @@ func processMessageWithBadEmbedLinks(ds *discordgo.Session, mc *discordgo.Messag
 	ds.State.MessageRemove(mc.Message)
 	err = ds.ChannelMessageDelete(mc.ChannelID, mc.ID)
 	if err != nil {
-		notifyIfErr("processMessageWithBadEmbedLinks::ds.ChannelMessageDelete", err, ds)
+		serverNotifyIfErr("processMessageWithBadEmbedLinks::ds.ChannelMessageDelete", err, mc.GuildID, ds)
 		return
 	}
 }
@@ -353,7 +394,7 @@ func answerDeleteLinkFixMessage(ds *discordgo.Session, ic *discordgo.Interaction
 	// Try to delete and respond if it was successful
 	fixedMsgID := ic.ApplicationCommandData().TargetID
 	err := ds.ChannelMessageDelete(ic.ChannelID, fixedMsgID)
-	notifyIfErr("answerDeleteLinkFixMessage::ChannelMessageDelete", err, ds)
+	serverNotifyIfErr("answerDeleteLinkFixMessage::ChannelMessageDelete", err, ic.GuildID, ds)
 	if err != nil {
 		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -375,7 +416,7 @@ func answerDeleteLinkFixMessage(ds *discordgo.Session, ic *discordgo.Interaction
 
 func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := serverDS.setServerProperty(mc.GuildID, serverPropMessageLogs, mc.ChannelID)
-	notifyIfErr("answerMessageLogs", err, ds)
+	serverNotifyIfErr("answerMessageLogs", err, mc.GuildID, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Okay! Will send message logs in this channel")
 	}
@@ -383,23 +424,25 @@ func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 }
 
 func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	pageInt, err := parsePaginatedCommand(mc.Content)
+	var input paginatedQueryInput
+	err := parseCommandArgs(&input, mc.Content)
 	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, "Invalid page number")
+		serverNotifyIfErr("answerCommandStats: parseCommandArgs", err, mc.GuildID, ds)
 		return false
 	}
 
-	stats, err := commandDS.paginatedGuildCommandStats(mc.GuildID, pageInt, 20)
+	stats, err := commandDS.paginatedGuildCommandStats(mc.GuildID, input.Page, 20, input.Query)
 	if err != nil {
-		notifyIfErr("answerCommandStats: get command stats", err, ds)
+		serverNotifyIfErr("answerCommandStats: get command stats", err, mc.GuildID, ds)
 		return false
 	}
+
 	statsMsg := ""
 	for _, s := range stats {
 		statsMsg += fmt.Sprintf("%s: %d\n", s.Command, s.Count)
 	}
 	_, err = ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
-		Title:       "Command stats - Page " + strconv.Itoa(pageInt),
+		Title:       "Command stats - Page " + strconv.Itoa(input.Page),
 		Description: "```" + statsMsg + "```",
 	})
 	return err == nil
@@ -409,7 +452,7 @@ func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 func answerGuildList(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	guilds, err := ds.UserGuilds(100, "", "", true)
 	if err != nil {
-		notifyIfErr("answerGuildList", err, ds)
+		adminNotifyIfErr("answerGuildList", err, ds)
 		return false
 	}
 	guildsMsg := ""
@@ -433,36 +476,41 @@ func answerGuildList(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx con
 
 // ---------- Simple command stuff ----------
 
+func validateAndAddCommand(key, response, guildID, creatorUserID string) error {
+	if key == "" {
+		return errors.New("Command keys can't be empty")
+	}
+	if len(key) > commandKeyMaxLength {
+		return errors.New("That command key is too long! :<")
+	}
+	if response == "" {
+		return errors.New("Command responses can't be empty u_u")
+	}
+
+	return commandDS.addSimpleCommand(key, response, guildID, creatorUserID)
+}
+
 func answerAddCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
 	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
-	if key == "" {
-		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the key from the command body u_u", "- "))
-		return false
-	}
-	if len(key) > commandKeyMaxLength {
-		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("That command key is too long! :<", "- "))
-		return false
-	}
 	response := commandPrefixRegex.ReplaceAllString(commandBody, "")
-	if response == "" {
-		ds.ChannelMessageSend(mc.ChannelID, markdownDiffBlock("Could not get the response from the command body u_u", "- "))
-		return false
-	}
 
-	err := commandDS.addSimpleCommand(key, response, mc.GuildID, mc.Author.ID)
+	err := validateAndAddCommand(key, response, mc.GuildID, mc.Author.ID)
 	if err != nil {
-		if err == errDuplicateCommand {
-			ds.ChannelMessageSend(mc.ChannelID, "Could not create the command: "+err.Error())
-		} else {
-			ds.ChannelMessageSend(mc.ChannelID, "Could not create the command :(")
-			notifyIfErr("addCommand", err, ds)
-		}
+		ds.ChannelMessageSend(mc.ChannelID, "Could not create the command: "+err.Error())
 		return false
 	}
 
 	ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	return err == nil
+}
+
+func answerReplaceCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	commandBody := commandPrefixRegex.ReplaceAllString(mc.Content, "")
+	key := strings.TrimSpace(commandPrefixRegex.FindString(commandBody))
+
+	commandDS.removeSimpleCommand(key, mc.GuildID)
+	return answerAddCommand(ds, mc, ctx)
 }
 
 func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
@@ -484,7 +532,7 @@ func answerAddGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, 
 			ds.ChannelMessageSend(mc.ChannelID, "Could not create the command: "+err.Error())
 		} else {
 			ds.ChannelMessageSend(mc.ChannelID, "Could not create the command :(")
-			notifyIfErr("addCommand", err, ds)
+			adminNotifyIfErr("addCommand", err, ds)
 		}
 		return false
 	}
@@ -500,7 +548,7 @@ func answerRemoveCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 		ds.ChannelMessageSend(mc.ChannelID, "I could not find that command! sowwy u_u")
 		return false
 	}
-	notifyIfErr("removeSimpleCommand", err, ds)
+	serverNotifyIfErr("removeSimpleCommand", err, mc.GuildID, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
@@ -534,7 +582,7 @@ func answerRemoveGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreat
 	if err == errZeroRowsAffected {
 		ds.ChannelMessageSend(mc.ChannelID, "I could not find that command! sowwy u_u")
 	}
-	notifyIfErr("removeGlobalCommand", err, ds)
+	adminNotifyIfErr("removeGlobalCommand", err, ds)
 	if err == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
@@ -593,7 +641,7 @@ func answerAnnounce(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 
 func answerDbBackup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := doDbBackup(ds)
-	notifyIfErr("dbBackup", err, ds)
+	adminNotifyIfErr("dbBackup", err, ds)
 	return err == nil
 }
 
@@ -616,9 +664,10 @@ func answerRuntimeStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 }
 
 func genericListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, onlyGlobal, includeGlobal bool, responseTitle string) bool {
-	pageInt, err := parsePaginatedCommand(mc.Content)
+	var input paginatedQueryInput
+	err := parseCommandArgs(&input, mc.Content)
 	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, "Invalid page number")
+		serverNotifyIfErr("genericListCommands: parseCommandArgs", err, mc.GuildID, ds)
 		return false
 	}
 
@@ -627,12 +676,12 @@ func genericListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, onl
 		guildId = ""
 	}
 
-	keys, err := commandDS.paginatedSimpleCommandKeys(guildId, includeGlobal, pageInt, 50)
-	notifyIfErr("answerListCommands::"+responseTitle, err, ds)
+	keys, err := commandDS.paginatedSimpleCommandKeys(guildId, includeGlobal, input.Page, 50, input.Query)
+	serverNotifyIfErr("answerListCommands::"+responseTitle, err, mc.GuildID, ds)
 	if len(keys) != 0 {
 		tableStr := formatInColumns(keys, 2)
 		ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
-			Title:       responseTitle + " - Page " + strconv.Itoa(pageInt),
+			Title:       responseTitle + " - Page " + strconv.Itoa(input.Page),
 			Description: "```" + tableStr + "```",
 		})
 	} else {
@@ -657,14 +706,14 @@ func answerListGlobalCommands(ds *discordgo.Session, mc *discordgo.MessageCreate
 
 func answerAbort(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := ds.Close()
-	notifyIfErr("abort", err, ds)
+	adminNotifyIfErr("abort", err, ds)
 	abortChannel <- os.Interrupt
 	return err == nil
 }
 
 func answerReboot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	err := reboot()
-	notifyIfErr("reboot", err, ds)
+	adminNotifyIfErr("reboot", err, ds)
 	return err == nil
 }
 
@@ -672,14 +721,14 @@ func answerShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	timeToWait, _ := processTimedCommand(mc.Content)
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will shutdown in %v", timeToWait))
 	err := shutdown(timeToWait)
-	notifyIfErr("shutdown", err, ds)
+	adminNotifyIfErr("shutdown", err, ds)
 	return err == nil
 }
 
 func answerAbortShutdown(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	ds.ChannelMessageSend(mc.ChannelID, commandReceivedMessage)
 	err := abortShutdown()
-	notifyIfErr("abortShutdown", err, ds)
+	adminNotifyIfErr("abortShutdown", err, ds)
 	return err == nil
 }
 
@@ -719,7 +768,7 @@ func notSpammable(wrapped command) command {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 		if !isAdmin(mc.Author.ID) {
 			channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
-			notifyIfErr("notSpammable::isChannelSpammable", err, ds)
+			adminNotifyIfErr("notSpammable::isChannelSpammable", err, ds)
 			if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {
 				sendDirectMessage(mc.Author.ID, "Pls don't spam the bot commands uwu", ds)
 				ds.MessageReactionAdd(mc.ChannelID, mc.Message.ID, "❌")

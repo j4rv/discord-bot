@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -189,26 +190,36 @@ func (c commandDataStore) simpleCommandResponse(key, guildID string) (string, er
 	return response[0], err
 }
 
-func (c commandDataStore) allSimpleCommandKeys(guildID string, includeGlobal bool) ([]string, error) {
-	var keys []string
-	if !includeGlobal {
-		err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ?`, guildID)
-		return keys, err
-	} else {
-		err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ? OR GuildID = ''`, guildID)
-		return keys, err
+func (c commandDataStore) pickRandomCommandStartingWith(key, guildID string) (string, error) {
+	var count int
+	err := c.db.Get(&count, `
+		SELECT COUNT(*) FROM SimpleCommand
+		WHERE Key LIKE ? AND (GuildID = ? OR GuildID = '') COLLATE NOCASE`,
+		key+"%", guildID)
+	if err != nil || count == 0 {
+		return "", err
 	}
+
+	offset := rand.Intn(count)
+	var result string
+	err = c.db.Get(&result, `
+		SELECT Key FROM SimpleCommand
+		WHERE Key LIKE ? AND (GuildID = ? OR GuildID = '') COLLATE NOCASE
+		LIMIT 1 OFFSET ?`,
+		key+"%", guildID, offset)
+	return result, err
 }
 
-func (c commandDataStore) paginatedSimpleCommandKeys(guildID string, includeGlobal bool, page int, pageSize int) ([]string, error) {
+func (c commandDataStore) paginatedSimpleCommandKeys(guildID string, includeGlobal bool, page, pageSize int, query string) ([]string, error) {
 	var keys []string
-	if !includeGlobal {
-		err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ? ORDER BY Key LIMIT ? OFFSET ?`, guildID, pageSize, (page-1)*pageSize)
-		return keys, err
+	queryStr := `SELECT Key FROM SimpleCommand WHERE `
+	if includeGlobal {
+		queryStr += `(GuildID = ? OR GuildID = '')`
 	} else {
-		err := c.db.Select(&keys, `SELECT Key FROM SimpleCommand WHERE GuildID = ? OR GuildID = '' ORDER BY Key LIMIT ? OFFSET ?`, guildID, pageSize, (page-1)*pageSize)
-		return keys, err
+		queryStr += `GuildID = ?`
 	}
+	queryStr += ` AND LOWER(Key) LIKE ? ORDER BY Key LIMIT ? OFFSET ?`
+	return keys, c.db.Select(&keys, queryStr, guildID, "%"+strings.ToLower(query)+"%", pageSize, (page-1)*pageSize)
 }
 
 func (c commandDataStore) increaseCommandCountStat(guildID, commandKey string) error {
@@ -219,15 +230,14 @@ func (c commandDataStore) increaseCommandCountStat(guildID, commandKey string) e
 	return err
 }
 
-func (c commandDataStore) guildCommandStats(guildID string) ([]CommandStat, error) {
+func (c commandDataStore) paginatedGuildCommandStats(guildID string, page int, pageSize int, query string) ([]CommandStat, error) {
 	var stats []CommandStat
-	err := c.db.Select(&stats, `SELECT GuildID, Command, Count FROM CommandStats WHERE GuildID = ? ORDER BY Count DESC, Command ASC`, guildID)
-	return stats, err
-}
-
-func (c commandDataStore) paginatedGuildCommandStats(guildID string, page int, pageSize int) ([]CommandStat, error) {
-	var stats []CommandStat
-	err := c.db.Select(&stats, `SELECT GuildID, Command, Count FROM CommandStats WHERE GuildID = ? ORDER BY Count DESC, Command ASC LIMIT ? OFFSET ?`, guildID, pageSize, (page-1)*pageSize)
+	queryStr := `SELECT GuildID, Command, Count
+		FROM CommandStats
+		WHERE GuildID = ? AND LOWER(Command) LIKE ?
+		ORDER BY Count DESC, Command ASC
+		LIMIT ? OFFSET ?`
+	err := c.db.Select(&stats, queryStr, guildID, "%"+strings.ToLower(query)+"%", pageSize, (page-1)*pageSize)
 	return stats, err
 }
 

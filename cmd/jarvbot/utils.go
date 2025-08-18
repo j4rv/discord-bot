@@ -2,20 +2,29 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"flag"
 	"fmt"
 	"image"
 	"image/color"
 	"image/gif"
-	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/jessevdk/go-flags"
 	"github.com/skip2/go-qrcode"
 )
 
 // ==================== STRINGS ====================
+
+func parseCommandArgs(opts interface{}, input string) error {
+	args := strings.Fields(input)
+	if len(args) > 0 {
+		args = args[1:]
+	}
+
+	_, err := flags.ParseArgs(opts, args)
+	return err
+}
 
 func parseCommandToMap(input string, expectedFlags []string) map[string]string {
 	fs := flag.NewFlagSet("parseCommandToMap", flag.ContinueOnError)
@@ -39,19 +48,6 @@ func parseCommandToMap(input string, expectedFlags []string) map[string]string {
 	}
 
 	return out
-}
-
-func parsePaginatedCommand(input string) (int, error) {
-	argMap := parseCommandToMap(input, []string{"page"})
-	page := argMap["page"]
-	if page == "" || page == "0" {
-		page = "1"
-	}
-	pageInt, err := strconv.Atoi(page)
-	if pageInt < 0 {
-		return pageInt, errors.New("page number cannot be negative")
-	}
-	return pageInt, err
 }
 
 func formatInColumns(items []string, columns int) string {

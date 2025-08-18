@@ -11,6 +11,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/robfig/cron/v3 v3.0.1
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/yeka/zip v0.0.0-20231116150916-03d6312748a9
 )
 

@@ -4,3 +4,4 @@ run-development.bat
 *.sqlite
 *.exe
 /.vscode/*
+test.go

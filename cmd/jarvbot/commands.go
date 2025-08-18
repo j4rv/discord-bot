@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -44,16 +45,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			}
 		}()
 
-		if mc == nil || mc.Author == nil {
-			return
-		}
-
-		// Ignore all messages created by the bot itself
-		if mc.Author.ID == ds.State.User.ID {
-			return
-		}
-
-		if len(mc.Content) == 0 {
+		if mc == nil || mc.Author == nil || mc.Author.Bot || len(mc.Content) == 0 {
 			return
 		}
 
@@ -94,6 +86,7 @@ var commands = map[string]command{
 	"!roll":                      notSpammable(answerRoll),
 	"!shoot":                     notSpammable(answerShoot),
 	"!pp":                        notSpammable(answerPP),
+	"!qr":                        notSpammable(answerQR),
 	// hidden or easter eggs
 	"!hello":        notSpammable(answerHello),
 	"!liquid":       notSpammable(answerLiquid),
@@ -196,6 +189,27 @@ func answerPP(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Co
 	seed *= unixDay()
 	pp := ppgen.NewPenisWithSeed(seed)
 	_, err = ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%s's penis: %s", mc.Author.Mention(), pp))
+	return err == nil
+}
+
+func answerQR(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	qrBytes, err := GenerateQRImage(commandBody, 1)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not make the QR: "+err.Error())
+		return false
+	}
+
+	_, err = ds.ChannelMessageSendComplex(mc.ChannelID, &discordgo.MessageSend{
+		Content: "",
+		Files: []*discordgo.File{
+			{
+				ContentType: "text/plain",
+				Name:        "jarvbot_qr.gif",
+				Reader:      bytes.NewReader(qrBytes),
+			},
+		},
+	})
 	return err == nil
 }
 

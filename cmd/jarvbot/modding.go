@@ -180,7 +180,7 @@ func messageToString(m *discordgo.Message) string {
 	if m.Content != "" {
 		str += "```" + m.Content + "```"
 	}
-	if m.Attachments != nil && len(m.Attachments) > 0 {
+	if len(m.Attachments) > 0 {
 		str += "\nAttachments:"
 		for _, a := range m.Attachments {
 			str += "\n" + a.URL

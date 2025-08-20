@@ -220,6 +220,11 @@ func answerPP(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Co
 
 func answerQR(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	if len(commandBody) > 1000 {
+		ds.ChannelMessageSend(mc.ChannelID, "Error: Content too large")
+		return false
+	}
+
 	qrBytes, err := GenerateQRImage(commandBody, 1)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Could not make the QR: "+err.Error())

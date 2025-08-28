@@ -210,6 +210,16 @@ func (c commandDataStore) pickRandomCommandStartingWith(key, guildID string) (st
 	return result, err
 }
 
+func (c commandDataStore) getCommandKeyFromResponse(response, guildID string) (string, error) {
+	var key string
+	err := c.db.Get(&key, `
+		SELECT Key FROM SimpleCommand
+		WHERE Response = ? AND GuildID = ?
+		COLLATE NOCASE
+	`, response, guildID)
+	return key, err
+}
+
 func (c commandDataStore) paginatedSimpleCommandKeys(guildID string, includeGlobal bool, page, pageSize int, query string) ([]string, error) {
 	var keys []string
 	queryStr := `SELECT Key FROM SimpleCommand WHERE `

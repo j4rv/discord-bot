@@ -126,6 +126,7 @@ var commands = map[string]command{
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!deleteglobalcommand": adminOnly(answerRemoveGlobalCommand),
+	"!findcommand":         adminOnly(answerFindCommand),
 	//"!setserverprop":       adminOnly(answerSetServerProp),
 	"!announce":      adminOnly(answerAnnounce),
 	"!dbbackup":      adminOnly(answerDbBackup),
@@ -592,6 +593,21 @@ func answerRemoveGlobalCommand(ds *discordgo.Session, mc *discordgo.MessageCreat
 		ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
 	}
 	return err == nil
+}
+
+func answerFindCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	ref := mc.ReferencedMessage
+	if ref == nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Pls reference the command response you want to reverse search")
+		return false
+	}
+	key, err := commandDS.getCommandKeyFromResponse(ref.Content, mc.GuildID)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not find the command: "+err.Error())
+		return false
+	}
+	ds.ChannelMessageSend(mc.ChannelID, key)
+	return true
 }
 
 func answerSetServerProperty(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

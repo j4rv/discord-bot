@@ -24,16 +24,15 @@ import (
 const roleEveryone = "@everyone"
 const globalGuildID = ""
 
-var ogNonRootTwitterLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com/\S+\b`)
-var ogNonRootPixivLinkRegex = regexp.MustCompile(`\b(?:https?://)?(?:www\.)?pixiv\.net/\S+\b`)
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
 var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d+)>`)
-
-var badEmbedLinkReplacements = map[*regexp.Regexp]string{
-	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`): "https://fxtwitter.com",
-	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?pixiv\.net\b`):         "https://phixiv.net",
-}
+var supportedDomainsRegex = regexp.MustCompile(
+	`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com/\S+` +
+		`|\b(?:https?://)?(?:www\.)?pixiv\.net/\S+` +
+		`|\b(?:https?://)?(?:www\.)?(?:youtube\.com|youtu\.be)/\S+` +
+		`|\b(?:https?://)?(?:www\.)?(?:bilibili\.com)/\S+`,
+)
 
 var messageLinkFixToOgAuthorId = map[*discordgo.Message]string{}
 
@@ -64,8 +63,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 		}
 
 		// Twitter links replacement
-		if ogNonRootTwitterLinkRegex.MatchString(mc.Content) ||
-			ogNonRootPixivLinkRegex.MatchString(mc.Content) {
+		if supportedDomainsRegex.MatchString(mc.Content) {
 			processMessageWithBadEmbedLinks(ds, mc, ctx)
 			return
 		}
@@ -75,7 +73,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.8.7"),
+	"!version":                   simpleTextResponse("v3.8.8"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -121,19 +119,19 @@ var commands = map[string]command{
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
 	"!nuketest":             guildOnly(modOnly(answerNukeTest)),
 	// only available for the bot owner
-	"!abort":               adminOnly(answerAbort),
+	//"!setserverprop":       adminOnly(answerSetServerProp),
 	"!guildlist":           adminOnly(answerGuildList),
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!deleteglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!findcommand":         adminOnly(answerFindCommand),
-	//"!setserverprop":       adminOnly(answerSetServerProp),
-	"!announce":      adminOnly(answerAnnounce),
-	"!dbbackup":      adminOnly(answerDbBackup),
-	"!runtimestats":  adminOnly(answerRuntimeStats),
-	"!reboot":        adminOnly(answerReboot),
-	"!shutdown":      adminOnly(answerShutdown),
-	"!abortshutdown": adminOnly(answerAbortShutdown),
+	"!announce":            adminOnly(answerAnnounce),
+	"!dbbackup":            adminOnly(answerDbBackup),
+	"!runtimestats":        adminOnly(answerRuntimeStats),
+	"!abort":               adminOnly(answerAbort),
+	"!reboot":              adminOnly(answerReboot),
+	"!shutdown":            adminOnly(answerShutdown),
+	"!abortshutdown":       adminOnly(answerAbortShutdown),
 }
 
 func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullCommand string, ctx context.Context) {
@@ -351,12 +349,12 @@ func processMessageWithBadEmbedLinks(ds *discordgo.Session, mc *discordgo.Messag
 		return
 	}
 
-	messageContent := mc.Content
-	// TODO remove tracking query parameters?
-	for rgx, rpl := range badEmbedLinkReplacements {
-		messageContent = rgx.ReplaceAllString(messageContent, rpl)
+	cleanedContent := cleanMessageContent(mc.Content)
+	if mc.Content == cleanedContent {
+		return
 	}
-	fixedMsg, err := sendAsUser(ds, mc.Author, mc.ChannelID, messageContent, mc.ReferencedMessage)
+
+	fixedMsg, err := sendAsUser(ds, mc.Author, mc.ChannelID, cleanedContent, mc.ReferencedMessage)
 	if err != nil {
 		serverNotifyIfErr("processMessageWithBadEmbedLinks::sendAsUser", err, mc.GuildID, ds)
 		return
@@ -454,30 +452,44 @@ func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 	return err == nil
 }
 
-// TODO Add pagination with afterGuildID
 func answerGuildList(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	guilds, err := ds.UserGuilds(100, "", "", true)
-	if err != nil {
-		adminNotifyIfErr("answerGuildList", err, ds)
-		return false
+	var allGuilds []*discordgo.UserGuild
+	var afterID string
+
+	for {
+		guilds, err := ds.UserGuilds(100, afterID, "", true)
+		if err != nil {
+			adminNotifyIfErr("answerGuildList", err, ds)
+			return false
+		}
+
+		if len(guilds) == 0 {
+			break
+		}
+
+		allGuilds = append(allGuilds, guilds...)
+
+		if len(guilds) < 100 {
+			break
+		}
+
+		afterID = guilds[len(guilds)-1].ID
 	}
-	guildsMsg := ""
-	for _, g := range guilds {
-		guildsMsg += fmt.Sprintf(`%s
+
+	var guildsMsg strings.Builder
+	guildsMsg.WriteString(fmt.Sprintf("Found %d guilds:\n\n", len(allGuilds)))
+	for _, g := range allGuilds {
+		guildsMsg.WriteString(fmt.Sprintf(`%s
  - ID %s
  - Member count %d
  - Presence count %d
 
- `, g.Name, g.ID, g.ApproximateMemberCount, g.ApproximatePresenceCount)
+`, g.Name, g.ID, g.ApproximateMemberCount, g.ApproximatePresenceCount))
 	}
 
-	fileMessageSend(ds, mc.ChannelID, "Guilds", "guilds.md", guildsMsg)
+	fileMessageSend(ds, mc.ChannelID, "Guilds", "guilds.md", guildsMsg.String())
 
-	if len(guilds) >= 99 {
-		ds.ChannelMessageSend(mc.ChannelID, "Too many guilds to list, please implement pagination uwu")
-	}
-
-	return err == nil
+	return true
 }
 
 // ---------- Simple command stuff ----------

@@ -7,6 +7,8 @@ import (
 	"image"
 	"image/color"
 	"image/gif"
+	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -83,6 +85,64 @@ func formatInColumns(items []string, columns int) string {
 	}
 
 	return builder.String()
+}
+
+var badEmbedDomainReplacements = map[*regexp.Regexp]string{
+	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`): "https://fxtwitter.com",
+	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?pixiv\.net\b`):         "https://phixiv.net",
+	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?bilibili\.com\b`):      "https://vxbilibili.com",
+}
+
+var trackingParamsByDomain = map[string][]string{
+	"twitter.com":  {"t", "s"},
+	"x.com":        {"t", "s"},
+	"youtu.be":     {"si"},
+	"youtube.com":  {"si"},
+	"bilibili.com": {"vd_source", "spm_id_from", "share_source"},
+	"*":            {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid", "igshid"},
+}
+
+func sanitizeURL(raw string) string {
+	inputUrl, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+
+	// clean original host for trackingParamsByDomain
+	ogHost := strings.ToLower(inputUrl.Host)
+	ogHost = strings.TrimPrefix(ogHost, "www.")
+	if colonIdx := strings.Index(ogHost, ":"); colonIdx != -1 {
+		ogHost = ogHost[:colonIdx]
+	}
+
+	// domain changes (x.com to fxtwitter.com for example)
+	for rgx, rpl := range badEmbedDomainReplacements {
+		if rgx.MatchString(inputUrl.Host) {
+			inputUrl.Scheme = "https"
+			inputUrl.Host = strings.TrimPrefix(strings.TrimPrefix(rpl, "https://"), "http://")
+			break
+		}
+	}
+
+	// remove the query param trackers
+	paramsToRemove := make([]string, 0)
+	if perDomain, ok := trackingParamsByDomain[strings.ToLower(ogHost)]; ok {
+		paramsToRemove = append(paramsToRemove, perDomain...)
+	}
+	paramsToRemove = append(paramsToRemove, trackingParamsByDomain["*"]...)
+
+	q := inputUrl.Query()
+	for _, p := range paramsToRemove {
+		q.Del(p)
+	}
+	inputUrl.RawQuery = q.Encode()
+
+	return inputUrl.String()
+}
+
+func cleanMessageContent(content string) string {
+	urlRegex := regexp.MustCompile(`https?://[^\s]+`)
+	return urlRegex.ReplaceAllStringFunc(content, sanitizeURL)
 }
 
 // ==================== MATH ====================

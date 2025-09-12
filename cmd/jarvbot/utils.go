@@ -94,12 +94,13 @@ var badEmbedDomainReplacements = map[*regexp.Regexp]string{
 }
 
 var trackingParamsByDomain = map[string][]string{
-	"twitter.com":  {"t", "s"},
-	"x.com":        {"t", "s"},
-	"youtu.be":     {"si"},
-	"youtube.com":  {"si"},
-	"bilibili.com": {"vd_source", "spm_id_from", "share_source"},
-	"*":            {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid", "igshid"},
+	"twitter.com":       {"t", "s"},
+	"x.com":             {"t", "s"},
+	"youtu.be":          {"si"},
+	"youtube.com":       {"si"},
+	"music.youtube.com": {"si"},
+	"bilibili.com":      {"vd_source", "spm_id_from", "share_source"},
+	"*":                 {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid", "igshid"},
 }
 
 func sanitizeURL(raw string) string {

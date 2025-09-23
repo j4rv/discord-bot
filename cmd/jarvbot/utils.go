@@ -142,7 +142,7 @@ func sanitizeURL(raw string) string {
 }
 
 func cleanMessageContent(content string) string {
-	urlRegex := regexp.MustCompile(`https?://[^\s]+`)
+	urlRegex := regexp.MustCompile(`https?://[^\s*_~|<>]+`)
 	return urlRegex.ReplaceAllStringFunc(content, sanitizeURL)
 }
 

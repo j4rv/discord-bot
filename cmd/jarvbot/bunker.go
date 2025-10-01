@@ -166,62 +166,34 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 }
 
 func handleNuke(ds *discordgo.Session, channelID, guildID, timeoutRoleID string) error {
-	memberAfter := ""
-	var survivors []*discordgo.Member
-	var dead []*discordgo.Member
-
-	for {
-		members, err := ds.GuildMembers(guildID, memberAfter, 1000)
-		if err != nil {
-			return fmt.Errorf("could not get guild members: %w", err)
-		}
-
-		for _, member := range members {
-			if member.User.Bot {
-				continue
-			}
-
-			if rand.Float32() <= nuclearCatastropheDeathRatio {
-				dead = append(dead, member)
-			} else {
-				survivors = append(survivors, member)
-			}
-		}
-
-		if len(members) < 1000 {
-			break
-		}
-		memberAfter = members[len(members)-1].User.ID
+	activeUsers, err := activeChannelMembers(ds, channelID, false)
+	if err != nil {
+		return fmt.Errorf("could not fetch active users: %w", err)
 	}
 
-	// Minimum deaths (for tiny servers)
-	if len(dead) < nuclearCatastropheMinDeaths && len(survivors) > 0 {
-		needed := nuclearCatastropheMinDeaths - len(dead)
-		if needed > len(survivors) {
-			needed = len(survivors)
-		}
-
-		rand.Shuffle(len(survivors), func(i, j int) {
-			survivors[i], survivors[j] = survivors[j], survivors[i]
-		})
-		dead = append(dead, survivors[:needed]...)
-		survivors = survivors[needed:]
+	if len(activeUsers) == 0 {
+		return fmt.Errorf("no active users found in the channel")
 	}
 
-	// Maximum deaths (for huge servers)
-	if len(dead) > nuclearCatastropheMaxDeaths {
-		rand.Shuffle(len(dead), func(i, j int) {
-			dead[i], dead[j] = dead[j], dead[i]
-		})
-		dead = dead[:nuclearCatastropheMaxDeaths]
+	deathCount := nuclearCatastropheMinDeaths + int(float64(len(activeUsers))*0.25)
+	if deathCount > len(activeUsers) {
+		deathCount = len(activeUsers)
+	}
+	if deathCount > nuclearCatastropheMaxDeaths {
+		deathCount = nuclearCatastropheMaxDeaths
 	}
 
-	ds.ChannelMessageSend(channelID, "https://c.tenor.com/fxSZIUDpQIMAAAAC/explosion-nichijou.gif")
-	for _, member := range dead {
-		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s died in the explosion!", member.User.Mention()))
-		err := ds.GuildMemberRoleAdd(guildID, member.User.ID, timeoutRoleID)
-		if err == nil {
-			removeRoleAfterDuration(ds, guildID, member.User.ID, timeoutRoleID, timeoutDurationWhenNuclearCatastrophe)
+	rand.Shuffle(len(activeUsers), func(i, j int) {
+		activeUsers[i], activeUsers[j] = activeUsers[j], activeUsers[i]
+	})
+	dead := activeUsers[:deathCount]
+
+	ds.ChannelMessageSend(channelID, nuclearCatastropheResponse)
+
+	for _, user := range dead {
+		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s died in the explosion!", user.Mention()))
+		if err := ds.GuildMemberRoleAdd(guildID, user.ID, timeoutRoleID); err == nil {
+			removeRoleAfterDuration(ds, guildID, user.ID, timeoutRoleID, timeoutDurationWhenNuclearCatastrophe)
 		}
 	}
 

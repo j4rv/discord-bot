@@ -47,6 +47,7 @@ const nuclearCatastropheChance = 0.006
 const nuclearCatastropheDeathRatio = 0.01
 const nuclearCatastropheMinDeaths = 5
 const nuclearCatastropheMaxDeaths = 20
+const nuclearCatastropheResponse = "https://c.tenor.com/fxSZIUDpQIMAAAAC/explosion-nichijou.gif"
 const timeoutDurationWhenShot = 4 * time.Minute
 const timeoutDurationWhenMisfire = 8 * time.Minute
 const timeoutDurationWhenNuclearCatastrophe = 2 * time.Minute

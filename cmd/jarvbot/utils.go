@@ -99,6 +99,7 @@ var trackingParamsByDomain = map[string][]string{
 	"youtu.be":          {"si"},
 	"youtube.com":       {"si"},
 	"music.youtube.com": {"si"},
+	"open.spotify.com":  {"si"},
 	"bilibili.com":      {"vd_source", "spm_id_from", "share_source"},
 	"*":                 {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid", "igshid"},
 }

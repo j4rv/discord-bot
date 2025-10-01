@@ -28,10 +28,11 @@ var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
 var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d+)>`)
 var supportedDomainsRegex = regexp.MustCompile(
-	`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com/\S+` +
-		`|\b(?:https?://)?(?:www\.)?pixiv\.net/\S+` +
-		`|\b(?:https?://)?(?:www\.)?(?:youtube\.com|youtu\.be)/\S+` +
-		`|\b(?:https?://)?(?:www\.)?(?:bilibili\.com)/\S+`,
+	`\bhttps?:\/\/(?:www\.)?(?:twitter|x)\.com\/\S+` +
+		`|\bhttps?:\/\/(?:www\.)?pixiv\.net\/\S+` +
+		`|\bhttps?:\/\/(?:(?:www\.|music\.)?youtube\.com|youtu\.be)\/\S+` +
+		`|\bhttps?:\/\/(?:www\.)?bilibili\.com\/\S+` +
+		`|\bhttps?:\/\/(?:open\.)?spotify\.com\/\S+`,
 )
 
 var messageLinkFixToOgAuthorId = map[*discordgo.Message]string{}
@@ -73,7 +74,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.8.8"),
+	"!version":                   simpleTextResponse("v3.9.0"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,

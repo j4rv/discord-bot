@@ -61,3 +61,26 @@ func sendDirectMessage(userID string, body string, ds *discordgo.Session) (*disc
 	}
 	return ds.ChannelMessageSend(userChannel.ID, body)
 }
+
+func activeChannelMembers(ds *discordgo.Session, channelID string, keepBots bool) ([]*discordgo.User, error) {
+	messagesToCheck := 100
+	messages, err := ds.ChannelMessages(channelID, messagesToCheck, "", "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	userMap := make(map[string]*discordgo.User)
+	for _, msg := range messages {
+		if msg.Author.Bot && !keepBots {
+			continue
+		}
+		userMap[msg.Author.ID] = msg.Author
+	}
+
+	users := make([]*discordgo.User, 0, len(userMap))
+	for _, u := range userMap {
+		users = append(users, u)
+	}
+	return users, nil
+}
+

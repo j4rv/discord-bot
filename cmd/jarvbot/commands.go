@@ -108,7 +108,7 @@ var commands = map[string]command{
 	"!commandcreator":       guildOnly(modOnly(answerCommandCreator)),
 	"!listcommands":         modOnly(answerListCommands),
 	"!listservercommands":   guildOnly(modOnly(answerListGuildCommands)),
-	"!listglobalcommands":   guildOnly(modOnly(answerListGlobalCommands)),
+	"!listglobalcommands":   modOnly(answerListGlobalCommands),
 	"!allowspamming":        guildOnly(modOnly(answerAllowSpamming)),
 	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),
 	"!setcustomtimeoutrole": guildOnly(modOnly(answerSetCustomTimeoutRole)),
@@ -118,9 +118,9 @@ var commands = map[string]command{
 	"!fixbadembedlinks":     guildOnly(modOnly(answerFixBadEmbedLinks)),
 	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
-	"!nuketest":             guildOnly(modOnly(answerNukeTest)),
 	// only available for the bot owner
 	//"!setserverprop":       adminOnly(answerSetServerProp),
+	"!nuketest":            guildOnly(adminOnly(answerForceNuke)),
 	"!guildlist":           adminOnly(answerGuildList),
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
@@ -153,6 +153,11 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 	}
 
 	if isRandomCommand(fullCommand) {
+		// hardcoded nuke chance, blame Naz
+		if rand.Float32() <= nuclearCatastropheRandomCommandChance {
+			answerForceNuke(ds, mc, ctx)
+			return
+		}
 		var err error
 		commandKey, err = commandDS.pickRandomCommandStartingWith(commandKey, mc.GuildID)
 		adminNotifyIfErr("pickRandomCommandStartingWith", err, ds)

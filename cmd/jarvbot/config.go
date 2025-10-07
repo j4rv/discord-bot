@@ -44,6 +44,7 @@ const serverPropNo = "N"
 const defaultTimeoutRoleName = "Shadow Realm"
 const shootMisfireChance = 0.2
 const nuclearCatastropheChance = 0.006
+const nuclearCatastropheRandomCommandChance = 0.001
 const nuclearCatastropheDeathRatio = 0.01
 const nuclearCatastropheMinDeaths = 5
 const nuclearCatastropheMaxDeaths = 20

@@ -75,9 +75,9 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	return err == nil
 }
 
-func answerNukeTest(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+func answerForceNuke(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	timeoutRole, err := getTimeoutRole(ds, mc.GuildID)
-	serverNotifyIfErr("answerNukeTest: get timeout role", err, mc.GuildID, ds)
+	serverNotifyIfErr("answerForceNuke: get timeout role", err, mc.GuildID, ds)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Could not find the Timeout Role, maybe I'm missing permissions or it does not exist :(")
 		return false
@@ -166,6 +166,8 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 }
 
 func handleNuke(ds *discordgo.Session, channelID, guildID, timeoutRoleID string) error {
+	ds.ChannelMessageSend(channelID, nuclearCatastropheResponse)
+
 	activeUsers, err := activeChannelMembers(ds, channelID, false)
 	if err != nil {
 		return fmt.Errorf("could not fetch active users: %w", err)
@@ -187,8 +189,6 @@ func handleNuke(ds *discordgo.Session, channelID, guildID, timeoutRoleID string)
 		activeUsers[i], activeUsers[j] = activeUsers[j], activeUsers[i]
 	})
 	dead := activeUsers[:deathCount]
-
-	ds.ChannelMessageSend(channelID, nuclearCatastropheResponse)
 
 	for _, user := range dead {
 		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s died in the explosion!", user.Mention()))

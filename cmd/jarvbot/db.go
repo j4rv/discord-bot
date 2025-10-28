@@ -190,12 +190,13 @@ func (c commandDataStore) simpleCommandResponse(key, guildID string) (string, er
 	return response[0], err
 }
 
-func (c commandDataStore) pickRandomCommandStartingWith(key, guildID string) (string, error) {
+// Picks a random command, using * as % in the sql query
+func (c commandDataStore) pickRandomCommand(key, guildID string) (string, error) {
 	var count int
 	err := c.db.Get(&count, `
 		SELECT COUNT(*) FROM SimpleCommand
 		WHERE Key LIKE ? AND (GuildID = ? OR GuildID = '') COLLATE NOCASE`,
-		key+"%", guildID)
+		strings.ReplaceAll(key, "*", "%"), guildID)
 	if err != nil || count == 0 {
 		return "", err
 	}
@@ -206,7 +207,7 @@ func (c commandDataStore) pickRandomCommandStartingWith(key, guildID string) (st
 		SELECT Key FROM SimpleCommand
 		WHERE Key LIKE ? AND (GuildID = ? OR GuildID = '') COLLATE NOCASE
 		LIMIT 1 OFFSET ?`,
-		key+"%", guildID, offset)
+		strings.ReplaceAll(key, "*", "%"), guildID, offset)
 	return result, err
 }
 

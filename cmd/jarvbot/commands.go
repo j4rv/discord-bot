@@ -24,6 +24,7 @@ import (
 const roleEveryone = "@everyone"
 const globalGuildID = ""
 
+var commandPrefixOptionalAsteriskRegex = regexp.MustCompile(`^!\w+\*?\s*`)
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
 var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d+)>`)
@@ -142,9 +143,11 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 		}
 	}()
 
-	commandKey := strings.TrimSpace(commandPrefixRegex.FindString(fullCommand))
+	commandKey := strings.TrimSpace(commandPrefixOptionalAsteriskRegex.FindString(fullCommand))
 	lowercaseCommandKey := strings.ToLower(commandKey)
 	command, ok := commands[lowercaseCommandKey]
+	log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
+
 	if ok {
 		if command(ds, mc, ctx) {
 			onSuccessCommandCall(mc, lowercaseCommandKey)
@@ -152,15 +155,17 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 		return
 	}
 
-	if isRandomCommand(fullCommand) {
+	if isRandomCommand(commandKey) {
 		// hardcoded nuke chance, blame Naz
 		if rand.Float32() <= nuclearCatastropheRandomCommandChance {
 			answerForceNuke(ds, mc, ctx)
 			return
 		}
 		var err error
-		commandKey, err = commandDS.pickRandomCommandStartingWith(commandKey, mc.GuildID)
-		adminNotifyIfErr("pickRandomCommandStartingWith", err, ds)
+		commandKey, err = commandDS.pickRandomCommand(commandKey, mc.GuildID)
+		if err != nil {
+			return
+		}
 	}
 
 	response, err := commandDS.simpleCommandResponse(commandKey, mc.GuildID)
@@ -182,7 +187,6 @@ func isRandomCommand(fullCommand string) bool {
 }
 
 func onSuccessCommandCall(mc *discordgo.MessageCreate, commandKey string) {
-	log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
 	if mc.GuildID != globalGuildID {
 		commandDS.increaseCommandCountStat(mc.GuildID, commandKey)
 	}

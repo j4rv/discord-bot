@@ -24,7 +24,7 @@ import (
 const roleEveryone = "@everyone"
 const globalGuildID = ""
 
-var commandPrefixOptionalAsteriskRegex = regexp.MustCompile(`^!\w+\*?\s*`)
+var commandPrefixOptionalAsteriskRegex = regexp.MustCompile(`^!\w*\*?\s*`)
 var commandPrefixRegex = regexp.MustCompile(`^!\w+\s*`)
 var commandWithTwoArguments = regexp.MustCompile(`^!\w+\s*(\(.{1,36}\))\s*(\(.{1,36}\))`)
 var commandWithMention = regexp.MustCompile(`^!\w+\s*<@!?(\d+)>`)
@@ -59,8 +59,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 
 		// Process commands
 		if mc.Content[0] == '!' {
-			trimmedMsg := strings.TrimSpace(mc.Content)
-			processCommand(ds, mc, trimmedMsg, ctx)
+			processCommand(ds, mc, mc.Content, ctx)
 			return
 		}
 
@@ -146,11 +145,11 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 	commandKey := strings.TrimSpace(commandPrefixOptionalAsteriskRegex.FindString(fullCommand))
 	lowercaseCommandKey := strings.ToLower(commandKey)
 	command, ok := commands[lowercaseCommandKey]
-	log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
 
 	if ok {
 		if command(ds, mc, ctx) {
 			onSuccessCommandCall(mc, lowercaseCommandKey)
+			log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
 		}
 		return
 	}
@@ -173,6 +172,7 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 	if err == nil {
 		if notSpammable(simpleTextResponse(response))(ds, mc, ctx) {
 			onSuccessCommandCall(mc, commandKey)
+			log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
 		}
 	}
 }

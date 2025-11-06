@@ -183,6 +183,7 @@ func channelBelongsToGuild(ds *discordgo.Session, channelID, guildID string) boo
 	if err != nil {
 		channel, err = ds.Channel(channelID)
 		if err != nil {
+			serverNotifyIfErr("channelBelongsToGuild", err, guildID, ds)
 			return false
 		}
 	}

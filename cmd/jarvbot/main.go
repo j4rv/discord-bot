@@ -80,6 +80,7 @@ func initDB() {
 	commandDS = commandDataStore{db}
 	moddingDS = moddingDataStore{db}
 	serverDS = serverDataStore{db}
+	schedulerDS = scheduledActionsDataStore{db}
 	dbMaintenance = dbMaintenanceService{db}
 }
 
@@ -129,12 +130,59 @@ func initCRONs(ds *discordgo.Session) {
 		}
 	}
 
+	initActionScheduler(ds, actionSchedulerInterval)
 	initCron("dbBackupCRON", backupCRON, backupCRONFunc(ds))
 	initCron("dailyCheckInCRON", dailyCheckInReminderCRON, dailyCheckInCRONFunc(ds))
 	initCron("cleanStateMessagesCRON", cleanStateMessagesCRON, cleanStateMessagesCRONFunc(ds))
 	initCron("parametricCRON", parametricReminderCRON, parametricCRONFunc(ds))
 	initCron("playStoreCRON", playStoreReminderCRON, playStoreCRONFunc(ds))
 	initCron("react4RolesCRON", react4RolesCRON, react4RolesCRONFunc(ds))
+}
+
+// initActionScheduler executes processScheduledActions periodically
+func initActionScheduler(ds *discordgo.Session, interval time.Duration) {
+	go func() {
+		for {
+			processScheduledActions(ds)
+			time.Sleep(interval)
+		}
+	}()
+}
+
+func processScheduledActions(ds *discordgo.Session) {
+	actions, err := schedulerDS.getDueScheduledActions(actionSchedulerMaxBatch)
+	adminNotifyIfErr("processScheduledActions", err, ds)
+	for _, action := range actions {
+		executeScheduledAction(ds, action)
+	}
+}
+
+func executeScheduledAction(ds *discordgo.Session, action ScheduledAction) error {
+	var err error
+
+	switch action.ActionType {
+	case actionTypeMessage, actionTypeReminder:
+		switch action.TargetType {
+		case targetTypeUser:
+			_, err = sendDirectMessage(action.TargetID, action.ActionData, ds)
+			adminNotifyIfErr(fmt.Sprintf("Couldn't send msg %s to user <@%s>", action.ActionData, action.TargetID), err, ds)
+		case targetTypeChannel:
+			_, err = ds.ChannelMessageSend(action.TargetID, action.ActionData)
+			adminNotifyIfErr(fmt.Sprintf("Couldn't send msg %s to channel <#%s>", action.ActionData, action.TargetID), err, ds)
+		}
+	case actionTypeRemoveRole:
+		split := strings.Split(action.ActionData, ";")
+		if len(split) != 2 {
+			return fmt.Errorf("unexpected data for %s action: %s", actionTypeRemoveRole, action.ActionData)
+		}
+		guildID := split[0]
+		roleID := split[1]
+		err = ds.GuildMemberRoleRemove(guildID, action.TargetID, roleID)
+		serverNotifyIfErr(fmt.Sprintf("Couldn't remove role from user <@%s>", action.TargetID), err, guildID, ds)
+	}
+
+	schedulerDS.removeScheduledAction(action.ID)
+	return err
 }
 
 // initSlashCommands returns a function to remove the registered slash commands for graceful shutdowns

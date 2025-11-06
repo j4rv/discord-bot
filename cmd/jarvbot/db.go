@@ -25,6 +25,7 @@ var moddingDS moddingDataStore
 var genshinDS genshinDataStore
 var commandDS commandDataStore
 var serverDS serverDataStore
+var schedulerDS scheduledActionsDataStore
 var dbMaintenance dbMaintenanceService
 
 var errZeroRowsAffected = errors.New("zero rows were affected")
@@ -40,6 +41,8 @@ func createTables(db *sqlx.DB) {
 	createTableUserWarning(db)
 	createTableReact4RoleMessage(db)
 	createTableServerProperties(db)
+	createTableScheduledActions(db)
+	createTableMines(db)
 }
 
 func createTableDailyCheckInReminder(db *sqlx.DB) {
@@ -94,7 +97,6 @@ func createTableSpammableChannel(db *sqlx.DB) {
 		"ChannelID VARCHAR(20) UNIQUE NOT NULL",
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
 	}, db)
-	createIndex("SpammableChannel", "ChannelID", db)
 }
 
 func createTableUserWarning(db *sqlx.DB) {
@@ -130,6 +132,35 @@ func createTableServerProperties(db *sqlx.DB) {
 		"UNIQUE(ServerID, PropertyName)",
 	}, db)
 	createIndex("ServerProperties", "ServerID", db)
+}
+
+func createTableScheduledActions(db *sqlx.DB) {
+	createTable("ScheduledActions", []string{
+		"ScheduledFor TIMESTAMP NOT NULL",
+		"TargetID TEXT NOT NULL",
+		"TargetType TEXT NOT NULL",
+		"ActionType TEXT NOT NULL",
+		"ActionData TEXT CHECK (length(ActionData) <= 1900)",
+		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+	}, db)
+	createIndex("ScheduledActions", "ScheduledFor", db)
+}
+
+func createTableMines(db *sqlx.DB) {
+	createTable("Mines", []string{
+		"GuildID TEXT NOT NULL",
+		"ChannelID TEXT NOT NULL",
+		"Amount INTEGER NOT NULL",
+		"Probability REAL NOT NULL",
+		"DurationSeconds INTEGER NOT NULL",
+		"CustomMessage TEXT CHECK (length(CustomMessage) <= 200)",
+		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+	}, db)
+	createIndex("Mines", "GuildID", db)
+	createIndex("Mines", "ChannelID", db)
+	createTrigger("delete_empty_mines",
+		"Mines", "AFTER UPDATE", "NEW.Amount <= 0",
+		"DELETE FROM Mines WHERE Mines = NEW.Mines;", db)
 }
 
 // commands
@@ -418,6 +449,171 @@ func (s *serverDataStore) getServerProperties(propertyName string) ([]ServerProp
 	return properties, err
 }
 
+// server mines
+
+type MineSet struct {
+	ID              int       `db:"Mines"`
+	GuildID         string    `db:"GuildID"`
+	ChannelID       string    `db:"ChannelID"`
+	Amount          int       `db:"Amount"`
+	Chance          float64   `db:"Probability"`
+	DurationSeconds int       `db:"DurationSeconds"`
+	CustomMessage   string    `db:"CustomMessage"`
+	CreatedAt       time.Time `db:"CreatedAt"`
+}
+
+func (s serverDataStore) addMines(guildID, channelID string, amount int, probability float64, durationSeconds int, customMessage string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO Mines (GuildID, ChannelID, Amount, Probability, DurationSeconds, CustomMessage)
+		VALUES (?, ?, ?, ?, ?, ?)`,
+		guildID, channelID, amount, probability, durationSeconds, customMessage,
+	)
+	return err
+}
+
+func (s serverDataStore) getMinesByGuild(guildID string) ([]MineSet, error) {
+	var mines []MineSet
+	err := s.db.Select(&mines, `
+		SELECT Mines, GuildID, ChannelID, Amount, Probability, DurationSeconds, CreatedAt, CustomMessage
+		FROM Mines
+		WHERE GuildID = ?
+		ORDER BY CreatedAt ASC`,
+		guildID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return mines, nil
+}
+
+func (s serverDataStore) getMinesByGuildAndChannel(guildID, channelID string) ([]MineSet, error) {
+	var mines []MineSet
+	err := s.db.Select(&mines, `
+		SELECT Mines, GuildID, ChannelID, Amount, Probability, DurationSeconds, CreatedAt, CustomMessage
+		FROM Mines
+		WHERE ChannelID = ? OR (GuildID = ? AND ChannelID = '')`,
+		channelID, guildID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return mines, nil
+}
+
+func (s serverDataStore) decrementMines(id, decrementAmount int) error {
+	_, err := s.db.Exec(`UPDATE Mines SET Amount = Amount - ? WHERE Mines = ?`, decrementAmount, id)
+	return err
+}
+
+func (s serverDataStore) removeMines(id int, guildID string) error {
+	res, err := s.db.Exec(`DELETE FROM Mines WHERE Mines = ? AND GuildID = ?`, id, guildID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err == nil && rowsAffected == 0 {
+		return errZeroRowsAffected
+	}
+	return nil
+}
+
+func (s serverDataStore) removeGuildMines(guildID string) error {
+	res, err := s.db.Exec(`DELETE FROM Mines WHERE GuildID = ?`, guildID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err == nil && rowsAffected == 0 {
+		return errZeroRowsAffected
+	}
+	return nil
+}
+
+// scheduled actions
+
+type scheduledActionsDataStore struct {
+	db *sqlx.DB
+}
+
+type ScheduledAction struct {
+	ID           int       `db:"ScheduledActions"`
+	CreatedAt    time.Time `db:"CreatedAt"`
+	ScheduledFor time.Time `db:"ScheduledFor"`
+	TargetID     string    `db:"TargetID"`
+	TargetType   string    `db:"TargetType"`
+	ActionType   string    `db:"ActionType"`
+	ActionData   string    `db:"ActionData"`
+}
+
+func (a ScheduledAction) String() string {
+	return fmt.Sprintf("ID: %d, Scheduled for %s, Data: %s", a.ID, a.ScheduledFor, a.ActionData)
+}
+
+func (s scheduledActionsDataStore) addScheduledAction(scheduledFor time.Time, targetID, targetType, actionType, actionData string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO ScheduledActions (ScheduledFor, TargetID, TargetType, ActionType, ActionData)
+		VALUES (?, ?, ?, ?, ?)`,
+		scheduledFor.UTC(), targetID, targetType, actionType, actionData,
+	)
+	return err
+}
+
+func (s scheduledActionsDataStore) addScheduledActionAfterDuration(inTime time.Duration, targetID, targetType, actionType, actionData string) error {
+	t := time.Now().Add(inTime)
+	return s.addScheduledAction(t, targetID, targetType, actionType, actionData)
+}
+
+func (s scheduledActionsDataStore) getDueScheduledActions(limit int) ([]ScheduledAction, error) {
+	var actions []ScheduledAction
+	err := s.db.Select(&actions, `
+		SELECT ScheduledActions, CreatedAt, ScheduledFor, TargetID, TargetType, ActionType, ActionData
+		FROM ScheduledActions
+		WHERE ScheduledFor <= CURRENT_TIMESTAMP
+		ORDER BY ScheduledFor ASC
+		LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	return actions, nil
+}
+
+func (s scheduledActionsDataStore) getScheduledActionsByTargetIDAndActionType(targetID, actionType string) ([]ScheduledAction, error) {
+	var actions []ScheduledAction
+	err := s.db.Select(&actions, `
+		SELECT ScheduledActions, CreatedAt, ScheduledFor, TargetID, TargetType, ActionType, ActionData
+		FROM ScheduledActions
+		WHERE TargetID = ? AND ActionType = ?`, targetID, actionType)
+	if err != nil {
+		return nil, err
+	}
+	return actions, nil
+}
+
+func (s scheduledActionsDataStore) getScheduledActionsByTargetIDAndActionTypeAndActionData(targetID, actionType, actionData string) ([]ScheduledAction, error) {
+	var actions []ScheduledAction
+	err := s.db.Select(&actions, `
+		SELECT ScheduledActions, CreatedAt, ScheduledFor, TargetID, TargetType, ActionType, ActionData
+		FROM ScheduledActions
+		WHERE TargetID = ? AND ActionType = ? AND ActionData = ?`, targetID, actionType, actionData)
+	if err != nil {
+		return nil, err
+	}
+	return actions, nil
+}
+
+func (s scheduledActionsDataStore) removeScheduledAction(id int) error {
+	_, err := s.db.Exec(`DELETE FROM ScheduledActions WHERE ScheduledActions = ?`, id)
+	return err
+}
+
+func (s scheduledActionsDataStore) cleanupOldScheduledActions() error {
+	_, err := s.db.Exec(`
+		DELETE FROM ScheduledActions
+		WHERE ScheduledFor < datetime('now', '-1 day')
+	`)
+	return err
+}
+
 // maintenance
 
 type dbMaintenanceService struct {
@@ -448,6 +644,28 @@ func createTable(table string, columns []string, db *sqlx.DB) {
 func createIndex(table, column string, db *sqlx.DB) {
 	indexName := fmt.Sprintf("%s_%s", table, column)
 	statement := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s(%s);", indexName, table, column)
+	db.MustExec(statement)
+}
+
+func createTrigger(triggerName, table, event, condition, body string, db *sqlx.DB) {
+	// SQLite doesn’t support CREATE TRIGGER IF NOT EXISTS
+	var exists int
+	checkQuery := `SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name = ?;`
+	if err := db.Get(&exists, checkQuery, triggerName); err != nil {
+		log.Fatalf("Failed to check trigger existence for %s: %v", triggerName, err)
+	}
+
+	if exists > 0 {
+		return
+	}
+
+	statement := fmt.Sprintf(`
+				CREATE TRIGGER %s %s ON %s
+				FOR EACH ROW WHEN %s
+				BEGIN
+				    %s
+				END;`,
+		triggerName, event, table, condition, body)
 	db.MustExec(statement)
 }
 
@@ -486,6 +704,9 @@ func backupCRONFunc(ds *discordgo.Session) func() {
 
 		dbMaintenance.analyze()
 		log.Println("Database analyze done")
+
+		schedulerDS.cleanupOldScheduledActions()
+		log.Println("Cleaned up old scheduled actions")
 
 		err := doDbBackup(ds)
 		if err != nil {

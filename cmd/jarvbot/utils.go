@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -12,44 +11,25 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/google/shlex"
 	"github.com/jessevdk/go-flags"
 	"github.com/skip2/go-qrcode"
 )
 
 // ==================== STRINGS ====================
 
-func parseCommandArgs(opts interface{}, input string) error {
-	args := strings.Fields(input)
+func parseCommandArgs(opts any, input string) error {
+	args, err := shlex.Split(input)
+	if err != nil {
+		return err
+	}
+
 	if len(args) > 0 {
 		args = args[1:]
 	}
 
-	_, err := flags.ParseArgs(opts, args)
+	_, err = flags.ParseArgs(opts, args)
 	return err
-}
-
-func parseCommandToMap(input string, expectedFlags []string) map[string]string {
-	fs := flag.NewFlagSet("parseCommandToMap", flag.ContinueOnError)
-	results := make(map[string]*string)
-
-	// Register each expected flag dynamically
-	for _, name := range expectedFlags {
-		results[name] = fs.String(name, "", "dynamic flag")
-	}
-
-	// Parse args (skip the command name)
-	args := strings.Fields(input)[1:]
-	_ = fs.Parse(args)
-
-	// Extract actual values into a result map
-	out := make(map[string]string)
-	for name, ptr := range results {
-		if ptr != nil && *ptr != "" {
-			out[name] = *ptr
-		}
-	}
-
-	return out
 }
 
 func formatInColumns(items []string, columns int) string {
@@ -153,6 +133,13 @@ func divideToFloat(a, b int) float64 {
 	return float64(a) / float64(b)
 }
 
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // ==================== ROLES ====================
 
 func findRoleInSlice(roleID string, roles []*discordgo.Role) *discordgo.Role {
@@ -186,6 +173,22 @@ func isMemberInRole(member *discordgo.Member, roleID string) bool {
 	return false
 }
 
+// ==================== CHANNELS ====================
+
+func channelBelongsToGuild(ds *discordgo.Session, channelID, guildID string) bool {
+	if channelID == "" {
+		return true
+	}
+	channel, err := ds.State.Channel(channelID)
+	if err != nil {
+		channel, err = ds.Channel(channelID)
+		if err != nil {
+			return false
+		}
+	}
+	return channel.GuildID == guildID
+}
+
 // ==================== IMAGES ====================
 
 func GenerateQRImage(data string, border int) ([]byte, error) {
@@ -200,12 +203,13 @@ func GenerateQRImage(data string, border int) ([]byte, error) {
 	scale := 4
 	size := (n + 2*border) * scale
 
-	palette := []color.Color{color.White, color.Black}
+	// Index 0 is transparent cause of discord's app glitching otherwise
+	palette := []color.Color{color.Transparent, color.White, color.Black}
 	img := image.NewPaletted(image.Rect(0, 0, size, size), palette)
 
 	// Fill white background
 	for i := range img.Pix {
-		img.Pix[i] = 0
+		img.Pix[i] = 1
 	}
 
 	// Draw QR modules with scaling
@@ -217,7 +221,7 @@ func GenerateQRImage(data string, border int) ([]byte, error) {
 				for dy := range scale {
 					row := (startY+dy)*img.Stride + startX
 					for dx := 0; dx < scale; dx++ {
-						img.Pix[row+dx] = 1 // Black
+						img.Pix[row+dx] = 2 // Black
 					}
 				}
 			}

@@ -57,6 +57,8 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			return
 		}
 
+		go newMessageMineCheck(ds, mc)
+
 		// Process commands
 		if mc.Content[0] == '!' {
 			processCommand(ds, mc, mc.Content, ctx)
@@ -74,7 +76,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.9.0"),
+	"!version":                   simpleTextResponse("v3.10.0"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -118,6 +120,10 @@ var commands = map[string]command{
 	"!fixbadembedlinks":     guildOnly(modOnly(answerFixBadEmbedLinks)),
 	"!messagelogs":          guildOnly(modOnly(answerMessageLogs)),
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
+	"!placemines":           guildOnly(modOnly(answerPlaceMines)),
+	"!checkmines":           guildOnly(modOnly(answerCheckMines)),
+	"!removechannelmines":   guildOnly(modOnly(answerRemoveChannelMines)),
+	"!removeservermines":    guildOnly(modOnly(answerRemoveGuildMines)),
 	// only available for the bot owner
 	//"!setserverprop":       adminOnly(answerSetServerProp),
 	"!nuketest":            guildOnly(adminOnly(answerForceNuke)),
@@ -253,13 +259,17 @@ func answerQR(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Co
 	return err == nil
 }
 
-// FIXME: Limit its usage by user (max 3 active reminders?)
 func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	currentReminders, _ := schedulerDS.getScheduledActionsByTargetIDAndActionType(mc.Author.ID, actionTypeReminder)
+	if len(currentReminders) >= actionReminderMaxPerUser {
+		sendDirectMessage(mc.Author.ID, "Please don't abuse the reminder system! :<", ds)
+		return false
+	}
+
 	timeToWait, reminderBody := processTimedCommand(mc.Content)
 	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will remind you in %v with the message '%s'", timeToWait, reminderBody))
-	time.Sleep(timeToWait)
-	sendDirectMessage(mc.Author.ID, reminderBody, ds)
-	return true
+	err := schedulerDS.addScheduledActionAfterDuration(timeToWait, mc.Author.ID, targetTypeUser, actionTypeReminder, reminderBody)
+	return err == nil
 }
 
 func answerRoll(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

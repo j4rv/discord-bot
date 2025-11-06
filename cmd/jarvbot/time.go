@@ -1,12 +1,11 @@
 package main
 
 import (
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/bwmarrin/discordgo"
 )
 
 var stringHoursRegex = regexp.MustCompile(`^(\d{1,2})h`)
@@ -15,20 +14,28 @@ var stringSecsRegex = regexp.MustCompile(`^(\d{1,2})s`)
 
 const secondsInADay = 60 * 60 * 24
 
-func removeRoleAfterDuration(ds *discordgo.Session, guildID string, memberID string, roleID string, duration time.Duration) {
-	go func() {
-		time.Sleep(duration)
-		err := ds.GuildMemberRoleRemove(guildID, memberID, roleID)
-		if err != nil {
-			if duration >= 24*time.Hour {
-				guild, _ := ds.Guild(guildID)
-				serverNotifyIfErr("removeRoleAfterDuration failed after many retries on guild "+guild.Name+" (id: "+guildID+")", err, guildID, ds)
-				return
-			}
-			// try again later
-			removeRoleAfterDuration(ds, guildID, memberID, roleID, duration*2)
+// only for Shadow Realm role, does not allow duplicates
+func removeShadowRealmRoleAfterDuration(guildID, memberID, roleID string, duration time.Duration) {
+	data := guildID + ";" + roleID
+	currentCooldowns, _ := schedulerDS.getScheduledActionsByTargetIDAndActionTypeAndActionData(
+		memberID, actionTypeRemoveRole, data,
+	)
+	newTime := time.Now().UTC().Add(duration)
+
+	// If there exists a longer cooldown, just return
+	for _, o := range currentCooldowns {
+		if o.ScheduledFor.After(newTime) {
+			return
 		}
-	}()
+	}
+
+	if err := schedulerDS.addScheduledAction(newTime, memberID, targetTypeUser, actionTypeRemoveRole, data); err != nil {
+		log.Printf("addScheduledAction failed: %v", err)
+		return
+	}
+	for _, o := range currentCooldowns {
+		_ = schedulerDS.removeScheduledAction(o.ID)
+	}
 }
 
 var usersOnExpensiveOperationCooldown = make(map[string]struct{})
@@ -67,6 +74,17 @@ func processTimedCommand(commandBody string) (time.Duration, string) {
 	result += time.Duration(n) * time.Second
 
 	return result, commandBody
+}
+
+func stringToDuration(s string) time.Duration {
+	var result time.Duration
+	n, s := extractTimeUnit(s, stringHoursRegex)
+	result += time.Duration(n) * time.Hour
+	n, s = extractTimeUnit(s, stringMinsRegex)
+	result += time.Duration(n) * time.Minute
+	n, _ = extractTimeUnit(s, stringSecsRegex)
+	result += time.Duration(n) * time.Second
+	return result
 }
 
 // From a string like "5m blablabla", uses the regexp provided (for example, stringMinsRegex)

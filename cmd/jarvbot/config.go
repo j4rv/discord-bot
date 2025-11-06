@@ -43,15 +43,32 @@ const serverPropNo = "N"
 
 const defaultTimeoutRoleName = "Shadow Realm"
 const shootMisfireChance = 0.2
-const nuclearCatastropheChance = 0.006
-const nuclearCatastropheRandomCommandChance = 0.001
-const nuclearCatastropheDeathRatio = 0.01
-const nuclearCatastropheMinDeaths = 5
-const nuclearCatastropheMaxDeaths = 20
-const nuclearCatastropheResponse = "https://c.tenor.com/fxSZIUDpQIMAAAAC/explosion-nichijou.gif"
 const timeoutDurationWhenShot = 4 * time.Minute
 const timeoutDurationWhenMisfire = 8 * time.Minute
 const timeoutDurationWhenNuclearCatastrophe = 2 * time.Minute
+const nuclearCatastropheChance = 0.006
+const nuclearCatastropheRandomCommandChance = 0.001
+const nuclearCatastropheMinDeaths = 5
+const nuclearCatastropheMaxDeaths = 20
+const nuclearCatastropheResponse = "https://c.tenor.com/fxSZIUDpQIMAAAAC/explosion-nichijou.gif"
+
+const actionSchedulerInterval = 5 * time.Second
+const actionSchedulerMaxBatch = 500
+const actionReminderMaxPerUser = 10
+const actionTypeMessage = "MESSAGE"
+const actionTypeReminder = "REMINDER"
+const actionTypeRemoveRole = "REMOVE_ROLE"
+const targetTypeUser = "USER"
+const targetTypeChannel = "CHANNEL"
+
+const minesMaxSetsPerGuild = 10
+const minesMaxAmount = 50
+const minesMaxDurationSeconds = 24 * 60 * 60
+const minesMinChance = 0.0001
+const minesMaxChance = 0.5
+const minesMaxCustomMessageLength = 250
+const minesNukeChance = 0.005
+const minesNukeResponse = "https://tenor.com/e7oFJluWQlO.gif"
 
 const backupCRON = "0 0 * * 1"
 const dailyCheckInReminderCRON = "CRON_TZ=Asia/Shanghai 0 0 * * *"

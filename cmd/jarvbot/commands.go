@@ -122,7 +122,7 @@ var commands = map[string]command{
 	"!commandstats":         guildOnly(modOnly(answerCommandStats)),
 	"!placemines":           guildOnly(modOnly(answerPlaceMines)),
 	"!checkmines":           guildOnly(modOnly(answerCheckMines)),
-	"!removechannelmines":   guildOnly(modOnly(answerRemoveChannelMines)),
+	"!removemines":          guildOnly(modOnly(answerRemoveMines)),
 	"!removeservermines":    guildOnly(modOnly(answerRemoveGuildMines)),
 	// only available for the bot owner
 	//"!setserverprop":       adminOnly(answerSetServerProp),

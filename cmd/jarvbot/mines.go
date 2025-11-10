@@ -60,8 +60,7 @@ func answerPlaceMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 		return false
 	}
 
-	if !channelBelongsToGuild(ds, input.Where, mc.GuildID) {
-		//if !channelBelongsToGuild(ds, input.Where, mc.GuildID) && mc.Author.ID != adminID {
+	if !channelBelongsToGuild(ds, input.Where, mc.GuildID) && mc.Author.ID != adminID {
 		ds.ChannelMessageSend(mc.ChannelID, "Good try, but that channel doesn't belong to this Server. The Discord Police is on its way.")
 		return false
 	}
@@ -127,7 +126,7 @@ func answerCheckMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 	return true
 }
 
-func answerRemoveChannelMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+func answerRemoveMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	fields := strings.Fields(mc.Content)
 	if len(fields) == 1 {
 		return false

@@ -491,7 +491,8 @@ func (s serverDataStore) getMinesByGuildAndChannel(guildID, channelID string) ([
 	err := s.db.Select(&mines, `
 		SELECT Mines, GuildID, ChannelID, Amount, Probability, DurationSeconds, CreatedAt, CustomMessage
 		FROM Mines
-		WHERE ChannelID = ? OR (GuildID = ? AND ChannelID = '')`,
+		WHERE ChannelID = ? OR (GuildID = ? AND ChannelID = '')
+		ORDER BY Probability ASC`,
 		channelID, guildID,
 	)
 	if err != nil {

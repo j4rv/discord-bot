@@ -64,10 +64,10 @@ const targetTypeChannel = "CHANNEL"
 const minesMaxSetsPerGuild = 10
 const minesMaxAmount = 50
 const minesMaxDurationSeconds = 24 * 60 * 60
-const minesMinChance = 0.0001
-const minesMaxChance = 0.5
-const minesMaxCustomMessageLength = 250
-const minesNukeChance = 0.005
+const minesMinChance = 0.000001
+const minesMaxChance = 0.1
+const minesMaxCustomMessageLength = 256
+const minesNukeChance = 0.006
 const minesNukeResponse = "https://tenor.com/e7oFJluWQlO.gif"
 
 const backupCRON = "0 0 * * 1"

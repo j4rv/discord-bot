@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -104,6 +105,78 @@ func (u UserWarning) ShortString() string {
 }
 
 // Command Answers
+
+func answerAddMod(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	match := commandWithMention.FindStringSubmatch(mc.Content)
+	if match == nil || len(match) != 2 {
+		ds.ChannelMessageSend(mc.ChannelID, commandWithMentionError)
+		return false
+	}
+
+	current, _ := serverDS.GetListProperty(mc.GuildID, serverPropMods, serverPropListSeparator)
+	if len(current) >= maxServerUserMods {
+		ds.ChannelMessageSend(mc.ChannelID, "Too many server mods!, please clean up before adding more :3")
+		return false
+	}
+
+	err := serverDS.AddToListProperty(mc.GuildID, serverPropMods, match[1], serverPropListSeparator)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not add the mod: "+err.Error())
+		return false
+	}
+	ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
+	return true
+}
+
+func answerRemoveMod(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	match := commandWithMention.FindStringSubmatch(mc.Content)
+	if match == nil || len(match) != 2 {
+		ds.ChannelMessageSend(mc.ChannelID, commandWithMentionError)
+		return false
+	}
+	targetID := match[1]
+
+	isMod, err := serverDS.ListPropertyContains(mc.GuildID, serverPropMods, targetID, serverPropListSeparator)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not check if that user is a mod: "+err.Error())
+		return false
+	}
+	if !isMod {
+		ds.ChannelMessageSend(mc.ChannelID, "That user is not a mod :3")
+		return false
+	}
+
+	err = serverDS.RemoveFromListProperty(mc.GuildID, serverPropMods, targetID, serverPropListSeparator)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Could not remove the mod: "+err.Error())
+		return false
+	}
+
+	ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
+	return true
+}
+
+func answerCheckMods(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	current, err := serverDS.GetListProperty(mc.GuildID, serverPropMods, serverPropListSeparator)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Error reading mod list: "+err.Error())
+		return false
+	}
+
+	if len(current) == 0 {
+		ds.ChannelMessageSend(mc.ChannelID, "No mods configured! Only users with the 'Administrator' role can configure me here :3c")
+		return true
+	}
+
+	var b strings.Builder
+	b.WriteString("Configured Server Mods:\n")
+	for _, id := range current {
+		b.WriteString("<@" + id + ">\n")
+	}
+	b.WriteString("And any user with the 'Administrator' Discord Server permission.\n")
+	ds.ChannelMessageSend(mc.ChannelID, b.String())
+	return true
+}
 
 func answerRoleIDs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	roles, err := ds.GuildRoles(mc.GuildID)

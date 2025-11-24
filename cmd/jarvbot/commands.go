@@ -76,7 +76,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.10.0"),
+	"!version":                   simpleTextResponse("v3.10.1"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -101,6 +101,9 @@ var commands = map[string]command{
 	"!don":          notSpammable(answerDon),
 	"!sniper_shoot": notSpammable(answerSniperShoot),
 	// only available for discord mods
+	"!addmod":               guildOnly(modOnly(answerAddMod)),
+	"!removemod":            guildOnly(modOnly(answerRemoveMod)),
+	"!checkmods":            guildOnly(modOnly(answerCheckMods)),
 	"!roleids":              guildOnly(modOnly(answerRoleIDs)),
 	"!react4roles":          guildOnly(modOnly(answerMakeReact4RolesMsg)),
 	"!addcommand":           guildOnly(modOnly(answerAddCommand)),

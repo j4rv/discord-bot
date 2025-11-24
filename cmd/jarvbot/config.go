@@ -18,6 +18,7 @@ var warnMessageMinLength = 1
 var warnMessageMaxLength = 320
 var discordMessageMaxLength = 1900
 var commandKeyMaxLength = 32
+var maxServerUserMods = 15
 
 const avatarTargetSize = "1024"
 
@@ -32,6 +33,7 @@ const colorBlue = 0x5865F2
 const colorYellow = 0xFEE75C
 const colorRed = 0xED4245
 
+const serverPropListSeparator = ";"
 const serverPropCustomTimeoutRoleName = "custom_timeout_role_name"
 const serverPropErrorsHere = "errors_here"
 const serverPropAnnounceHere = "announce_here"
@@ -40,6 +42,7 @@ const serverPropFixBadEmbedLinks = "fix_twitter_links"
 const serverPropMaxSimpleCommands = "max_simple_commands"
 const serverPropYes = "Y"
 const serverPropNo = "N"
+const serverPropMods = "mod_user_ids"
 
 const defaultTimeoutRoleName = "Shadow Realm"
 const shootMisfireChance = 0.2

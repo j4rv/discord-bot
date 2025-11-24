@@ -108,11 +108,11 @@ func answerCheckMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 
 		if m.ChannelID == "" {
 			fmt.Fprintf(&b,
-				"ID: %d, %d mines in this server with %.2f%% chance of exploding.",
+				"ID: %d, %d mines in this server with %.4f%% chance of exploding.",
 				m.ID, m.Amount, percent)
 		} else {
 			fmt.Fprintf(&b,
-				"ID: %d, %d mines in channel <#%s> with %.2f%% chance of exploding.",
+				"ID: %d, %d mines in channel <#%s> with %.4f%% chance of exploding.",
 				m.ID, m.Amount, m.ChannelID, percent)
 		}
 

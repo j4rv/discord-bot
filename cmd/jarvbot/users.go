@@ -22,13 +22,28 @@ func isAdmin(userID string) bool {
 	return userID == adminID
 }
 
+// isMod first checks if the user has the "Administrator" permission,
+// if not, it checks if they are a Mod for the server in the bot's DB
 func isMod(ds *discordgo.Session, userID, channelID string) bool {
 	perms, err := ds.UserChannelPermissions(userID, channelID)
 	if err != nil {
 		adminNotifyIfErr(fmt.Sprintf("ERROR isMod failed for user %s in channel %s\n", userID, channelID), err, ds)
+	} else if perms&discordgo.PermissionAdministrator != 0 {
+		return true
+	}
+
+	channel, err := ds.Channel(channelID)
+	if channel == nil || err != nil {
+		adminNotifyIfErr(fmt.Sprintf("ERROR isMod failed when retrieving channel %s\n", channelID), err, ds)
 		return false
 	}
-	return perms&discordgo.PermissionAdministrator != 0
+
+	isMod, err := serverDS.ListPropertyContains(channel.GuildID, serverPropMods, userID, serverPropListSeparator)
+	if err != nil {
+		serverNotifyIfErr("Could not check if that user is a mod.", err, channel.GuildID, ds)
+		return false
+	}
+	return isMod
 }
 
 var userChannels = map[string]*discordgo.Channel{}
@@ -83,4 +98,3 @@ func activeChannelMembers(ds *discordgo.Session, channelID string, keepBots bool
 	}
 	return users, nil
 }
-

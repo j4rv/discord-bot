@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -447,6 +449,60 @@ func (s *serverDataStore) getServerProperties(propertyName string) ([]ServerProp
 	err := s.db.Select(&properties, `SELECT ServerID, PropertyName, PropertyValue FROM ServerProperties WHERE PropertyName = ?`,
 		propertyName)
 	return properties, err
+}
+
+func (s *serverDataStore) GetListProperty(serverID, propertyName, sep string) ([]string, error) {
+	raw, err := s.getServerProperty(serverID, propertyName)
+	if err == sql.ErrNoRows {
+		return []string{}, nil
+	}
+	if err != nil || raw == "" {
+		return []string{}, err
+	}
+	return strings.Split(raw, sep), nil
+}
+
+func (s *serverDataStore) SetListProperty(serverID, propertyName string, values []string, sep string) error {
+	joined := strings.Join(values, sep)
+	return s.setServerProperty(serverID, propertyName, joined)
+}
+
+func (s *serverDataStore) AddToListProperty(serverID, propertyName, newValue, sep string) error {
+	values, err := s.GetListProperty(serverID, propertyName, sep)
+
+	if err != nil {
+		return err
+	}
+	if slices.Contains(values, newValue) {
+		return nil
+	}
+
+	values = append(values, newValue)
+	return s.SetListProperty(serverID, propertyName, values, sep)
+}
+
+func (s *serverDataStore) RemoveFromListProperty(serverID, propertyName, removeValue, sep string) error {
+	values, err := s.GetListProperty(serverID, propertyName, sep)
+	if err != nil {
+		return err
+	}
+
+	newValues := make([]string, 0, len(values))
+	for _, v := range values {
+		if v != removeValue {
+			newValues = append(newValues, v)
+		}
+	}
+
+	return s.SetListProperty(serverID, propertyName, newValues, sep)
+}
+
+func (s *serverDataStore) ListPropertyContains(serverID, propertyName, checkValue, sep string) (bool, error) {
+	values, err := s.GetListProperty(serverID, propertyName, sep)
+	if err != nil {
+		return false, err
+	}
+	return slices.Contains(values, checkValue), nil
 }
 
 // server mines

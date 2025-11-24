@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"time"
 )
 
+var stringDaysRegex = regexp.MustCompile(`^(\d{1,2})d`)
 var stringHoursRegex = regexp.MustCompile(`^(\d{1,2})h`)
 var stringMinsRegex = regexp.MustCompile(`^(\d{1,2})m`)
 var stringSecsRegex = regexp.MustCompile(`^(\d{1,2})s`)
@@ -57,14 +59,17 @@ func userExecutedExpensiveOperation(userID string) {
 	}()
 }
 
-// Format: "!<command> 99h 99m 99s <body>"
+// Format: "!<command> 99d 99h 99m 99s <body>"
 // Returns: The duration and the body
 // TODO: Extract to an utilities library?
 func processTimedCommand(commandBody string) (time.Duration, string) {
 	var result time.Duration
 	commandBody = commandPrefixRegex.ReplaceAllString(commandBody, "")
 
-	n, commandBody := extractTimeUnit(commandBody, stringHoursRegex)
+	n, commandBody := extractTimeUnit(commandBody, stringDaysRegex)
+	result += time.Duration(n) * time.Hour * 24
+
+	n, commandBody = extractTimeUnit(commandBody, stringHoursRegex)
 	result += time.Duration(n) * time.Hour
 
 	n, commandBody = extractTimeUnit(commandBody, stringMinsRegex)
@@ -78,7 +83,9 @@ func processTimedCommand(commandBody string) (time.Duration, string) {
 
 func stringToDuration(s string) time.Duration {
 	var result time.Duration
-	n, s := extractTimeUnit(s, stringHoursRegex)
+	n, s := extractTimeUnit(s, stringDaysRegex)
+	result += time.Duration(n) * time.Hour * 24
+	n, s = extractTimeUnit(s, stringHoursRegex)
 	result += time.Duration(n) * time.Hour
 	n, s = extractTimeUnit(s, stringMinsRegex)
 	result += time.Duration(n) * time.Minute
@@ -103,4 +110,37 @@ func extractTimeUnit(s string, re *regexp.Regexp) (int, string) {
 
 func unixDay() int64 {
 	return time.Now().Unix() / secondsInADay
+}
+
+func humanDurationString(d time.Duration) string {
+	plural := func(n int) string {
+		if n == 1 {
+			return ""
+		}
+		return "s"
+	}
+
+	d = d.Round(time.Second)
+	seconds := int(d.Seconds())
+	days := seconds / 86400
+	seconds %= 86400
+	hours := seconds / 3600
+	seconds %= 3600
+	minutes := seconds / 60
+	seconds %= 60
+
+	parts := []string{}
+	if days > 0 {
+		parts = append(parts, fmt.Sprintf("%d day%s", days, plural(days)))
+	}
+	if hours > 0 {
+		parts = append(parts, fmt.Sprintf("%d hour%s", hours, plural(hours)))
+	}
+	if minutes > 0 {
+		parts = append(parts, fmt.Sprintf("%d minute%s", minutes, plural(minutes)))
+	}
+	if seconds > 0 {
+		parts = append(parts, fmt.Sprintf("%d second%s", seconds, plural(seconds)))
+	}
+	return strings.Join(parts, " ")
 }

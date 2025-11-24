@@ -270,7 +270,7 @@ func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	}
 
 	timeToWait, reminderBody := processTimedCommand(mc.Content)
-	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will remind you in %v with the message '%s'", timeToWait, reminderBody))
+	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will remind you in `%s` with the message ```\n%s```", humanDurationString(timeToWait), reminderBody))
 	err := schedulerDS.addScheduledActionAfterDuration(timeToWait, mc.Author.ID, targetTypeUser, actionTypeReminder, reminderBody)
 	return err == nil
 }

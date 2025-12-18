@@ -21,10 +21,10 @@ var mineTriggerMessages = []string{
 	"<user> triggered a mine.\nPress F to pay respects.",
 	"<user> stepped on a mine and didn't have enough Explosion Resistance.",
 	"<user> found a hidden mine! Sadly, it blew up when they picked it up.",
-	"<user> just won the Big Mine Lottery! Enjoy your (role) prize.",
-	"This channel was NOT safe. Goodbye <user>.",
+	"<user> just won the Big Mine Lottery! Enjoy your <role> prize.",
+	"This channel was NOT safe. <user> blew up, goodbye.",
 	"R.I.P. <user>\n\nSpoke at the wrong time and place.\n\n<joinyear> - <curryear>",
-	"Mine detected. Oh wait - too late for <user>.",
+	"Mine detected. Oh wait, too late for <user>.",
 	"!mineexplode <user>",
 	// Game references
 	"Rocketboo missed the Ethereal and hit <user> instead!",
@@ -35,7 +35,7 @@ var mineTriggerMessages = []string{
 type PlaceMinesQueryInput struct {
 	Where            string  `short:"w" long:"where" default:""`          // Channel id, or empty for whole guild
 	Guild            string  `short:"g" long:"guild" default:""`          // Guild id, for admin user
-	ChancePercentage float64 `short:"c" long:"chance" default:"5.0"`      // 5.0 = 5%
+	ChancePercentage float64 `short:"c" long:"chance" default:"1.0"`      // 5.0 = 5%
 	Amount           int     `short:"a" long:"amount" default:"10"`       // Amount of mines
 	Duration         string  `short:"d" long:"duration" default:"2m"`     // 99h99m99s
 	CustomMessage    string  `short:"m" long:"custom_message" default:""` // Custom message that replaces the default ones
@@ -48,7 +48,7 @@ func answerPlaceMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 		return false
 	}
 
-	if len(existing) >= minesMaxSetsPerGuild {
+	if len(existing) >= minesMaxSetsPerGuild && mc.Author.ID != adminID {
 		ds.ChannelMessageSend(mc.ChannelID, "You have too many mine sets in this server!")
 		return false
 	}
@@ -65,7 +65,7 @@ func answerPlaceMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 		return false
 	}
 
-	if len(input.CustomMessage) > minesMaxCustomMessageLength {
+	if len(input.CustomMessage) > minesMaxCustomMessageLength && mc.Author.ID != adminID {
 		ds.ChannelMessageSend(mc.ChannelID, "That custom message is too long.")
 		return false
 	}
@@ -90,8 +90,34 @@ func answerPlaceMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 	return true
 }
 
+type CheckMinesQueryInput struct {
+	Guild string `short:"g" long:"guild" default:""` // Guild id, for admin user
+}
+
 func answerCheckMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	mines, err := serverDS.getMinesByGuild(mc.GuildID)
+	var input CheckMinesQueryInput
+	err := parseCommandArgs(&input, mc.Content)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "Wrong format error: "+err.Error())
+		return false
+	}
+	var guildID string
+	var guildName string
+
+	if input.Guild != "" && mc.Author.ID == adminID {
+		guildID = input.Guild
+		guild, err := ds.Guild(guildID)
+		if err != nil {
+			ds.ChannelMessageSend(mc.ChannelID, "Could not find Guild: "+err.Error())
+			return false
+		}
+		guildName = guild.Name
+	} else {
+		guildID = mc.GuildID
+		guildName = "this server"
+	}
+
+	mines, err := serverDS.getMinesByGuild(guildID)
 	if err != nil {
 		adminNotifyIfErr("answerCheckMines", err, ds)
 		return false
@@ -108,8 +134,8 @@ func answerCheckMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 
 		if m.ChannelID == "" {
 			fmt.Fprintf(&b,
-				"ID: %d, %d mines in this server with %.4f%% chance of exploding.",
-				m.ID, m.Amount, percent)
+				"ID: %d, %d mines in %s with %.4f%% chance of exploding.",
+				m.ID, m.Amount, guildName, percent)
 		} else {
 			fmt.Fprintf(&b,
 				"ID: %d, %d mines in channel <#%s> with %.4f%% chance of exploding.",
@@ -191,7 +217,7 @@ func processMinesetTrigger(ds *discordgo.Session, mc *discordgo.MessageCreate, m
 	}
 
 	// Normal mine logic
-	message := buildMineMessage(mc, mineset)
+	message := buildMineMessage(ds, mc, mineset)
 	_, err = ds.ChannelMessageSend(mc.ChannelID, message)
 	serverNotifyIfErr("Mine message could not be sent", err, mc.GuildID, ds)
 	if err := ds.GuildMemberRoleAdd(mc.GuildID, mc.Author.ID, timeoutRole.ID); err == nil {
@@ -200,15 +226,21 @@ func processMinesetTrigger(ds *discordgo.Session, mc *discordgo.MessageCreate, m
 	}
 }
 
-func buildMineMessage(mc *discordgo.MessageCreate, mineset *MineSet) string {
+func buildMineMessage(ds *discordgo.Session, mc *discordgo.MessageCreate, mineset *MineSet) string {
 	var message string
 	if strings.TrimSpace(mineset.CustomMessage) != "" {
 		message = mineset.CustomMessage
 	} else {
 		message = rngx.Pick(mineTriggerMessages)
 	}
+	// cheap replacements
 	message = strings.Replace(message, "<user>", mc.Author.Mention(), 1)
 	message = strings.Replace(message, "<joinyear>", mc.Member.JoinedAt.Format("2006"), 1)
 	message = strings.Replace(message, "<curryear>", time.Now().Format("2006"), 1)
+	// more expensive replacements
+	if strings.Contains(message, "<role>") {
+		rolename := getTimeoutRoleName(ds, mc.GuildID)
+		message = strings.Replace(message, "<role>", rolename, 1)
+	}
 	return message
 }

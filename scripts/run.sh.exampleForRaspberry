@@ -8,5 +8,4 @@ export GOARCH=arm
 export GOARM=7
 export PATH=$PATH:/usr/local/go/bin
 
-cd /home/pi/discord-bot
 /home/pi/go/bin/jarvbot -token *********************************************************** -adminID ******************

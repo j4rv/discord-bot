@@ -138,6 +138,8 @@ var commands = map[string]command{
 	"!announce":            adminOnly(answerAnnounce),
 	"!dbbackup":            adminOnly(answerDbBackup),
 	"!runtimestats":        adminOnly(answerRuntimeStats),
+	"!sudoplacemines":      adminOnly(answerPlaceMines),
+	"!sudocheckmines":      adminOnly(answerCheckMines),
 	"!abort":               adminOnly(answerAbort),
 	"!reboot":              adminOnly(answerReboot),
 	"!shutdown":            adminOnly(answerShutdown),

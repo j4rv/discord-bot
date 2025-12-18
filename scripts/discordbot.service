@@ -1,0 +1,15 @@
+[Unit]
+Description=Discord bot
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+User=pi
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/home/pi/discord-bot/run.sh
+
+[Install]
+WantedBy=multi-user.target
+

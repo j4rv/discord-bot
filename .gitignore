@@ -5,3 +5,4 @@ run-development.bat
 *.exe
 /.vscode/*
 test.go
+/gitignored

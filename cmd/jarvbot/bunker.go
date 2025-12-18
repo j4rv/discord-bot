@@ -124,6 +124,14 @@ func getTimeoutRole(ds *discordgo.Session, guildID string) (*discordgo.Role, err
 	return guildRoleByName(ds, guildID, customRoleName)
 }
 
+func getTimeoutRoleName(ds *discordgo.Session, guildID string) string {
+	timeoutRole, err := getTimeoutRole(ds, guildID)
+	if err != nil {
+		return defaultTimeoutRoleName
+	}
+	return timeoutRole.Name
+}
+
 func setCustomTimeoutRole(ds *discordgo.Session, guildID string, roleName string) error {
 	return serverDS.setServerProperty(guildID, serverPropCustomTimeoutRoleName, roleName)
 }

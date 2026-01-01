@@ -90,6 +90,101 @@ var ppBodies = rngx.NewWeightedSlice(map[string]int{
 	"∻":   1,
 })
 
+var leftEmojis = rngx.NewWeightedSlice(map[string]int{
+	"":   400,
+	"😚":  1,
+	"😙":  1,
+	"🫣":  1,
+	"🫴":  1,
+	"🫳":  1,
+	"🤲":  1,
+	"🫶":  1,
+	"👌":  1,
+	"🤜":  1,
+	"🫸":  1,
+	"🙏":  1,
+	"🤌":  1,
+	"🗣":  1,
+	"👅":  1,
+	"👄":  1,
+	"💋":  1,
+	"👠":  1,
+	"🌬":  1,
+	"💨":  1,
+	"💧":  1,
+	"💦":  1,
+	"🥛":  1,
+	"✂️": 1,
+	"🔍":  1,
+	"🧴":  1,
+	"🔪":  1,
+	"💯":  1,
+	"🫟":  1,
+	"📸":  1,
+	"🍴":  1,
+})
+
+var rightEmojis = rngx.NewWeightedSlice(map[string]int{
+	"":   400,
+	"🫣":  1,
+	"🤏":  1,
+	"🤲":  1,
+	"🫶":  1,
+	"👌":  1,
+	"👏":  1,
+	"🤛":  1,
+	"🫷":  1,
+	"👋":  1,
+	"🙏":  1,
+	"👀":  1,
+	"👅":  1,
+	"👄":  1,
+	"💋":  1,
+	"👠":  1,
+	"💧":  1,
+	"💦":  1,
+	"🥛":  1,
+	"✂️": 1,
+	"🔍":  1,
+	"🧴":  1,
+	"🔨":  1,
+	"💯":  1,
+	"🫟":  1,
+	"❗️": 1,
+	"❓":  1,
+	"‼️": 1,
+	"⁉️": 1,
+	"💤":  1,
+	"❤️": 1,
+	"💕":  1,
+	"💔":  1,
+	"🛐":  1,
+	"™️": 1,
+	"©️": 1,
+	"®️": 1,
+	"📸":  1,
+})
+
+var bodyEmojis = rngx.NewWeightedSlice(map[string]int{
+	"":   400,
+	"💍":  1,
+	"👋":  1,
+	"✋":  1,
+	"✊":  1,
+	"👊":  1,
+	"🦶":  1,
+	"👠":  1,
+	"🥇":  1,
+	"🥈":  1,
+	"🥉":  1,
+	"🎖":  1,
+	"📌":  1,
+	"📍":  1,
+	"✂️": 1,
+	"🔪":  1,
+	"🔍":  1,
+})
+
 // 8╼╼╼╼╼D
 var bigDickAscii1 = `
 ⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠛⢉⢉⠉⠉⠻⣿⣿⣿⣿⣿⣿
@@ -228,12 +323,19 @@ func newPenisFacingLeft(rng *rand.Rand) string {
 	head := leftPPHeads.Random(rng)
 	body := ppBodies.Random(rng)
 	balls := leftPPBalls.Random(rng)
+	leftEmoji := leftEmojis.Random(rng)
+	bodyEmoji := bodyEmojis.Random(rng)
+	rightEmoji := rightEmojis.Random(rng)
 
-	penis := head
+	penis := leftEmoji + head
+	mid := length / 2
 	for i := 0; i < length; i++ {
+		if i == mid {
+			penis += bodyEmoji
+		}
 		penis += body
 	}
-	penis += balls
+	penis += balls + rightEmoji
 
 	return penis
 }
@@ -243,12 +345,19 @@ func newPenisFacingRight(rng *rand.Rand) string {
 	balls := rightPPBalls.Random(rng)
 	body := ppBodies.Random(rng)
 	head := rightPPHeads.Random(rng)
+	leftEmoji := leftEmojis.Random(rng)
+	bodyEmoji := bodyEmojis.Random(rng)
+	rightEmoji := rightEmojis.Random(rng)
 
-	penis := balls
+	penis := leftEmoji + balls
+	mid := length / 2
 	for i := 0; i < length; i++ {
+		if i == mid {
+			penis += bodyEmoji
+		}
 		penis += body
 	}
-	penis += head
+	penis += head + rightEmoji
 
 	return penis
 }

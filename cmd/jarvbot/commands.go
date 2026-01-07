@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/j4rv/discord-bot/pkg/eightball"
 	"github.com/j4rv/discord-bot/pkg/ppgen"
 )
 
@@ -61,8 +62,13 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 
 		// Process commands
 		if mc.Content[0] == '!' {
-			processCommand(ds, mc, mc.Content, ctx)
+			processCommand(ds, mc, ctx)
 			return
+		}
+
+		// Process Bot mentions
+		if strings.Contains(mc.Content, ds.State.User.Mention()) || strings.Contains(mc.Content, "@jrok") {
+			processBotMention(ds, mc, ctx)
 		}
 
 		// Twitter links replacement
@@ -76,7 +82,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.10.2"),
+	"!version":                   simpleTextResponse("v3.10.3"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -146,14 +152,14 @@ var commands = map[string]command{
 	"!abortshutdown":       adminOnly(answerAbortShutdown),
 }
 
-func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullCommand string, ctx context.Context) {
+func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("panic in processCommand: %s\n%s", r, string(debug.Stack()))
 		}
 	}()
 
-	commandKey := strings.TrimSpace(commandPrefixOptionalAsteriskRegex.FindString(fullCommand))
+	commandKey := strings.TrimSpace(commandPrefixOptionalAsteriskRegex.FindString(mc.Content))
 	lowercaseCommandKey := strings.ToLower(commandKey)
 	command, ok := commands[lowercaseCommandKey]
 
@@ -184,6 +190,18 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, fullComm
 		if notSpammable(simpleTextResponse(response))(ds, mc, ctx) {
 			onSuccessCommandCall(mc, commandKey)
 			log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
+		}
+	}
+}
+
+func processBotMention(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+	lowercaseContent := strings.ToLower(mc.Content)
+
+	// the user mentions the bot and seems to be asking a yes-no question: Respond with 8ball
+	for _, s := range []string{"real?", "true?", "false?", "correct?", "fake?", "ai?"} {
+		if strings.Contains(lowercaseContent, s) {
+			ds.ChannelMessageSend(mc.ChannelID, eightball.Response())
+			return
 		}
 	}
 }

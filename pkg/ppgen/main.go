@@ -115,6 +115,7 @@ var leftEmojis = rngx.NewWeightedSlice(map[string]int{
 	"💦":  1,
 	"🥛":  1,
 	"✂️": 1,
+	"🪒":  1,
 	"🔍":  1,
 	"🧴":  1,
 	"🔪":  1,
@@ -122,6 +123,7 @@ var leftEmojis = rngx.NewWeightedSlice(map[string]int{
 	"🫟":  1,
 	"📸":  1,
 	"🍴":  1,
+	"🍽️": 1,
 })
 
 var rightEmojis = rngx.NewWeightedSlice(map[string]int{
@@ -136,6 +138,7 @@ var rightEmojis = rngx.NewWeightedSlice(map[string]int{
 	"🫷":  1,
 	"👋":  1,
 	"🙏":  1,
+	"🫰":  1,
 	"👀":  1,
 	"👅":  1,
 	"👄":  1,
@@ -146,7 +149,6 @@ var rightEmojis = rngx.NewWeightedSlice(map[string]int{
 	"🥛":  1,
 	"✂️": 1,
 	"🔍":  1,
-	"🧴":  1,
 	"🔨":  1,
 	"💯":  1,
 	"🫟":  1,
@@ -182,7 +184,9 @@ var bodyEmojis = rngx.NewWeightedSlice(map[string]int{
 	"📍":  1,
 	"✂️": 1,
 	"🔪":  1,
+	"🗡️": 1,
 	"🔍":  1,
+	"🚿":  1,
 })
 
 // 8╼╼╼╼╼D

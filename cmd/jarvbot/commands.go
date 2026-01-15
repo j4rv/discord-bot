@@ -197,13 +197,11 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 func processBotMention(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	lowercaseContent := strings.ToLower(mc.Content)
 
-	// the user mentions the bot and seems to be asking a yes-no question: Respond with 8ball
-	for _, s := range []string{"real?", "true?", "false?", "correct?", "fake?", "ai?"} {
-		if strings.Contains(lowercaseContent, s) {
-			ds.ChannelMessageSend(mc.ChannelID, eightball.Response())
-			return
-		}
+	if !strings.Contains(lowercaseContent, "?") {
+		return
 	}
+
+	ds.ChannelMessageSend(mc.ChannelID, eightball.Response())
 }
 
 // Checks if the message has the format !asdasd*. The "!" should have been checked previously

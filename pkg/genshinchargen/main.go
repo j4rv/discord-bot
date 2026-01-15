@@ -266,7 +266,7 @@ Model: %s %s.
 Kit: %s, scales with %s, %s but %s.
 Title: %s.
 Leaker Rating: %s.
-Best GCSim DPS: %.0f.`,
+GCSim DPS: %.0f.`,
 		c.name, c.rarity, c.element, c.region, c.weapon, c.adjective, c.model, c.role, c.scaling, c.strength, c.weakness, c.title, c.rating, c.gcsimDps)
 }
 
@@ -285,12 +285,12 @@ func NewChar(name string, seedSalt int64) GeneratedCharacter {
 	result.weakness = weaknesses.Random(rng)
 	result.adjective = visualAdjectives.Random(rng)
 	result.rating = rating.Random(rng)
-	result.gcsimDps = rng.Float64()*70000 + 30000
+	result.gcsimDps = rng.Float64()*70000 + 50000
 	rareDpsRng := rng.Float64()
 	if rareDpsRng < 0.05 {
-		result.gcsimDps -= 40000
+		result.gcsimDps -= 50000
 	} else if rareDpsRng > 0.95 {
-		result.gcsimDps += 40000
+		result.gcsimDps += 50000
 	}
 
 	if result.rarity == "5*" || result.rarity == "6*" || result.rarity == "7*" {

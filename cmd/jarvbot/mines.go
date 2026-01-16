@@ -163,13 +163,13 @@ func answerCheckMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 	}
 
 	// Headers
-	items := []string{"ID", "Channel", "Amount", "Chance", "Msg", "Trigger"}
+	items := []string{"ID", "Channel", "Amount", "Chance", "Timeout(s)", "Message", "Trigger"}
 	columnsAmount := len(items)
 
 	for _, m := range mines {
 		channel := m.ChannelID
 		if channel == "" {
-			channel = "global"
+			channel = "Global"
 		} else {
 			ch, _ := ds.Channel(channel)
 			if ch != nil {
@@ -179,10 +179,10 @@ func answerCheckMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 
 		// Tidying
 		chance := fmt.Sprintf("%.4f%%", m.Chance*100)
-		msg := truncateString(m.CustomMessage, 30)
+		msg := truncateString(m.CustomMessage, 50)
 		trigger := truncateString(m.TriggerText, 20)
 
-		items = append(items, fmt.Sprint(m.ID), channel, fmt.Sprint(m.Amount), chance, msg, trigger)
+		items = append(items, fmt.Sprint(m.ID), channel, fmt.Sprint(m.Amount), chance, fmt.Sprint(m.DurationSeconds), msg, trigger)
 	}
 
 	table := formatInColumns(items, columnsAmount, true)

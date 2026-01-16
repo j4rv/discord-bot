@@ -288,7 +288,7 @@ func NewChar(name string, seedSalt int64) GeneratedCharacter {
 	result.gcsimDps = rng.Float64()*70000 + 50000
 	rareDpsRng := rng.Float64()
 	if rareDpsRng < 0.05 {
-		result.gcsimDps -= 50000
+		result.gcsimDps -= 60000
 	} else if rareDpsRng > 0.95 {
 		result.gcsimDps += 50000
 	}

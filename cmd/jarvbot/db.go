@@ -155,7 +155,8 @@ func createTableMines(db *sqlx.DB) {
 		"Amount INTEGER NOT NULL",
 		"Probability REAL NOT NULL",
 		"DurationSeconds INTEGER NOT NULL",
-		"CustomMessage TEXT CHECK (length(CustomMessage) <= 200)",
+		"CustomMessage TEXT CHECK (length(CustomMessage) <= 500)",
+		"TriggerText TEXT NOT NULL COLLATE NOCASE CHECK (length(TriggerText) <= 500)",
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
 	}, db)
 	createIndex("Mines", "GuildID", db)
@@ -515,14 +516,16 @@ type MineSet struct {
 	Chance          float64   `db:"Probability"`
 	DurationSeconds int       `db:"DurationSeconds"`
 	CustomMessage   string    `db:"CustomMessage"`
+	TriggerText     string    `db:"TriggerText"`
 	CreatedAt       time.Time `db:"CreatedAt"`
 }
 
-func (s serverDataStore) addMines(guildID, channelID string, amount int, probability float64, durationSeconds int, customMessage string) error {
+func (s serverDataStore) addMines(guildID, channelID string, amount int, probability float64, durationSeconds int, customMessage string, triggerText string) error {
+	lowerTriggerText := strings.ToLower(triggerText)
 	_, err := s.db.Exec(`
-		INSERT INTO Mines (GuildID, ChannelID, Amount, Probability, DurationSeconds, CustomMessage)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		guildID, channelID, amount, probability, durationSeconds, customMessage,
+		INSERT INTO Mines (GuildID, ChannelID, Amount, Probability, DurationSeconds, CustomMessage, TriggerText)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		guildID, channelID, amount, probability, durationSeconds, customMessage, lowerTriggerText,
 	)
 	return err
 }
@@ -530,7 +533,7 @@ func (s serverDataStore) addMines(guildID, channelID string, amount int, probabi
 func (s serverDataStore) getMinesByGuild(guildID string) ([]MineSet, error) {
 	var mines []MineSet
 	err := s.db.Select(&mines, `
-		SELECT Mines, GuildID, ChannelID, Amount, Probability, DurationSeconds, CreatedAt, CustomMessage
+		SELECT Mines, GuildID, ChannelID, Amount, Probability, DurationSeconds, CreatedAt, CustomMessage, TriggerText
 		FROM Mines
 		WHERE GuildID = ?
 		ORDER BY CreatedAt ASC`,
@@ -545,10 +548,9 @@ func (s serverDataStore) getMinesByGuild(guildID string) ([]MineSet, error) {
 func (s serverDataStore) getMinesByGuildAndChannel(guildID, channelID string) ([]MineSet, error) {
 	var mines []MineSet
 	err := s.db.Select(&mines, `
-		SELECT Mines, GuildID, ChannelID, Amount, Probability, DurationSeconds, CreatedAt, CustomMessage
+		SELECT Mines, GuildID, ChannelID, Amount, Probability, DurationSeconds, CreatedAt, CustomMessage, TriggerText
 		FROM Mines
-		WHERE ChannelID = ? OR (GuildID = ? AND ChannelID = '')
-		ORDER BY Probability ASC`,
+		WHERE ChannelID = ? OR (GuildID = ? AND ChannelID = '')`,
 		channelID, guildID,
 	)
 	if err != nil {
@@ -689,6 +691,8 @@ func (s dbMaintenanceService) analyze() error {
 
 // methods for repetitive stuff
 
+// Not using ID as the name for the id column
+// https://stackoverflow.com/a/7504177
 func createTable(table string, columns []string, db *sqlx.DB) {
 	if len(columns) == 0 {
 		panic("createTable method is for tables with at least one column")

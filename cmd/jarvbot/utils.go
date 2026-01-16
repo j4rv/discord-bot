@@ -32,14 +32,27 @@ func parseCommandArgs(opts any, input string) error {
 	return err
 }
 
-func formatInColumns(items []string, columns int) string {
+// if leftToRight is false, it will make the table topToBottom
+func formatInColumns(items []string, columns int, leftToRight bool) string {
+	if columns <= 0 {
+		return ""
+	}
+
 	rows := (len(items) + columns - 1) / columns // ceiling division
 
-	// Arrange items into columns
 	colData := make([][]string, columns)
-	for i := 0; i < len(items); i++ {
-		col := i / rows
-		colData[col] = append(colData[col], items[i])
+	if leftToRight {
+		// Fill row by row (left to right)
+		for i, item := range items {
+			col := i % columns
+			colData[col] = append(colData[col], item)
+		}
+	} else {
+		// Fill column by column (top to bottom)
+		for i, item := range items {
+			col := i / rows
+			colData[col] = append(colData[col], item)
+		}
 	}
 
 	// Determine max width for each column
@@ -65,6 +78,13 @@ func formatInColumns(items []string, columns int) string {
 	}
 
 	return builder.String()
+}
+
+func truncateString(s string, n int) string {
+	if len(s) > n {
+		return s[:n] + "…"
+	}
+	return s
 }
 
 var badEmbedDomainReplacements = map[*regexp.Regexp]string{

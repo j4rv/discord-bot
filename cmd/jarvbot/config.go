@@ -70,6 +70,7 @@ const minesMaxDurationSeconds = 24 * 60 * 60
 const minesMinChance = 0.000001
 const minesMaxChance = 1.0
 const minesMaxCustomMessageLength = 200
+const minesMaxTriggerTextLength = 60
 const minesNukeChance = 0.006
 const minesNukeResponse = "https://tenor.com/e7oFJluWQlO.gif"
 

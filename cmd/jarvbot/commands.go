@@ -753,7 +753,7 @@ func genericListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, onl
 	keys, err := commandDS.paginatedSimpleCommandKeys(guildId, includeGlobal, input.Page, 50, input.Query)
 	serverNotifyIfErr("answerListCommands::"+responseTitle, err, mc.GuildID, ds)
 	if len(keys) != 0 {
-		tableStr := formatInColumns(keys, 2)
+		tableStr := formatInColumns(keys, 2, false)
 		ds.ChannelMessageSendEmbed(mc.ChannelID, &discordgo.MessageEmbed{
 			Title:       responseTitle + " - Page " + strconv.Itoa(input.Page),
 			Description: "```" + tableStr + "```",

@@ -11,6 +11,8 @@ github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510/go.mod h1:pupxD2MaaD3
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
+github.com/heathcliff26/go-minesweeper v0.9.6 h1:r1b8DnGCqOpe/ZHYiqmQ4tTEBfj1QiOdg5ZvbsB54rk=
+github.com/heathcliff26/go-minesweeper v0.9.6/go.mod h1:7xHYjPlOz/K6wiPTnTrZ3ZocjSE0OYOmnFZAmcKfxus=
 github.com/j4rv/genshinartis v0.0.0-20240510155157-e4a2078f376f h1:Qkb60dXQpQFebxNxWsebOsyZ39JJzq/1B0vWO8IvPwI=
 github.com/j4rv/genshinartis v0.0.0-20240510155157-e4a2078f376f/go.mod h1:6XYkTXc4nhiZmc3caNnjmE8TaWLAwKtRXiK/VdTAuUI=
 github.com/j4rv/rollssim v0.0.0-20240816172414-ef8ab34e52a8 h1:UObrMf/hmM55QchJRbN3X7sXjC4xwmy2i3ewaFjH6GQ=

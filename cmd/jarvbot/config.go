@@ -20,10 +20,11 @@ var discordMessageMaxLength = 1900
 var commandKeyMaxLength = 32
 var maxServerUserMods = 15
 
+const discordMaxMessageLength = 2000
 const avatarTargetSize = "1024"
 
 const cleanStateMessagesCRON = "0 * * * *"
-const stateMessageMaxLifetime = 24 * time.Hour
+const stateMessageMaxLifetime = 7 * 24 * time.Hour
 const maxMessageCount = 100
 const expensiveOperationCooldown = 15 * time.Second
 const commandCooldown = time.Minute * 15

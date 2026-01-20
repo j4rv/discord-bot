@@ -161,9 +161,6 @@ func createTableMines(db *sqlx.DB) {
 	}, db)
 	createIndex("Mines", "GuildID", db)
 	createIndex("Mines", "ChannelID", db)
-	createTrigger("delete_empty_mines",
-		"Mines", "AFTER UPDATE", "NEW.Amount <= 0",
-		"DELETE FROM Mines WHERE Mines = NEW.Mines;", db)
 }
 
 // commands
@@ -559,12 +556,27 @@ func (s serverDataStore) getMinesByGuildAndChannel(guildID, channelID string) ([
 	return mines, nil
 }
 
-func (s serverDataStore) decrementMines(id, decrementAmount int) error {
+func (s serverDataStore) decrementMines(id, currentAmount, decrementAmount int) error {
+	if currentAmount-decrementAmount <= 0 {
+		return s.removeMines(id)
+	}
 	_, err := s.db.Exec(`UPDATE Mines SET Amount = Amount - ? WHERE Mines = ?`, decrementAmount, id)
 	return err
 }
 
-func (s serverDataStore) removeMines(id int, guildID string) error {
+func (s serverDataStore) removeMines(id int) error {
+	res, err := s.db.Exec(`DELETE FROM Mines WHERE Mines = ?`, id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err == nil && rowsAffected == 0 {
+		return errZeroRowsAffected
+	}
+	return nil
+}
+
+func (s serverDataStore) removeGuildMines(id int, guildID string) error {
 	res, err := s.db.Exec(`DELETE FROM Mines WHERE Mines = ? AND GuildID = ?`, id, guildID)
 	if err != nil {
 		return err
@@ -576,7 +588,7 @@ func (s serverDataStore) removeMines(id int, guildID string) error {
 	return nil
 }
 
-func (s serverDataStore) removeGuildMines(guildID string) error {
+func (s serverDataStore) removeAllGuildMines(guildID string) error {
 	res, err := s.db.Exec(`DELETE FROM Mines WHERE GuildID = ?`, guildID)
 	if err != nil {
 		return err

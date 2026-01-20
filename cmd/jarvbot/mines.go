@@ -202,7 +202,7 @@ func answerRemoveMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 		return false
 	}
 
-	err = serverDS.removeMines(minesetID, mc.GuildID)
+	err = serverDS.removeGuildMines(minesetID, mc.GuildID)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Error: "+err.Error())
 		return false
@@ -213,7 +213,7 @@ func answerRemoveMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 }
 
 func answerRemoveGuildMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	err := serverDS.removeGuildMines(mc.GuildID)
+	err := serverDS.removeAllGuildMines(mc.GuildID)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Error: "+err.Error())
 		return false
@@ -230,12 +230,13 @@ func newMessageMineCheck(ds *discordgo.Session, mc *discordgo.MessageCreate) {
 
 	// Shuffle the sets, to make multiple mine set with similar chances have a similar chance to explode
 	rand.Shuffle(len(minesets), func(i, j int) { minesets[i], minesets[j] = minesets[j], minesets[i] })
+	luck := rand.Float64()
 
 	// Trigger text explosions
 	lowerContent := strings.ToLower(mc.Content)
 	for _, mineset := range minesets {
-		if mineset.TriggerText != "" && strings.Contains(lowerContent, mineset.TriggerText) {
-			err = serverDS.decrementMines(mineset.ID, 1)
+		if mineset.TriggerText != "" && strings.Contains(lowerContent, mineset.TriggerText) && luck <= mineset.Chance {
+			err = serverDS.decrementMines(mineset.ID, mineset.Amount, 1)
 			adminNotifyIfErr("decrementMines", err, ds)
 			processMinesetTrigger(ds, mc, &mineset)
 			return
@@ -243,10 +244,9 @@ func newMessageMineCheck(ds *discordgo.Session, mc *discordgo.MessageCreate) {
 	}
 
 	// Random explosions
-	luck := rand.Float64()
 	for _, mineset := range minesets {
-		if luck <= mineset.Chance {
-			err = serverDS.decrementMines(mineset.ID, 1)
+		if mineset.TriggerText == "" && luck <= mineset.Chance {
+			err = serverDS.decrementMines(mineset.ID, mineset.Amount, 1)
 			adminNotifyIfErr("decrementMines", err, ds)
 			processMinesetTrigger(ds, mc, &mineset)
 			return
@@ -265,7 +265,7 @@ func processMinesetTrigger(ds *discordgo.Session, mc *discordgo.MessageCreate, m
 	nukeLuck := rand.Float64()
 	if nukeLuck <= minesNukeChance {
 		handleNuke(ds, mc.ChannelID, mc.GuildID, timeoutRole.ID, minesNukeResponse)
-		err = serverDS.decrementMines(mineset.ID, 4)
+		err = serverDS.decrementMines(mineset.ID, mineset.Amount, 4)
 		adminNotifyIfErr("decrementMines", err, ds)
 		return
 	}

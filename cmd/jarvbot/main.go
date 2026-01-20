@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"net/http"
 	_ "net/http/pprof"
 
 	"github.com/bwmarrin/discordgo"
@@ -24,15 +23,13 @@ var adminID string
 var backupPassword string
 var noSlashCommands bool
 
-const discordMaxMessageLength = 2000
-
 var abortChannel chan os.Signal
 
 func main() {
 	// for pprof
-	go func() {
-		log.Println(http.ListenAndServe("127.0.0.1:6060", nil))
-	}()
+	// go func() {
+	// 	   log.Println(http.ListenAndServe("127.0.0.1:6060", nil))
+	// }()
 
 	initFlags()
 	initDB()
@@ -50,7 +47,7 @@ func main() {
 	log.Println("Press Ctrl+C to exit")
 	<-abortChannel
 
-	if !noSlashCommands {
+	if removeSlashCommands != nil {
 		removeSlashCommands()
 	}
 	ds.Close()

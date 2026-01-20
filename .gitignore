@@ -6,3 +6,4 @@ run-development.bat
 /.vscode/*
 test.go
 /gitignored
+/.gitignored

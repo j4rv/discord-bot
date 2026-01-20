@@ -196,11 +196,9 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 
 func processBotMention(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	lowercaseContent := strings.ToLower(mc.Content)
-
 	if !strings.Contains(lowercaseContent, "?") {
 		return
 	}
-
 	ds.ChannelMessageSend(mc.ChannelID, eightball.Response())
 }
 
@@ -840,7 +838,7 @@ func guildOnly(wrapped command) command {
 
 func notSpammable(wrapped command) command {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-		if !isAdmin(mc.Author.ID) {
+		if !isMod(ds, mc.Author.ID, mc.ChannelID) {
 			channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
 			adminNotifyIfErr("notSpammable::isChannelSpammable", err, ds)
 			if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {

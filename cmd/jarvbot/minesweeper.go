@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"math/rand/v2"
+	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -21,7 +22,7 @@ var minesweeperDifficulty = minesweeper.Difficulty{
 	Name:  "JarvBot",
 	Row:   8,
 	Col:   13,
-	Mines: 25,
+	Mines: 20,
 }
 
 // MarkdownMinesweeperBoard Makes a solvable game board with a 3x3 safe area
@@ -64,6 +65,7 @@ func MarkdownMinesweeperBoard() string {
 		}
 		str.WriteRune('\n')
 	}
+	str.WriteString("Total mines: " + strconv.Itoa(minesweeperDifficulty.Mines))
 
 	return str.String()
 }

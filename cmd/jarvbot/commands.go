@@ -42,8 +42,8 @@ var messageLinkFixToOgAuthorId = map[*discordgo.Message]string{}
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool
 
 type paginatedQueryInput struct {
-	Page  int    `short:"p" long:"page" default:"1"`
-	Query string `short:"q" long:"query"`
+	Page  int    `short:"p" long:"page" default:"1" description:"Page index, starting at 1."`
+	Query string `short:"q" long:"query" description:"Only show commands that contain this text in its name."`
 }
 
 func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
@@ -470,9 +470,8 @@ func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 
 func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	var input paginatedQueryInput
-	err := parseCommandArgs(&input, mc.Content)
-	if err != nil {
-		serverNotifyIfErr("answerCommandStats: parseCommandArgs", err, mc.GuildID, ds)
+	if err := parseCommandArgs(&input, mc.Content); err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, err.Error())
 		return false
 	}
 
@@ -739,9 +738,8 @@ func answerRuntimeStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 
 func genericListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, onlyGlobal, includeGlobal bool, responseTitle string) bool {
 	var input paginatedQueryInput
-	err := parseCommandArgs(&input, mc.Content)
-	if err != nil {
-		serverNotifyIfErr("genericListCommands: parseCommandArgs", err, mc.GuildID, ds)
+	if err := parseCommandArgs(&input, mc.Content); err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, err.Error())
 		return false
 	}
 

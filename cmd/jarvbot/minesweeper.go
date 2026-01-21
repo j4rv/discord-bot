@@ -10,29 +10,38 @@ import (
 	"github.com/heathcliff26/go-minesweeper/pkg/minesweeper"
 )
 
-func answerMinesweeper(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	_, err := ds.ChannelMessageSend(mc.ChannelID, MarkdownMinesweeperBoard())
-	return err == nil
-}
-
-var minesweeperNumberCell = []string{"⬜", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"}
+var minesweeperNumberCell = []string{"🟦", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"}
 var minesweeperMine = "💥"
 
-var minesweeperDifficulty = minesweeper.Difficulty{
-	Name:  "JarvBot",
-	Row:   8,
-	Col:   13,
-	Mines: 20,
+type minesweeperInput struct {
+	MinesAmount int `short:"m" long:"mines" default:"20" description:"The amount of mines the board will have."`
+}
+
+func answerMinesweeper(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	var input minesweeperInput
+	if err := parseCommandArgs(&input, mc.Content); err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, err.Error())
+		return false
+	}
+	mines := min(input.MinesAmount, 30)
+	mines = max(mines, 5)
+	difficulty := minesweeper.Difficulty{
+		Row:   8,
+		Col:   13,
+		Mines: mines,
+	}
+	_, err := ds.ChannelMessageSend(mc.ChannelID, MarkdownMinesweeperBoard(difficulty))
+	return err == nil
 }
 
 // MarkdownMinesweeperBoard Makes a solvable game board with a 3x3 safe area
 // then clicks all the cells in the safe area
 // then transforms the board into a markdown where the unchecked cells are spoilered
-func MarkdownMinesweeperBoard() string {
+func MarkdownMinesweeperBoard(difficulty minesweeper.Difficulty) string {
 	var str strings.Builder
-	safeI := rand.IntN(minesweeperDifficulty.Row-2) + 1
-	safeJ := rand.IntN(minesweeperDifficulty.Col-2) + 1
-	game := minesweeper.NewGameSolvable(minesweeperDifficulty, minesweeper.NewPos(safeI, safeJ))
+	safeI := rand.IntN(difficulty.Row-2) + 1
+	safeJ := rand.IntN(difficulty.Col-2) + 1
+	game := minesweeper.NewGameSolvable(difficulty, minesweeper.NewPos(safeI, safeJ))
 	board := game.Field
 
 	isInSafeCenter3x3 := func(i, j int) bool {
@@ -65,7 +74,7 @@ func MarkdownMinesweeperBoard() string {
 		}
 		str.WriteRune('\n')
 	}
-	str.WriteString("Total mines: " + strconv.Itoa(minesweeperDifficulty.Mines))
+	str.WriteString("Total mines: " + strconv.Itoa(difficulty.Mines))
 
 	return str.String()
 }

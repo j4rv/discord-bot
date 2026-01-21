@@ -33,13 +33,13 @@ var mineTriggerMessages = []string{
 }
 
 type placeMinesQueryInput struct {
-	Where            string  `short:"w" long:"where" default:""`          // Channel id, or empty for whole guild
-	Guild            string  `short:"g" long:"guild" default:""`          // Guild id, for admin user
-	ChancePercentage float64 `short:"c" long:"chance" default:"1.0"`      // 5.0 = 5%
-	Amount           int     `short:"a" long:"amount" default:"10"`       // Amount of mines
-	Duration         string  `short:"d" long:"duration" default:"2m"`     // 99h99m99s
-	CustomMessage    string  `short:"m" long:"custom_message" default:""` // Custom message that replaces the default ones
-	TriggerText      string  `short:"t" long:"trigger_text" default:""`   // If set, the mines will only explode when the message contains that text
+	Where            string  `short:"w" long:"where" default:"" description:"Channel id, or empty for whole guild"`
+	Guild            string  `short:"g" long:"guild" default:"" description:"Guild id, for admin user"`
+	ChancePercentage float64 `short:"c" long:"chance" default:"1.0" description:"Explosion chance as a decimal number, 5.0 equals 5%"`
+	Amount           int     `short:"a" long:"amount" default:"10" description:"Amount of mines"`
+	Duration         string  `short:"d" long:"duration" default:"2m" description:"How long the 'timeout role' will last, format: 99h99m99s"`
+	CustomMessage    string  `short:"m" long:"custom_message" default:"" description:"Custom message that replaces the default ones"`
+	TriggerText      string  `short:"t" long:"trigger_text" default:"" description:"If set, the mines will only explode when the message contains that text"`
 }
 
 type validatedMineInput struct {
@@ -55,7 +55,7 @@ type validatedMineInput struct {
 func parseAndValidatePlaceMinesInput(ds *discordgo.Session, mc *discordgo.MessageCreate) (*validatedMineInput, string) {
 	var input placeMinesQueryInput
 	if err := parseCommandArgs(&input, mc.Content); err != nil {
-		return nil, "Wrong format error: " + err.Error()
+		return nil, err.Error()
 	}
 
 	existing, err := serverDS.getMinesByGuild(mc.GuildID)
@@ -82,13 +82,13 @@ func parseAndValidatePlaceMinesInput(ds *discordgo.Session, mc *discordgo.Messag
 	if input.Amount <= 0 {
 		return nil, "Mine amount must be greater than 0."
 	}
-	amount := minInt(input.Amount, minesMaxAmount)
+	amount := min(input.Amount, minesMaxAmount)
 
 	duration := int(stringToDuration(input.Duration).Seconds())
 	if duration < 0 {
 		return nil, "Duration must be positive."
 	}
-	duration = minInt(duration, minesMaxDurationSeconds)
+	duration = min(duration, minesMaxDurationSeconds)
 
 	guildID := mc.GuildID
 	if input.Guild != "" && mc.Author.ID == adminID {
@@ -140,7 +140,7 @@ type CheckMinesQueryInput struct {
 func answerCheckMines(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	var input CheckMinesQueryInput
 	if err := parseCommandArgs(&input, mc.Content); err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, "Wrong format error: "+err.Error())
+		ds.ChannelMessageSend(mc.ChannelID, err.Error())
 		return false
 	}
 

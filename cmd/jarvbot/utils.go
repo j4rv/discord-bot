@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -18,7 +19,8 @@ import (
 
 // ==================== STRINGS ====================
 
-func parseCommandArgs(opts any, input string) error {
+// If an error is returned, it will be wrapped in ``` because it will be shown to the user.
+func parseCommandArgs(data any, input string) error {
 	args, err := shlex.Split(input)
 	if err != nil {
 		return err
@@ -28,8 +30,11 @@ func parseCommandArgs(opts any, input string) error {
 		args = args[1:]
 	}
 
-	_, err = flags.ParseArgs(opts, args)
-	return err
+	parser := flags.NewParser(data, flags.HelpFlag|flags.PassDoubleDash)
+	if _, err = parser.ParseArgs(args); err != nil {
+		return errors.New("```\n" + err.Error() + "\n```")
+	}
+	return nil
 }
 
 // if leftToRight is false, it will make the table topToBottom
@@ -151,13 +156,6 @@ func cleanMessageContent(content string) string {
 
 func divideToFloat(a, b int) float64 {
 	return float64(a) / float64(b)
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // ==================== ROLES ====================

@@ -24,7 +24,7 @@ const discordMaxMessageLength = 2000
 const avatarTargetSize = "1024"
 
 const cleanStateMessagesCRON = "0 * * * *"
-const stateMessageMaxLifetime = 7 * 24 * time.Hour
+const stateMessageMaxLifetime = 2 * 24 * time.Hour
 const maxMessageCount = 100
 const expensiveOperationCooldown = 15 * time.Second
 const commandCooldown = time.Minute * 15
@@ -59,11 +59,14 @@ const nuclearCatastropheResponse = "https://c.tenor.com/fxSZIUDpQIMAAAAC/explosi
 const actionSchedulerInterval = 5 * time.Second
 const actionSchedulerMaxBatch = 500
 const actionReminderMaxPerUser = 10
+const actionFixedMessageAuthorTTL = 7 * 24 * time.Hour
 const actionTypeMessage = "MESSAGE"
 const actionTypeReminder = "REMINDER"
 const actionTypeRemoveRole = "REMOVE_ROLE"
+const actionTypeFixedMessageAuthor = "FIX_MSG_AUTHOR"
 const targetTypeUser = "USER"
 const targetTypeChannel = "CHANNEL"
+const targetTypeMessage = "MESSAGE"
 
 const minesMaxSetsPerGuild = 10
 const minesMaxAmount = 100

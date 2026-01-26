@@ -37,8 +37,6 @@ var supportedDomainsRegex = regexp.MustCompile(
 		`|\bhttps?:\/\/(?:open\.)?spotify\.com\/\S+`,
 )
 
-var messageLinkFixToOgAuthorId = map[*discordgo.Message]string{}
-
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool
 
 type paginatedQueryInput struct {
@@ -400,7 +398,7 @@ func processMessageWithBadEmbedLinks(ds *discordgo.Session, mc *discordgo.Messag
 		serverNotifyIfErr("processMessageWithBadEmbedLinks::sendAsUser", err, mc.GuildID, ds)
 		return
 	}
-	messageLinkFixToOgAuthorId[fixedMsg] = mc.Author.ID
+	rememberMessageWithBadEmbedAuthor(ds, mc, fixedMsg)
 
 	ds.State.MessageRemove(mc.Message)
 	err = ds.ChannelMessageDelete(mc.ChannelID, mc.ID)
@@ -410,35 +408,52 @@ func processMessageWithBadEmbedLinks(ds *discordgo.Session, mc *discordgo.Messag
 	}
 }
 
-func answerDeleteLinkFixMessage(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	interactionUserId := interactionUser(ic).ID
-	ogAuthorId, ok := messageLinkFixToOgAuthorId[ic.Message]
-	if !ok && !isAdmin(interactionUserId) {
-		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Could not find original author, only a mod can delete that message",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
+func rememberMessageWithBadEmbedAuthor(ds *discordgo.Session, mc *discordgo.MessageCreate, new *discordgo.Message) {
+	if mc == nil || new == nil {
+		adminNotifyIfErr("rememberMessageWithBadEmbedAuthor", errors.New("nil arguments"), ds)
 		return
 	}
+	deletionTime := time.Now().Add(actionFixedMessageAuthorTTL)
+	err := schedulerDS.addScheduledAction(deletionTime, new.ID, targetTypeMessage, actionTypeFixedMessageAuthor, mc.Author.ID)
+	serverNotifyIfErr("rememberMessageWithBadEmbedAuthor", err, mc.GuildID, ds)
+}
 
-	// Check if the user can delete the message
-	if interactionUserId != ogAuthorId || !isAdmin(interactionUserId) {
-		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "You did not send that message",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-		return
+func answerDeleteLinkFixMessage(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	interactionUserId := interactionUser(ic).ID
+	messageId := ic.ApplicationCommandData().TargetID
+	scheduledActionId := -1
+
+	if !isAdmin(interactionUserId) {
+		// Find the original author
+		authorData, err := schedulerDS.getScheduledActionsByTargetIDAndActionType(messageId, actionTypeFixedMessageAuthor)
+		if err != nil || len(authorData) == 0 {
+			ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Could not find original author, only a mod can delete that message",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
+		author := authorData[0].ActionData
+		scheduledActionId = authorData[0].ID
+
+		// Check if the user is the author
+		if interactionUserId != author {
+			ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "You did not send that message!!!",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
 	}
 
 	// Try to delete and respond if it was successful
-	fixedMsgID := ic.ApplicationCommandData().TargetID
-	err := ds.ChannelMessageDelete(ic.ChannelID, fixedMsgID)
+	err := ds.ChannelMessageDelete(ic.ChannelID, messageId)
 	serverNotifyIfErr("answerDeleteLinkFixMessage::ChannelMessageDelete", err, ic.GuildID, ds)
 	if err != nil {
 		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
@@ -457,6 +472,7 @@ func answerDeleteLinkFixMessage(ds *discordgo.Session, ic *discordgo.Interaction
 			Flags:   discordgo.MessageFlagsEphemeral,
 		},
 	})
+	schedulerDS.removeScheduledAction(scheduledActionId)
 }
 
 func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

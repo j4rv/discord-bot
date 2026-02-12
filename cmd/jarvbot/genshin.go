@@ -5,17 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/pkg/genshinchargen"
-	"github.com/j4rv/discord-bot/pkg/rngx"
 	artis "github.com/j4rv/genshinartis"
 	"github.com/j4rv/rollssim"
 )
 
-const genshinTeamSize = 4
-const gachaPullChanceIterations = 1000
+const gachaPullChanceIterations = 2000
 const averagePullsNote = "**Note:** The average rolls spent on each banner include successful attempts and failed attempts. This includes the best case scenarios of not needing to spend all your pulls to get your desired characters/weapons, and the worst case scenarios of spending all your pulls and not getting your desired characters/weapons."
 
 // Command Answers
@@ -49,48 +46,6 @@ func answerPlayStoreStop(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx
 	if err == nil {
 		_, err = ds.ChannelMessageSend(mc.ChannelID, "Ok, I'll stop reminding you")
 	}
-	return err == nil
-}
-
-func answerRandomAbyssLineup(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	var firstTeam, secondTeam [4]string
-	var replacements []string
-
-	// Process Input and generate the teams
-	inputString := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
-	inputChars := strings.Split(inputString, ",")
-	if inputChars[0] != "" && len(inputChars) < genshinTeamSize*2 {
-		ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`Not enough characters! Please enter at least %d`, genshinTeamSize*2))
-		return false
-	}
-	for i := range inputChars {
-		inputChars[i] = strings.TrimSpace(inputChars[i])
-	}
-	firstTeam, secondTeam, replacements = randomAbyssLineup(inputChars...)
-
-	// Format the teams into readable text
-	formattedFirstTeam, formattedSecondTeam, formattedReplacements := "```\n", "```\n", "```\n"
-	for _, r := range replacements {
-		formattedReplacements += r + "\n"
-	}
-	for i := 0; i < genshinTeamSize; i++ {
-		formattedFirstTeam += firstTeam[i] + "\n"
-		formattedSecondTeam += secondTeam[i] + "\n"
-	}
-	formattedFirstTeam += "```"
-	formattedSecondTeam += "```"
-	formattedReplacements += "```"
-
-	_, err := ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf(`
-You can only replace one character on each team with one of the replacements.
-
-**Team 1:**
-%s
-**Team 2:**
-%s
-**Replacements:**
-%s
-`, formattedFirstTeam, formattedSecondTeam, formattedReplacements))
 	return err == nil
 }
 
@@ -365,10 +320,6 @@ func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	interactionFileRespond(ds, ic, message, "StrongboxResult.json", string(good))
 }
 
-func answerAbyssChallenge(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	textRespond(ds, ic, newAbyssChallenge())
-}
-
 func answerCharacter(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	name := ic.ApplicationCommandData().Options[0].StringValue()
 	textRespond(ds, ic, genshinchargen.NewChar(name, unixDay()).PrettyString())
@@ -419,28 +370,6 @@ func playStoreCRONFunc(ds *discordgo.Session) func() {
 	}
 }
 
-// chars must have either 0 or 8+ elements
-func randomAbyssLineup(chars ...string) (firstTeam, secondTeam [genshinTeamSize]string, replacements []string) {
-	if len(chars) == 0 || chars[0] == "" {
-		chars = allGenshinChars()
-	}
-
-	for i := 0; i < genshinTeamSize; i++ {
-		firstTeam[i] = rngx.PickAndRemove(&chars)
-		secondTeam[i] = rngx.PickAndRemove(&chars)
-	}
-
-	if len(chars) < genshinTeamSize {
-		replacements = chars
-	} else {
-		for i := 0; i < genshinTeamSize; i++ {
-			replacements = append(replacements, rngx.PickAndRemove(&chars))
-		}
-	}
-
-	return firstTeam, secondTeam, replacements
-}
-
 func formatGenshinArtifact(artifact *artis.Artifact) string {
 	return fmt.Sprintf(`
 **%s**
@@ -455,107 +384,4 @@ func formatGenshinArtifact(artifact *artis.Artifact) string {
 		artifact.SubStats[2].Stat, artifact.SubStats[2].Value,
 		artifact.SubStats[3].Stat, artifact.SubStats[3].Value,
 	)
-}
-
-func newAbyssChallenge() string {
-	return fmt.Sprintf("%s %s but %s", rngx.Pick(allGenshinChars()), rngx.Pick(teamTypes), rngx.Pick(handicaps))
-}
-
-func allGenshinChars() []string {
-	return []string{
-		"Albedo",
-		"Alhaitham",
-		"Aloy",
-		"Amber",
-		"Arataki Itto",
-		"Baizhu",
-		"Barbara",
-		"Beidou",
-		"Bennett",
-		"Candace",
-		"Chongyun",
-		"Collei",
-		"Cyno",
-		"Dehya",
-		"Diluc",
-		"Diona",
-		"Dori",
-		"Eula",
-		"Faruzan",
-		"Fischl",
-		"Ganyu",
-		"Gorou",
-		"Hu Tao",
-		"Jean",
-		"Kaedehara Kazuha",
-		"Kaeya",
-		"Kamisato Ayaka",
-		"Kamisato Ayato",
-		"Kaveh",
-		"Keqing",
-		"Klee",
-		"Kujou Sara",
-		"Kuki Shinobu",
-		"Layla",
-		"Lisa",
-		"Mika",
-		"Mona",
-		"Nahida",
-		"Nilou",
-		"Ningguang",
-		"Noelle",
-		"Qiqi",
-		"Raiden Shogun",
-		"Razor",
-		"Rosaria",
-		"Sangonomiya Kokomi",
-		"Sayu",
-		"Shenhe",
-		"Shikanoin Heizou",
-		"Sucrose",
-		"Tartaglia",
-		"Thoma",
-		"Tighnari",
-		"Traveler",
-		"Venti",
-		"Wanderer",
-		"Xiangling",
-		"Xiao",
-		"Xingqiu",
-		"Xinyan",
-		"Yae Miko",
-		"Yanfei",
-		"Yaoyao",
-		"Yelan",
-		"Yoimiya",
-		"Yun Jin",
-		"Zhongli",
-	}
-}
-
-var teamTypes = []string{
-	"Hypercarry",
-	"Vape",
-	"Melt",
-	"Freeze",
-	"Taser driver",
-	"National",
-	"Hyperbloom",
-	"Burgeon",
-	"Quicken",
-	"Physical",
-	"Monoelement",
-}
-
-var handicaps = []string{
-	"no healer/shielders (the other 3 chars)",
-	"no 5* or BP weapons (whole team)",
-	"no ER (<110%) (whole team)",
-	"no resets",
-	"only 3 characters",
-	"only 4* characters (the other 3 chars)",
-	"only 5* characters (the other 3 chars)",
-	"only males (the other 3 chars)",
-	"only females (the other 3 chars)",
-	"only 10 artifacts (whole team)",
 }

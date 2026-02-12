@@ -101,6 +101,7 @@ var title = rngx.NewWeightedSlice(map[string]int{
 	"Emanator":             2,
 	"Herrscher":            2,
 	"Aeon":                 2,
+	"Void Hunter":          2,
 })
 
 var outsideTeyvatTitles = map[string]struct{}{
@@ -113,6 +114,7 @@ var outsideTeyvatTitles = map[string]struct{}{
 	"Emanator":            {},
 	"Herrscher":           {},
 	"Aeon":                {},
+	"Void Hunter":         {},
 }
 
 var models = rngx.NewWeightedSlice(map[string]int{

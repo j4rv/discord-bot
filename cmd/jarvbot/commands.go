@@ -90,7 +90,6 @@ var commands = map[string]command{
 	"!parametrictransformerstop": answerParametricTransformerStop,
 	"!playstore":                 answerPlayStore,
 	"!playstorestop":             answerPlayStoreStop,
-	"!randomabysslineup":         notSpammable(answerRandomAbyssLineup),
 	"!randomartifact":            notSpammable(answerRandomArtifact),
 	"!randomartifactset":         notSpammable(answerRandomArtifactSet),
 	"!randomdomainrun":           notSpammable(answerRandomDomainRun),
@@ -873,7 +872,7 @@ func notSpammable(wrapped command) command {
 			channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
 			adminNotifyIfErr("notSpammable::isChannelSpammable", err, ds)
 			if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {
-				sendDirectMessage(mc.Author.ID, "Pls don't spam the bot commands uwu", ds)
+				//sendDirectMessage(mc.Author.ID, "Pls don't spam the bot commands uwu", ds)
 				ds.MessageReactionAdd(mc.ChannelID, mc.Message.ID, "❌")
 				return false
 			}

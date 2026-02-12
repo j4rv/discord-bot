@@ -302,7 +302,6 @@ var slashHandlers = map[string]func(s *discordgo.Session, i *discordgo.Interacti
 	"star_rail_chances":      expensiveSlashCommand(answerStarRailChance),
 	"strongbox":              expensiveSlashCommand(answerStrongbox),
 	"character":              answerCharacter,
-	"abyss_challenge":        answerAbyssChallenge,
 	"warn":                   answerWarn,
 	"warnings":               answerWarnings,
 	"Delete LinkFix Message": answerDeleteLinkFixMessage,

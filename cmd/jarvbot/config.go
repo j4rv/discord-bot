@@ -32,7 +32,9 @@ const commandCooldown = time.Minute * 15
 // https://discord.com/branding
 const colorBlue = 0x5865F2
 const colorYellow = 0xFEE75C
-const colorRed = 0xED4245
+const colorRed = 0xD22D39
+const colorGreen = 0x008545
+const colorBlack = 0x242428
 
 const serverPropListSeparator = ";"
 const serverPropCustomTimeoutRoleName = "custom_timeout_role_name"
@@ -71,9 +73,11 @@ const targetTypeMessage = "MESSAGE"
 const minesMaxSetsPerGuild = 10
 const minesMaxAmount = 100
 const minesMaxDurationSeconds = 24 * 60 * 60
+const minesMaxCustomMessageLength = 200
 const minesMinChance = 0.000001
 const minesMaxChance = 1.0
-const minesMaxCustomMessageLength = 200
+const minesMinTriggerTextChance = 0.2
+const minesMaxTriggerTextChance = 1.0
 const minesMaxTriggerTextLength = 60
 const minesNukeChance = 0.006
 const minesNukeResponse = "https://tenor.com/e7oFJluWQlO.gif"

@@ -286,8 +286,23 @@ func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	}
 
 	timeToWait, reminderBody := processTimedCommand(mc.Content)
-	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will remind you in `%s` with the message ```\n%s```", humanDurationString(timeToWait), reminderBody))
-	err := schedulerDS.addScheduledActionAfterDuration(timeToWait, mc.Author.ID, targetTypeUser, actionTypeReminder, reminderBody)
+	if timeToWait == 0 {
+		ds.ChannelMessageSend(mc.ChannelID, "Please provide a time. For example: 1d, or 4h, or 8h 35m...")
+		return false
+
+	}
+
+	if strings.TrimSpace(reminderBody) == "" {
+		reminderBody = "Reminder to do something!"
+	}
+
+	_, err := sendDirectMessage(mc.Author.ID, fmt.Sprintf("Gotcha! will remind you in `%s` with the message ```\n%s```", humanDurationString(timeToWait), reminderBody), ds)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "I can't DM you u_u")
+		return false
+	}
+
+	err = schedulerDS.addScheduledActionAfterDuration(timeToWait, mc.Author.ID, targetTypeUser, actionTypeReminder, reminderBody)
 	return err == nil
 }
 

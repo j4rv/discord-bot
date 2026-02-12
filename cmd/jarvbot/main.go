@@ -96,6 +96,7 @@ func initDiscordSession() *discordgo.Session {
 	ds.AddHandler(onMessageDeleted(backgroundCtx))
 	ds.AddHandler(onMessageReacted(backgroundCtx))
 	ds.AddHandler(onMessageUnreacted(backgroundCtx))
+	//ds.AddHandler(onInteractionCreate(backgroundCtx))
 
 	ds.Identify.Intents |= discordgo.IntentGuilds
 	ds.Identify.Intents |= discordgo.IntentGuildMembers

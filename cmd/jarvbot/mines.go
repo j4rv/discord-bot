@@ -97,7 +97,7 @@ func parseAndValidatePlaceMinesInput(ds *discordgo.Session, mc *discordgo.Messag
 
 	var chance float64
 	if input.TriggerText != "" {
-		chance = 0
+		chance = math.Max(minesMinTriggerTextChance, math.Min(minesMaxTriggerTextChance, input.ChancePercentage/100))
 	} else {
 		chance = math.Max(minesMinChance, math.Min(minesMaxChance, input.ChancePercentage/100))
 	}

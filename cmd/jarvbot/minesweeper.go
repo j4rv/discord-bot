@@ -41,7 +41,7 @@ func MarkdownMinesweeperBoard(difficulty minesweeper.Difficulty) string {
 	var str strings.Builder
 	safeI := rand.IntN(difficulty.Row-2) + 1
 	safeJ := rand.IntN(difficulty.Col-2) + 1
-	game := minesweeper.NewGameSolvable(difficulty, minesweeper.NewPos(safeI, safeJ))
+	game, err := minesweeper.NewGameSolvableWithIterations(difficulty, minesweeper.NewPos(safeI, safeJ), 1000)
 	board := game.Field
 
 	isInSafeCenter3x3 := func(i, j int) bool {
@@ -75,6 +75,10 @@ func MarkdownMinesweeperBoard(difficulty minesweeper.Difficulty) string {
 		str.WriteRune('\n')
 	}
 	str.WriteString("Total mines: " + strconv.Itoa(difficulty.Mines))
+
+	if err != nil {
+		str.WriteString(" (Needs random guesses!)")
+	}
 
 	return str.String()
 }

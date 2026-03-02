@@ -14,14 +14,15 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
 	zzzscraps "github.com/j4rv/zenless-scrapper"
+	"golang.org/x/text/message"
 )
 
 func init() {
-	defer func() {
+	/*defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("Recovered in zzzscraps init", r)
 		}
-	}()
+	}()*/
 	zzzscraps.RepopulateDb = true
 	zzzscraps.InitDb()
 	zzzscraps.InitLevelCurves()
@@ -108,44 +109,50 @@ func layerRoomDataResponse(d cachedFuncData) string {
 	roomIndex := d[interactionDataZzzRoomIndex].(int)
 	room := layer.Rooms[roomIndex]
 	lvlAdjustMap := zzzscraps.GetLevelAdjustMap(layer)
-	return roomResponse(room, layer.EnemyLevel, lvlAdjustMap)
+	return roomResponse(room, layer.EnemyLevel, lvlAdjustMap, layer.IsDeadlyAssault())
 }
 
-func roomResponse(r zzzscraps.RoomInfo, enemyLvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust) string {
+func roomResponse(r *zzzscraps.RoomInfo, enemyLvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isDeadlyAssault bool) string {
 	var response strings.Builder
-	response.WriteString("**Weaknesses:** ")
-	response.WriteString(zzzscraps.TranslateWeaknesses(r.EnemyWeaknesses))
-	response.WriteRune('\n')
-	response.WriteRune('\n')
-	response.WriteString(enemiesResponse(r.Enemies, enemyLvl, lvlAdjust))
+	fmt.Fprintf(&response, "**Weaknesses:** %s \n\n", zzzscraps.TranslateWeaknesses(r.EnemyWeaknesses))
+	response.WriteString(enemiesResponse(r.Enemies, enemyLvl, lvlAdjust, isDeadlyAssault))
 	return response.String()
 }
 
-func enemiesResponse(enemies []zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust) string {
+func enemiesResponse(enemies []*zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isDeadlyAssault bool) string {
 	var response strings.Builder
+	p := message.NewPrinter(message.MatchLanguage("en"))
+
 	for _, e := range enemies {
 		fmt.Fprintf(&response, "**%s**", e.CardConfig.BriefName)
 		response.WriteRune('\n')
 
-		response.WriteString("**HP:** ")
-		hp, _ := zzzscraps.CalcEnemyHp(&e, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
-		fmt.Fprintf(&response, "%.1f", hp)
-		response.WriteRune('\n')
+		if isDeadlyAssault {
+			hp, _ := zzzscraps.CalcEnemyHp(e, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
+			response.WriteString("**HP for 60k DMG Score:** ")
+			p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault65kDmgScoreHpMult)
+			response.WriteString("**HP for 20k DMG Score:** ")
+			p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault20kDmgScoreHpMult)
+			response.WriteString("**HP for 15k DMG Score:** ")
+			p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault15kDmgScoreHpMult)
+
+		} else {
+			response.WriteString("**HP:** ")
+			hp, _ := zzzscraps.CalcEnemyHp(e, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
+			p.Fprintf(&response, "%.1f\n", hp)
+		}
 
 		response.WriteString("**DEF:** ")
-		def, _ := zzzscraps.CalcEnemyDef(&e, lvl, lvlAdjust, *zzzscraps.EndgameDefLevelCurve)
-		fmt.Fprintf(&response, "%.1f", def)
-		response.WriteRune('\n')
+		def, _ := zzzscraps.CalcEnemyDef(e, lvl, lvlAdjust, *zzzscraps.EndgameDefLevelCurve)
+		p.Fprintf(&response, "%.1f\n", def)
 
 		response.WriteString("**Daze:** ")
-		daze, _ := zzzscraps.CalcEnemyDazeBar(&e, lvl, lvlAdjust, *zzzscraps.EndgameDazeLevelCurve)
-		fmt.Fprintf(&response, "%.1f", daze)
-		response.WriteRune('\n')
+		daze, _ := zzzscraps.CalcEnemyDazeBar(e, lvl, lvlAdjust, *zzzscraps.EndgameDazeLevelCurve)
+		p.Fprintf(&response, "%.1f\n", daze)
 
 		//response.WriteString("**Buildup:** ")
-		//buildup, _ := zzzscraps.CalcEnemyBuildupBar(&e, lvl, lvlAdjust, *zzzscraps.EndgameBuildupLevelCurve)
-		//fmt.Fprintf(&response, "%.1f", buildup)
-		//response.WriteRune('\n')
+		//buildup, _ := zzzscraps.CalcEnemyBuildupBar(e, lvl, lvlAdjust, *zzzscraps.EndgameBuildupLevelCurve)
+		//fmt.Fprintf(&response, "%.1f\n", buildup)
 
 		response.WriteRune('\n')
 	}
@@ -156,7 +163,7 @@ func layerBuffsResponse(l zzzscraps.LayerInfo) string {
 	return levelAbilitiesResponse(l.LevelAbilities)
 }
 
-func levelAbilitiesResponse(l []zzzscraps.LevelAbility) string {
+func levelAbilitiesResponse(l []*zzzscraps.LevelAbility) string {
 	var response strings.Builder
 	for _, buff := range l {
 		if buff.BuffName != "" {

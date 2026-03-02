@@ -7,3 +7,4 @@ run-development.bat
 test.go
 /gitignored
 /.gitignored
+prv_*.go

@@ -82,6 +82,10 @@ const minesMaxTriggerTextLength = 60
 const minesNukeChance = 0.006
 const minesNukeResponse = "https://tenor.com/e7oFJluWQlO.gif"
 
+const interactionDataOriginalMessageId = 1
+const interactionDataZzzScrapsObj = 100
+const interactionDataZzzRoomIndex = 101
+
 const backupCRON = "0 0 * * 1"
 const dailyCheckInReminderCRON = "CRON_TZ=Asia/Shanghai 0 0 * * *"
 const dailyCheckInReminderMessage = `Remember to do the Daily Check-In!

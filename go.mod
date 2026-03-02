@@ -1,14 +1,15 @@
 module github.com/j4rv/discord-bot
 
-go 1.24.2
+go 1.25.7
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/enescakir/emoji v1.0.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
-	github.com/heathcliff26/go-minesweeper v0.9.8-0.20260212164652-ee8012dab69f
+	github.com/heathcliff26/go-minesweeper v0.9.9
 	github.com/j4rv/genshinartis v0.0.0-20240510155157-e4a2078f376f
 	github.com/j4rv/rollssim v0.0.0-20240816172414-ef8ab34e52a8
+	github.com/j4rv/zenless-scrapper v0.0.0-20260302194214-ee2dbbdd1a57
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/kylelemons/godebug v1.1.0
@@ -19,8 +20,15 @@ require (
 )
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/hashicorp/golang-lru v1.0.2
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/mroth/weightedrand/v2 v2.1.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
+	gorm.io/driver/sqlite v1.6.0 // indirect
+	gorm.io/gorm v1.31.1 // indirect
 )

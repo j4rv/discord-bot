@@ -188,6 +188,9 @@ func executeScheduledAction(ds *discordgo.Session, action ScheduledAction) error
 // initSlashCommands returns a function to remove the registered slash commands for graceful shutdowns
 func initSlashCommands(ds *discordgo.Session) func() {
 	ds.AddHandler(func(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+		if ic.Type != discordgo.InteractionApplicationCommand {
+			return
+		}
 		if h, ok := slashHandlers[ic.ApplicationCommandData().Name]; ok {
 			go h(ds, ic)
 		} else {

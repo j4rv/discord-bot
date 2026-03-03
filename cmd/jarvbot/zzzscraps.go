@@ -31,12 +31,12 @@ func init() {
 }
 
 func handleZzzZoneBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	ackInteraction(ds, ic)
 	zoneIdRaw := data[1]
 	zoneId, err := strconv.Atoi(zoneIdRaw)
 	if err != nil {
 		return err
 	}
-	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
 
 	zones, err := zzzscraps.GetZonesById(zoneId)
 	if err != nil {
@@ -55,20 +55,12 @@ func handleZzzZoneBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, da
 	}
 
 	content := fmt.Sprintf("**Showing Zone %d**\n", zoneId)
-	_, err = ds.ChannelMessageEditComplex(&discordgo.MessageEdit{
-		ID:         ic.Message.ID,
-		Channel:    ic.ChannelID,
-		Content:    &content,
-		Components: buildButtonComponents(buttons),
-	})
-	if err != nil {
-		log.Println("ChannelMessageEditComplex error:", err)
-	}
-
+	editInteractionMessage(ds, ic, content, buttons)
 	return nil
 }
 
 func handleZzzZoneListBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	ackInteraction(ds, ic)
 	gameMode := data[1]
 	pageRaw := data[2]
 	page, err := strconv.Atoi(pageRaw)
@@ -106,51 +98,31 @@ func handleZzzZoneListBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate
 		buttons = append(buttons, newButton("Newer Zones", discordgo.SecondaryButton, strings.Join([]string{"zzzzonelist", gameMode, newerPageStr}, buttonCustomIdSeparator)))
 	}
 
-	_, err = ds.ChannelMessageEditComplex(&discordgo.MessageEdit{
-		ID:         ic.Message.ID,
-		Channel:    ic.ChannelID,
-		Content:    &content,
-		Components: buildButtonComponents(buttons),
-	})
-	if err != nil {
-		log.Println("ChannelMessageEditComplex error:", err)
-	}
-
-	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
+	editInteractionMessage(ds, ic, content, buttons)
 	return nil
 }
 
 func handleZzzLayerDescriptionBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	ackInteraction(ds, ic)
 	layerIdRaw := data[1]
 	layerId, err := strconv.Atoi(layerIdRaw)
 	if err != nil {
 		return err
 	}
 	layer, err := zzzscraps.GetLayerById(layerId)
-
-	buttons := make([]*discordgo.Button, len(layer.Rooms)+1)
-	buttons[0] = newButton(fmt.Sprintf("Layer %d", layer.Id), discordgo.PrimaryButton, strings.Join([]string{"zzzlayer", layerIdRaw}, buttonCustomIdSeparator))
-	for i, room := range layer.Rooms {
-		roomIndex := strconv.Itoa(i)
-		buttons[i+1] = newButton(fmt.Sprintf("Room %d", room.Id), discordgo.PrimaryButton, strings.Join([]string{"zzzroom", layerIdRaw, roomIndex}, buttonCustomIdSeparator))
+	if err != nil {
+		return err
 	}
+
+	buttons := buildLayerButtons(layer, layerIdRaw)
 
 	content := layerResponse(layer)
-	_, err = ds.ChannelMessageEditComplex(&discordgo.MessageEdit{
-		ID:         ic.Message.ID,
-		Channel:    ic.ChannelID,
-		Content:    &content,
-		Components: buildButtonComponents(buttons),
-	})
-	if err != nil {
-		log.Println("ChannelMessageEditComplex error:", err)
-	}
-
-	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
+	editInteractionMessage(ds, ic, content, buttons)
 	return nil
 }
 
 func handleZzzLayerRoomBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	ackInteraction(ds, ic)
 	layerIdRaw := data[1]
 	layerId, err := strconv.Atoi(layerIdRaw)
 	if err != nil {
@@ -162,27 +134,15 @@ func handleZzzLayerRoomBtn(ds *discordgo.Session, ic *discordgo.InteractionCreat
 		return err
 	}
 	layer, err := zzzscraps.GetLayerById(layerId)
+	if err != nil {
+		return err
+	}
 	room := layer.Rooms[roomIndex]
 
-	buttons := make([]*discordgo.Button, len(layer.Rooms)+1)
-	buttons[0] = newButton(fmt.Sprintf("Layer %d", layer.Id), discordgo.PrimaryButton, strings.Join([]string{"zzzlayer", layerIdRaw}, buttonCustomIdSeparator))
-	for i, room := range layer.Rooms {
-		roomIndex := strconv.Itoa(i)
-		buttons[i+1] = newButton(fmt.Sprintf("Room %d", room.Id), discordgo.PrimaryButton, strings.Join([]string{"zzzroom", layerIdRaw, roomIndex}, buttonCustomIdSeparator))
-	}
+	buttons := buildLayerButtons(layer, layerIdRaw)
 
 	content := layerRoomResponse(layer, room)
-	_, err = ds.ChannelMessageEditComplex(&discordgo.MessageEdit{
-		ID:         ic.Message.ID,
-		Channel:    ic.ChannelID,
-		Content:    &content,
-		Components: buildButtonComponents(buttons),
-	})
-	if err != nil {
-		log.Println("ChannelMessageEditComplex error:", err)
-	}
-
-	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
+	editInteractionMessage(ds, ic, content, buttons)
 	return nil
 }
 
@@ -197,33 +157,6 @@ func answerZenlessZones(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 		return false
 	}
 	return true
-}
-
-func doZenlessZone(ds *discordgo.Session, id int, guildID, channelID string) error {
-	zones, err := zzzscraps.GetZonesById(id)
-	if err != nil {
-		return err
-	} else if len(zones) == 0 {
-		return fmt.Errorf("No zones found")
-	}
-
-	buttons := make([]*discordgo.Button, 0, len(zones))
-	for _, z := range zones {
-		if z.Name == "" {
-			continue
-		}
-		layerID := strconv.Itoa(z.LayerInfoId)
-		buttons = append(buttons, newButton(z.Name, discordgo.PrimaryButton, strings.Join([]string{"zzzlayer", layerID}, buttonCustomIdSeparator)))
-	}
-
-	content := fmt.Sprintf("**Showing Zone %d**\n", id)
-	_, err = sendMessageWithButtons(ds, channelID, content, buttons)
-	if err != nil {
-		serverNotifyIfErr("answerZenlessZone couldn't respond", err, guildID, ds)
-		return err
-	}
-
-	return nil
 }
 
 func layerRoomResponse(layer *zzzscraps.LayerInfo, room *zzzscraps.RoomInfo) string {
@@ -328,4 +261,30 @@ func levelAbilitiesResponse(l []*zzzscraps.LevelAbility) string {
 		return result
 	}
 	return "```" + result + "```"
+}
+
+func editInteractionMessage(ds *discordgo.Session, ic *discordgo.InteractionCreate, content string, buttons []*discordgo.Button) {
+	_, err := ds.ChannelMessageEditComplex(&discordgo.MessageEdit{
+		ID:         ic.Message.ID,
+		Channel:    ic.ChannelID,
+		Content:    &content,
+		Components: buildButtonComponents(buttons),
+	})
+	if err != nil {
+		log.Println("ChannelMessageEditComplex error:", err)
+	}
+}
+
+func ackInteraction(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
+}
+
+func buildLayerButtons(layer *zzzscraps.LayerInfo, layerIdRaw string) []*discordgo.Button {
+	buttons := make([]*discordgo.Button, len(layer.Rooms)+1)
+	buttons[0] = newButton(fmt.Sprintf("Layer %d", layer.Id), discordgo.PrimaryButton, strings.Join([]string{"zzzlayer", layerIdRaw}, buttonCustomIdSeparator))
+	for i, room := range layer.Rooms {
+		roomIndex := strconv.Itoa(i)
+		buttons[i+1] = newButton(fmt.Sprintf("Room %d", room.Id), discordgo.PrimaryButton, strings.Join([]string{"zzzroom", layerIdRaw, roomIndex}, buttonCustomIdSeparator))
+	}
+	return buttons
 }

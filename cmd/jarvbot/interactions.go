@@ -2,20 +2,42 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"runtime/debug"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/hashicorp/golang-lru/simplelru"
 )
 
-var interactionCache, _ = simplelru.NewLRU(10000, nil)
+type buttonReducer func(*discordgo.Session, *discordgo.InteractionCreate, []string) error
 
-type cachedFuncData map[int]any
+var buttonReducerMap = make(map[string]buttonReducer)
 
-type cachedFunc struct {
-	fn     func(*discordgo.Session, *discordgo.InteractionCreate)
-	author string
-	data   cachedFuncData
+func buttonCustomIdReducer(ds *discordgo.Session, ic *discordgo.InteractionCreate, id string) error {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("panic in processCommand: %s\n%s", r, string(debug.Stack()))
+		}
+	}()
+
+	parts := strings.Split(id, ";")
+	reducerId := parts[0]
+	reducer, ok := buttonReducerMap[reducerId]
+	if !ok {
+		err := ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Unknown or expired button interaction with ID: " + reducerId,
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("could not find a button reducer for %s", reducerId)
+	}
+	return reducer(ds, ic, parts)
 }
 
 func onInteractionCreate(ctx context.Context) func(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
@@ -25,89 +47,52 @@ func onInteractionCreate(ctx context.Context) func(ds *discordgo.Session, ic *di
 		}
 
 		customID := ic.MessageComponentData().CustomID
-		userID := interactionUser(ic).ID
-		if x, ok := interactionCache.Get(customID); ok {
-			entry := x.(cachedFunc)
-			if entry.author != userID {
-				ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: "You can't do that!",
-						Flags:   discordgo.MessageFlagsEphemeral,
-					},
-				})
-				return
-			}
-			entry.fn(ds, ic)
-		}
+		buttonCustomIdReducer(ds, ic, customID)
 	}
 }
 
 // Utils
 
-func sendMessageWithButtons(ds *discordgo.Session, channelId, content string, buttons []discordgo.Button) (*discordgo.Message, error) {
+func newButton(label string, style discordgo.ButtonStyle, customID string) *discordgo.Button {
+	return &discordgo.Button{
+		Label:    label,
+		Style:    style,
+		CustomID: customID,
+	}
+}
+
+func sendMessageWithButtons(ds *discordgo.Session, channelId, content string, buttons []*discordgo.Button) (*discordgo.Message, error) {
 	return ds.ChannelMessageSendComplex(channelId, &discordgo.MessageSend{
-		Content: content,
-		Components: []discordgo.MessageComponent{
-			discordgo.ActionsRow{
-				Components: func() []discordgo.MessageComponent {
-					comps := make([]discordgo.MessageComponent, len(buttons))
-					for i, b := range buttons {
-						comps[i] = b
-					}
-					return comps
-				}(),
-			},
-		},
+		Content:    content,
+		Components: *buildButtonComponents(buttons),
 	})
 }
 
-func AddButtonHandler(
-	customID string,
-	authorID string,
-	data cachedFuncData, // pass the full data map
-	newContentFn func(data cachedFuncData) string,
-	buttons []discordgo.Button,
-) {
-	interactionCache.Add(customID, cachedFunc{
-		fn: func(s *discordgo.Session, ic *discordgo.InteractionCreate) {
-			log.Printf("Button %s clicked\n", customID)
+func buildButtonComponents(buttons []*discordgo.Button) *[]discordgo.MessageComponent {
+	var components []discordgo.MessageComponent
+	buttonsPerRow := 5
+	maxRows := 5
 
-			// Respond to interaction to avoid "interaction failed"
-			err := s.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseDeferredMessageUpdate,
-			})
-			if err != nil {
-				log.Println("InteractionRespond error:", err)
-				return
-			}
+	for row := range maxRows {
+		start := row * buttonsPerRow
+		if start >= len(buttons) {
+			break
+		}
 
-			// Compute the new content dynamically from the data
-			content := newContentFn(data)
+		end := start + buttonsPerRow
+		if end > len(buttons) {
+			end = len(buttons)
+		}
 
-			// Build components once
-			components := []discordgo.MessageComponent{
-				discordgo.ActionsRow{
-					Components: make([]discordgo.MessageComponent, len(buttons)),
-				},
-			}
-			for i, b := range buttons {
-				components[0].(discordgo.ActionsRow).Components[i] = b
-			}
+		rowButtons := make([]discordgo.MessageComponent, end-start)
+		for i := start; i < end; i++ {
+			rowButtons[i-start] = buttons[i]
+		}
 
-			// Edit the original message
-			originalMessageID := data[interactionDataOriginalMessageId].(string)
-			_, err = s.ChannelMessageEditComplex(&discordgo.MessageEdit{
-				ID:         originalMessageID,
-				Channel:    ic.ChannelID,
-				Content:    &content,
-				Components: &components,
-			})
-			if err != nil {
-				log.Println("ChannelMessageEditComplex error:", err)
-			}
-		},
-		author: authorID,
-		data:   data,
-	})
+		components = append(components, discordgo.ActionsRow{
+			Components: rowButtons,
+		})
+	}
+
+	return &components
 }

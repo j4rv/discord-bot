@@ -8,118 +8,245 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/google/uuid"
 	zzzscraps "github.com/j4rv/zenless-scrapper"
 	"golang.org/x/text/message"
 )
 
 func init() {
-	/*defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered in zzzscraps init", r)
-		}
-	}()*/
 	zzzscraps.RepopulateDb = true
 	zzzscraps.InitDb()
 	zzzscraps.InitLevelCurves()
 	commands["!zzzcredits"] = simpleTextResponse("Thank you to Leifa, Hawichii (and indirectly Dimbreath)")
-	commands["!zzzlayer"] = answerZenlessLayer
+	commands["!zzzzone"] = answerZenlessZone
+	commands["!zzzzones"] = answerZenlessZones
+
+	buttonReducerMap["zzzzone"] = handleZzzZoneBtn
+	buttonReducerMap["zzzzonelist"] = handleZzzZoneListBtn
+	buttonReducerMap["zzzlayer"] = handleZzzLayerDescriptionBtn
+	buttonReducerMap["zzzroom"] = handleZzzLayerRoomBtn
 }
 
-func answerZenlessLayer(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+func handleZzzZoneBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	zoneIdRaw := data[1]
+	zoneId, err := strconv.Atoi(zoneIdRaw)
+	if err != nil {
+		return err
+	}
+	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
+	return doZenlessZone(ds, zoneId, ic.GuildID, ic.ChannelID)
+}
+
+func handleZzzZoneListBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	gameMode := data[1]
+	pageRaw := data[2]
+	page, err := strconv.Atoi(pageRaw)
+	if err != nil {
+		return err
+	}
+	var rangeStart, rangeEnd int
+	content := ""
+
+	switch gameMode {
+	case "DA":
+		rangeStart, rangeEnd = zzzscraps.DeadlyAssaultStartId, zzzscraps.DeadlyAssaultEndId
+		content = "**Showing Deadly Assault Zone IDs**"
+	case "SD":
+		rangeStart, rangeEnd = zzzscraps.ShiyuDefenseStartId, zzzscraps.ShiyuDefenseEndId
+		content = "**Showing Shiyu Defense Zone IDs**"
+	case "TS":
+		rangeStart, rangeEnd = zzzscraps.ThreshholdSimulationStartId, zzzscraps.ThreshholdSimulationEndId
+		content = "**Showing Threshold Simulation Zone IDs**"
+	}
+
+	zones, err := zzzscraps.GetLatestZoneIDsInRange(rangeStart, rangeEnd, 10, page)
+
+	buttons := make([]*discordgo.Button, 0, len(zones))
+	for _, id := range zones {
+		idStr := strconv.Itoa(id)
+		buttons = append(buttons, newButton(fmt.Sprintf("Zone %s", idStr), discordgo.PrimaryButton, strings.Join([]string{"zzzzone", idStr}, buttonCustomIdSeparator)))
+	}
+	if len(zones) == 10 {
+		olderPageStr := strconv.Itoa(page + 1)
+		buttons = append(buttons, newButton("Older Zones", discordgo.SecondaryButton, strings.Join([]string{"zzzzonelist", gameMode, olderPageStr}, buttonCustomIdSeparator)))
+	}
+	if page != 0 {
+		newerPageStr := strconv.Itoa(page - 1)
+		buttons = append(buttons, newButton("Newer Zones", discordgo.SecondaryButton, strings.Join([]string{"zzzzonelist", gameMode, newerPageStr}, buttonCustomIdSeparator)))
+	}
+
+	_, err = ds.ChannelMessageEditComplex(&discordgo.MessageEdit{
+		ID:         ic.Message.ID,
+		Channel:    ic.ChannelID,
+		Content:    &content,
+		Components: buildButtonComponents(buttons),
+	})
+	if err != nil {
+		log.Println("ChannelMessageEditComplex error:", err)
+	}
+
+	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
+	return nil
+}
+
+func handleZzzLayerDescriptionBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	layerIdRaw := data[1]
+	layerId, err := strconv.Atoi(layerIdRaw)
+	if err != nil {
+		return err
+	}
+	layer, err := zzzscraps.GetLayerById(layerId)
+
+	buttons := make([]*discordgo.Button, len(layer.Rooms)+1)
+	buttons[0] = newButton(fmt.Sprintf("Layer %d", layer.Id), discordgo.PrimaryButton, strings.Join([]string{"zzzlayer", layerIdRaw}, buttonCustomIdSeparator))
+	for i, room := range layer.Rooms {
+		roomIndex := strconv.Itoa(i)
+		buttons[i+1] = newButton(fmt.Sprintf("Room %d", room.Id), discordgo.PrimaryButton, strings.Join([]string{"zzzroom", layerIdRaw, roomIndex}, buttonCustomIdSeparator))
+	}
+
+	content := layerResponse(layer)
+	_, err = ds.ChannelMessageEditComplex(&discordgo.MessageEdit{
+		ID:         ic.Message.ID,
+		Channel:    ic.ChannelID,
+		Content:    &content,
+		Components: buildButtonComponents(buttons),
+	})
+	if err != nil {
+		log.Println("ChannelMessageEditComplex error:", err)
+	}
+
+	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
+	return nil
+}
+
+func handleZzzLayerRoomBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	layerIdRaw := data[1]
+	layerId, err := strconv.Atoi(layerIdRaw)
+	if err != nil {
+		return err
+	}
+	roomIndexRaw := data[2]
+	roomIndex, err := strconv.Atoi(roomIndexRaw)
+	if err != nil {
+		return err
+	}
+	layer, err := zzzscraps.GetLayerById(layerId)
+	room := layer.Rooms[roomIndex]
+
+	buttons := make([]*discordgo.Button, len(layer.Rooms)+1)
+	buttons[0] = newButton(fmt.Sprintf("Layer %d", layer.Id), discordgo.PrimaryButton, strings.Join([]string{"zzzlayer", layerIdRaw}, buttonCustomIdSeparator))
+	for i, room := range layer.Rooms {
+		roomIndex := strconv.Itoa(i)
+		buttons[i+1] = newButton(fmt.Sprintf("Room %d", room.Id), discordgo.PrimaryButton, strings.Join([]string{"zzzroom", layerIdRaw, roomIndex}, buttonCustomIdSeparator))
+	}
+
+	content := layerRoomResponse(layer, room)
+	_, err = ds.ChannelMessageEditComplex(&discordgo.MessageEdit{
+		ID:         ic.Message.ID,
+		Channel:    ic.ChannelID,
+		Content:    &content,
+		Components: buildButtonComponents(buttons),
+	})
+	if err != nil {
+		log.Println("ChannelMessageEditComplex error:", err)
+	}
+
+	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
+	return nil
+}
+
+func answerZenlessZone(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
-	layerId, err := strconv.Atoi(commandBody)
+	zoneId, err := strconv.Atoi(commandBody)
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, err.Error())
 		return false
 	}
+	return doZenlessZone(ds, zoneId, mc.GuildID, mc.ChannelID) != nil
+}
 
-	zzzLayer, err := zzzscraps.GetLayerById(layerId)
+func answerZenlessZones(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	buttons := make([]*discordgo.Button, 0, 3)
+	buttons = append(buttons, newButton("Deadly Assault", discordgo.PrimaryButton, strings.Join([]string{"zzzzonelist", "DA", "0"}, buttonCustomIdSeparator)))
+	buttons = append(buttons, newButton("Shiyu Defense", discordgo.PrimaryButton, strings.Join([]string{"zzzzonelist", "SD", "0"}, buttonCustomIdSeparator)))
+
+	_, err := sendMessageWithButtons(ds, mc.ChannelID, "Select the Game Mode", buttons)
 	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, err.Error())
-		return false
-	} else if zzzLayer == nil {
-		ds.ChannelMessageSend(mc.ChannelID, "Nil layer data")
+		serverNotifyIfErr("answerZenlessZone couldn't respond", err, mc.GuildID, ds)
 		return false
 	}
-
-	// Buttons
-	buttons := make([]discordgo.Button, len(zzzLayer.Rooms)+1)
-	{
-		buttonID := uuid.New().String()
-		data := cachedFuncData{
-			interactionDataZzzScrapsObj: zzzLayer,
-		}
-		buttons[0] = discordgo.Button{
-			Label:    "Buffs",
-			Style:    discordgo.PrimaryButton,
-			CustomID: buttonID,
-		}
-		AddButtonHandler(buttonID, mc.Author.ID, data, layerBuffsDataResponse, buttons)
-	}
-
-	for i, room := range zzzLayer.Rooms {
-		roomID := room.Id
-		buttonID := uuid.New().String()
-
-		data := cachedFuncData{
-			interactionDataZzzScrapsObj: zzzLayer,
-			interactionDataZzzRoomIndex: i,
-		}
-
-		buttons[i+1] = discordgo.Button{
-			Label:    fmt.Sprintf("Room %d", roomID),
-			Style:    discordgo.PrimaryButton,
-			CustomID: buttonID,
-		}
-		AddButtonHandler(buttonID, mc.Author.ID, data, layerRoomDataResponse, buttons)
-	}
-
-	// Send the initial message
-	content := layerBuffsResponse(*zzzLayer)
-	msgResponse, err := sendMessageWithButtons(ds, mc.ChannelID, content, buttons)
-	if err != nil {
-		serverNotifyIfErr("ZZZ Layer couldn't respond", err, mc.GuildID, ds)
-		return false
-	}
-
-	// Update the data with the message ID
-	for i := range buttons {
-		if x, ok := interactionCache.Get(buttons[i].CustomID); ok {
-			entry := x.(cachedFunc)
-			entry.data[interactionDataOriginalMessageId] = msgResponse.ID
-			interactionCache.Add(buttons[i].CustomID, entry)
-		}
-	}
-
 	return true
 }
 
-func layerBuffsDataResponse(d cachedFuncData) string {
-	layer := d[interactionDataZzzScrapsObj]
-	return layerBuffsResponse(*layer.(*zzzscraps.LayerInfo))
+func doZenlessZone(ds *discordgo.Session, id int, guildID, channelID string) error {
+	zones, err := zzzscraps.GetZonesById(id)
+	if err != nil {
+		return err
+	} else if len(zones) == 0 {
+		return fmt.Errorf("No zones found")
+	}
+
+	buttons := make([]*discordgo.Button, 0, len(zones))
+	for _, z := range zones {
+		if z.Name == "" {
+			continue
+		}
+		layerID := strconv.Itoa(z.LayerInfoId)
+		buttons = append(buttons, newButton(z.Name, discordgo.PrimaryButton, strings.Join([]string{"zzzlayer", layerID}, buttonCustomIdSeparator)))
+	}
+
+	content := fmt.Sprintf("**Showing Zone %d**\n", id)
+	_, err = sendMessageWithButtons(ds, channelID, content, buttons)
+	if err != nil {
+		serverNotifyIfErr("answerZenlessZone couldn't respond", err, guildID, ds)
+		return err
+	}
+
+	return nil
 }
 
-func layerRoomDataResponse(d cachedFuncData) string {
-	layer := d[interactionDataZzzScrapsObj].(*zzzscraps.LayerInfo)
-	roomIndex := d[interactionDataZzzRoomIndex].(int)
-	room := layer.Rooms[roomIndex]
-	lvlAdjustMap := zzzscraps.GetLevelAdjustMap(layer)
-	return roomResponse(room, layer.EnemyLevel, lvlAdjustMap, layer.IsDeadlyAssault())
-}
-
-func roomResponse(r *zzzscraps.RoomInfo, enemyLvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isDeadlyAssault bool) string {
+func layerRoomResponse(layer *zzzscraps.LayerInfo, room *zzzscraps.RoomInfo) string {
 	var response strings.Builder
-	fmt.Fprintf(&response, "**Weaknesses:** %s \n\n", zzzscraps.TranslateWeaknesses(r.EnemyWeaknesses))
-	response.WriteString(enemiesResponse(r.Enemies, enemyLvl, lvlAdjust, isDeadlyAssault))
+	lvlAdjustMap := zzzscraps.GetLevelAdjustMap(layer)
+	fmt.Fprintf(&response, "**Showing Layer Room:** %d \n", room.Id)
+	response.WriteString(roomResponse(room, layer.EnemyLevel, lvlAdjustMap))
 	return response.String()
 }
 
-func enemiesResponse(enemies []*zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isDeadlyAssault bool) string {
+func roomResponse(r *zzzscraps.RoomInfo, enemyLvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust) string {
+	var response strings.Builder
+
+	weaknesses := zzzscraps.TranslateWeaknesses(r.EnemyWeaknesses)
+	if weaknesses != "" {
+		fmt.Fprintf(&response, "```Weaknesses: %s```", weaknesses)
+	}
+	response.WriteString(roomStageEffectsResponse(r))
+	response.WriteRune('\n')
+	response.WriteString(enemiesResponse(r.Enemies, enemyLvl, lvlAdjust, r.IsDeadlyAssault() || r.IsThresholdSimulation()))
+	return response.String()
+}
+
+func roomStageEffectsResponse(r *zzzscraps.RoomInfo) string {
+	var response strings.Builder
+	for _, e := range r.StageEffects {
+		if e.BuffName != "" {
+			fmt.Fprintf(&response, "%s: %s\n", e.BuffName, e.BuffDesc)
+		} else {
+			fmt.Fprintf(&response, "Unnamed: %s\n", e.BuffDesc)
+		}
+	}
+	result := response.String()
+	if result == "" {
+		return result
+	}
+	return "```" + result + "```"
+}
+
+func enemiesResponse(enemies []*zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isMultiHpBars bool) string {
 	var response strings.Builder
 	p := message.NewPrinter(message.MatchLanguage("en"))
 
@@ -127,7 +254,7 @@ func enemiesResponse(enemies []*zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzs
 		fmt.Fprintf(&response, "**%s**", e.CardConfig.BriefName)
 		response.WriteRune('\n')
 
-		if isDeadlyAssault {
+		if isMultiHpBars {
 			hp, _ := zzzscraps.CalcEnemyHp(e, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
 			response.WriteString("**HP for 60k DMG Score:** ")
 			p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault65kDmgScoreHpMult)
@@ -159,8 +286,11 @@ func enemiesResponse(enemies []*zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzs
 	return response.String()
 }
 
-func layerBuffsResponse(l zzzscraps.LayerInfo) string {
-	return levelAbilitiesResponse(l.LevelAbilities)
+func layerResponse(l *zzzscraps.LayerInfo) string {
+	var response strings.Builder
+	fmt.Fprintf(&response, "**Showing Layer:** %d \n", l.Id)
+	response.WriteString(levelAbilitiesResponse(l.LevelAbilities))
+	return response.String()
 }
 
 func levelAbilitiesResponse(l []*zzzscraps.LevelAbility) string {
@@ -170,8 +300,14 @@ func levelAbilitiesResponse(l []*zzzscraps.LevelAbility) string {
 			response.WriteString(buff.BuffName)
 			response.WriteRune('\n')
 		}
-		response.WriteString(buff.BuffDesc)
-		response.WriteRune('\n')
+		if buff.BuffDesc != "" {
+			response.WriteString(buff.BuffDesc)
+			response.WriteRune('\n')
+		}
 	}
-	return response.String()
+	result := response.String()
+	if result == "" {
+		return result
+	}
+	return "```" + result + "```"
 }

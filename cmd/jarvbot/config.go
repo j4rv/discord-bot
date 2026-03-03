@@ -85,6 +85,7 @@ const minesNukeResponse = "https://tenor.com/e7oFJluWQlO.gif"
 const interactionDataOriginalMessageId = 1
 const interactionDataZzzScrapsObj = 100
 const interactionDataZzzRoomIndex = 101
+const buttonCustomIdSeparator = ";"
 
 const backupCRON = "0 0 * * 1"
 const dailyCheckInReminderCRON = "CRON_TZ=Asia/Shanghai 0 0 * * *"

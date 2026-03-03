@@ -22,7 +22,6 @@ func init() {
 	zzzscraps.InitDb()
 	zzzscraps.InitLevelCurves()
 	commands["!zzzcredits"] = simpleTextResponse("Thank you to Leifa, Hawichii (and indirectly Dimbreath)")
-	commands["!zzzzone"] = answerZenlessZone
 	commands["!zzzzones"] = answerZenlessZones
 
 	buttonReducerMap["zzzzone"] = handleZzzZoneBtn
@@ -38,7 +37,35 @@ func handleZzzZoneBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, da
 		return err
 	}
 	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
-	return doZenlessZone(ds, zoneId, ic.GuildID, ic.ChannelID)
+
+	zones, err := zzzscraps.GetZonesById(zoneId)
+	if err != nil {
+		return err
+	} else if len(zones) == 0 {
+		return fmt.Errorf("No zones found")
+	}
+
+	buttons := make([]*discordgo.Button, 0, len(zones))
+	for _, z := range zones {
+		if z.Name == "" {
+			continue
+		}
+		layerID := strconv.Itoa(z.LayerInfoId)
+		buttons = append(buttons, newButton(z.Name, discordgo.PrimaryButton, strings.Join([]string{"zzzlayer", layerID}, buttonCustomIdSeparator)))
+	}
+
+	content := fmt.Sprintf("**Showing Zone %d**\n", zoneId)
+	_, err = ds.ChannelMessageEditComplex(&discordgo.MessageEdit{
+		ID:         ic.Message.ID,
+		Channel:    ic.ChannelID,
+		Content:    &content,
+		Components: buildButtonComponents(buttons),
+	})
+	if err != nil {
+		log.Println("ChannelMessageEditComplex error:", err)
+	}
+
+	return nil
 }
 
 func handleZzzZoneListBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
@@ -159,16 +186,6 @@ func handleZzzLayerRoomBtn(ds *discordgo.Session, ic *discordgo.InteractionCreat
 	return nil
 }
 
-func answerZenlessZone(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
-	zoneId, err := strconv.Atoi(commandBody)
-	if err != nil {
-		ds.ChannelMessageSend(mc.ChannelID, err.Error())
-		return false
-	}
-	return doZenlessZone(ds, zoneId, mc.GuildID, mc.ChannelID) != nil
-}
-
 func answerZenlessZones(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	buttons := make([]*discordgo.Button, 0, 3)
 	buttons = append(buttons, newButton("Deadly Assault", discordgo.PrimaryButton, strings.Join([]string{"zzzzonelist", "DA", "0"}, buttonCustomIdSeparator)))
@@ -232,11 +249,14 @@ func roomResponse(r *zzzscraps.RoomInfo, enemyLvl int, lvlAdjust map[int]zzzscra
 
 func roomStageEffectsResponse(r *zzzscraps.RoomInfo) string {
 	var response strings.Builder
-	for _, e := range r.StageEffects {
+	for i, e := range r.StageEffects {
+		if i != 0 {
+			response.WriteRune('\n')
+		}
 		if e.BuffName != "" {
-			fmt.Fprintf(&response, "%s: %s\n", e.BuffName, e.BuffDesc)
+			fmt.Fprintf(&response, "%s:\n%s\n", e.BuffName, e.BuffDesc)
 		} else {
-			fmt.Fprintf(&response, "Unnamed: %s\n", e.BuffDesc)
+			fmt.Fprintf(&response, "Unnamed:\n%s\n", e.BuffDesc)
 		}
 	}
 	result := response.String()
@@ -300,10 +320,8 @@ func levelAbilitiesResponse(l []*zzzscraps.LevelAbility) string {
 			response.WriteString(buff.BuffName)
 			response.WriteRune('\n')
 		}
-		if buff.BuffDesc != "" {
-			response.WriteString(buff.BuffDesc)
-			response.WriteRune('\n')
-		}
+		response.WriteString(buff.BuffDesc)
+		response.WriteRune('\n')
 	}
 	result := response.String()
 	if result == "" {

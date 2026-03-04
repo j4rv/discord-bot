@@ -47,11 +47,39 @@ func onInteractionCreate(ctx context.Context) func(ds *discordgo.Session, ic *di
 		}
 
 		customID := ic.MessageComponentData().CustomID
-		buttonCustomIdReducer(ds, ic, customID)
+		err := buttonCustomIdReducer(ds, ic, customID)
+		if err != nil {
+			log.Println("Interaction failed for customID", customID, err)
+		}
 	}
 }
 
 // Utils
+
+func editInteractionMessage(ds *discordgo.Session, ic *discordgo.InteractionCreate, content string, buttons []*discordgo.Button) {
+	_, err := ds.ChannelMessageEditComplex(&discordgo.MessageEdit{
+		ID:         ic.Message.ID,
+		Channel:    ic.ChannelID,
+		Content:    &content,
+		Components: buildButtonComponents(buttons),
+	})
+	if err != nil {
+		log.Println("ChannelMessageEditComplex error:", err)
+	}
+}
+
+func ackInteraction(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredMessageUpdate})
+}
+
+func newButtonWithEnabled(label string, style discordgo.ButtonStyle, customID string, enabled bool) *discordgo.Button {
+	return &discordgo.Button{
+		Label:    label,
+		Style:    style,
+		CustomID: customID,
+		Disabled: !enabled,
+	}
+}
 
 func newButton(label string, style discordgo.ButtonStyle, customID string) *discordgo.Button {
 	return &discordgo.Button{

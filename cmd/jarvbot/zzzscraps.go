@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -121,11 +122,20 @@ func handleZzzZoneListBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate
 		zzzDbCustomId("zzzzonelist", ownerId, gameMode, strconv.Itoa(page-1), "", "", ""),
 		page != 0))
 
-	buttons = append(buttons,
-		newButtonWithEnabled("Shiyu Defense", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "SD", "0", "", "", ""), gameMode != "SD"),
-		newButtonWithEnabled("Deadly Assault", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "DA", "0", "", "", ""), gameMode != "DA"),
-		newButtonWithEnabled("Threshold Simulation", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "TS", "0", "", "", ""), false),
-	)
+	if gameMode != "SD" {
+		buttons = append(buttons, newButton("Shiyu Defense", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "SD", "0", "", "", "")))
+	}
+	if gameMode != "DA" {
+		buttons = append(buttons, newButton("Deadly Assault", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "DA", "0", "", "", "")))
+	}
+	/*if gameMode != "TS" {
+		buttons = append(buttons, newButton("Threshold Simulation", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "TS", "0", "", "", "")))
+	}*/
+
+	// testing
+	for _, b := range buttons {
+		log.Println("btn id", b.CustomID)
+	}
 
 	editInteractionMessage(ds, ic, content, buttons)
 	return nil

@@ -36,16 +36,18 @@ func init() {
 func answerZzzDb(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	buttons := make([]*discordgo.Button, 0, 3)
 	buttons = append(buttons,
-		newButton("Deadly Assault", discordgo.PrimaryButton, zzzDbCustomId("zzzzonelist", "DA", "0", "", "", "")),
-		newButton("Shiyu Defense", discordgo.PrimaryButton, zzzDbCustomId("zzzzonelist", "SD", "0", "", "", "")),
+		newButton("Deadly Assault", discordgo.PrimaryButton, zzzDbCustomId("zzzzonelist", mc.Author.ID, "DA", "0", "", "", "")),
+		newButton("Shiyu Defense", discordgo.PrimaryButton, zzzDbCustomId("zzzzonelist", mc.Author.ID, "SD", "0", "", "", "")),
 	)
 
-	_, err := sendMessageWithButtons(ds, mc.ChannelID, "Select the Game Mode", buttons)
-	if err != nil {
-		serverNotifyIfErr("answerZenlessZone couldn't respond", err, mc.GuildID, ds)
-		return false
-	}
-	return true
+	_, err := ds.ChannelMessageSendComplex(mc.ChannelID, &discordgo.MessageSend{
+		Content:    "Select the Game Mode",
+		Components: *buildButtonComponents(buttons),
+		Reference:  &discordgo.MessageReference{MessageID: mc.ID, ChannelID: mc.ChannelID, GuildID: mc.GuildID},
+	})
+
+	serverNotifyIfErr("answerZenlessZone couldn't respond", err, mc.GuildID, ds)
+	return err != nil
 }
 
 func answerZzzDbUpdate(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
@@ -58,10 +60,34 @@ func answerZzzDbUpdate(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 
 // Button handlers
 
+func isValidInteractionUser(ds *discordgo.Session, ic *discordgo.InteractionCreate) bool {
+	data := strings.Split(ic.MessageComponentData().CustomID, buttonCustomIdSeparator)
+	if len(data) < 2 {
+		return false
+	}
+
+	if interactionUser(ic).ID != data[1] {
+		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "You can't do that! :<",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return false
+	}
+	return true
+}
+
 func handleZzzZoneListBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	if !isValidInteractionUser(ds, ic) {
+		return nil
+	}
 	ackInteraction(ds, ic)
-	gameMode := data[1]
-	pageRaw := data[2]
+
+	ownerId := data[1]
+	gameMode := data[2]
+	pageRaw := data[3]
 	page, err := strconv.Atoi(pageRaw)
 	if err != nil {
 		return err
@@ -86,19 +112,19 @@ func handleZzzZoneListBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate
 	buttons := make([]*discordgo.Button, 0, len(zones))
 	for _, id := range zones {
 		idStr := strconv.Itoa(id)
-		buttons = append(buttons, newButton(fmt.Sprintf("Zone %s", idStr), discordgo.PrimaryButton, zzzDbCustomId("zzzzone", gameMode, pageRaw, idStr, "", "")))
+		buttons = append(buttons, newButton(fmt.Sprintf("Zone %s", idStr), discordgo.PrimaryButton, zzzDbCustomId("zzzzone", ownerId, gameMode, pageRaw, idStr, "", "")))
 	}
 	buttons = append(buttons, newButtonWithEnabled("Older Zones", discordgo.SecondaryButton,
-		zzzDbCustomId("zzzzonelist", gameMode, strconv.Itoa(page+1), "", "", ""),
+		zzzDbCustomId("zzzzonelist", ownerId, gameMode, strconv.Itoa(page+1), "", "", ""),
 		len(zones) == 10))
 	buttons = append(buttons, newButtonWithEnabled("Newer Zones", discordgo.SecondaryButton,
-		zzzDbCustomId("zzzzonelist", gameMode, strconv.Itoa(page-1), "", "", ""),
+		zzzDbCustomId("zzzzonelist", ownerId, gameMode, strconv.Itoa(page-1), "", "", ""),
 		page != 0))
 
 	buttons = append(buttons,
-		newButtonWithEnabled("Shiyu Defense", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", "SD", "0", "", "", ""), gameMode != "SD"),
-		newButtonWithEnabled("Deadly Assault", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", "DA", "0", "", "", ""), gameMode != "DA"),
-		newButtonWithEnabled("Threshold Simulation", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", "TS", "0", "", "", ""), false),
+		newButtonWithEnabled("Shiyu Defense", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "SD", "0", "", "", ""), gameMode != "SD"),
+		newButtonWithEnabled("Deadly Assault", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "DA", "0", "", "", ""), gameMode != "DA"),
+		newButtonWithEnabled("Threshold Simulation", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "TS", "0", "", "", ""), false),
 	)
 
 	editInteractionMessage(ds, ic, content, buttons)
@@ -106,10 +132,15 @@ func handleZzzZoneListBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate
 }
 
 func handleZzzZoneBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	if !isValidInteractionUser(ds, ic) {
+		return nil
+	}
 	ackInteraction(ds, ic)
-	gameMode := data[1]
-	pageRaw := data[2]
-	zoneIdRaw := data[3]
+
+	ownerId := data[1]
+	gameMode := data[2]
+	pageRaw := data[3]
+	zoneIdRaw := data[4]
 	zoneId, err := strconv.Atoi(zoneIdRaw)
 	if err != nil {
 		return err
@@ -128,9 +159,9 @@ func handleZzzZoneBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, da
 			continue
 		}
 		layerID := strconv.Itoa(z.LayerInfoId)
-		buttons = append(buttons, newButton(z.Name, discordgo.PrimaryButton, zzzDbCustomId("zzzlayer", gameMode, pageRaw, zoneIdRaw, layerID, "")))
+		buttons = append(buttons, newButton(z.Name, discordgo.PrimaryButton, zzzDbCustomId("zzzlayer", ownerId, gameMode, pageRaw, zoneIdRaw, layerID, "")))
 	}
-	buttons = append(buttons, newButton("Back", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", gameMode, pageRaw, "", "", "")))
+	buttons = append(buttons, newButton("Back", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, gameMode, pageRaw, "", "", "")))
 
 	content := fmt.Sprintf("**Showing Zone %d**\n", zoneId)
 	editInteractionMessage(ds, ic, content, buttons)
@@ -138,11 +169,16 @@ func handleZzzZoneBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, da
 }
 
 func handleZzzLayerDescriptionBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	if !isValidInteractionUser(ds, ic) {
+		return nil
+	}
 	ackInteraction(ds, ic)
-	gameMode := data[1]
-	pageRaw := data[2]
-	zoneIdRaw := data[3]
-	layerIdRaw := data[4]
+
+	ownerId := data[1]
+	gameMode := data[2]
+	pageRaw := data[3]
+	zoneIdRaw := data[4]
+	layerIdRaw := data[5]
 	layerId, err := strconv.Atoi(layerIdRaw)
 	if err != nil {
 		return err
@@ -152,7 +188,7 @@ func handleZzzLayerDescriptionBtn(ds *discordgo.Session, ic *discordgo.Interacti
 		return err
 	}
 
-	buttons := buildLayerButtons(layer, gameMode, pageRaw, zoneIdRaw, layerIdRaw)
+	buttons := buildLayerButtons(layer, ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw)
 
 	content := layerResponse(layer)
 	editInteractionMessage(ds, ic, content, buttons)
@@ -160,12 +196,17 @@ func handleZzzLayerDescriptionBtn(ds *discordgo.Session, ic *discordgo.Interacti
 }
 
 func handleZzzRoomBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	if !isValidInteractionUser(ds, ic) {
+		return nil
+	}
 	ackInteraction(ds, ic)
-	gameMode := data[1]
-	pageRaw := data[2]
-	zoneIdRaw := data[3]
-	layerIdRaw := data[4]
-	roomIndexRaw := data[5]
+
+	ownerId := data[1]
+	gameMode := data[2]
+	pageRaw := data[3]
+	zoneIdRaw := data[4]
+	layerIdRaw := data[5]
+	roomIndexRaw := data[6]
 	layerId, err := strconv.Atoi(layerIdRaw)
 	if err != nil {
 		return err
@@ -180,7 +221,7 @@ func handleZzzRoomBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, da
 	}
 	room := layer.Rooms[roomIndex]
 
-	buttons := buildLayerButtons(layer, gameMode, pageRaw, zoneIdRaw, layerIdRaw)
+	buttons := buildLayerButtons(layer, ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw)
 
 	content := layerRoomResponse(layer, room)
 	editInteractionMessage(ds, ic, content, buttons)
@@ -295,17 +336,17 @@ func levelAbilitiesResponse(l []*zzzscraps.LevelAbility) string {
 
 // Utils
 
-func buildLayerButtons(layer *zzzscraps.LayerInfo, gameMode, pageRaw, zoneIdRaw, layerIdRaw string) []*discordgo.Button {
+func buildLayerButtons(layer *zzzscraps.LayerInfo, ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw string) []*discordgo.Button {
 	buttons := make([]*discordgo.Button, len(layer.Rooms)+2)
-	buttons[0] = newButton(fmt.Sprintf("Layer %d", layer.Id), discordgo.PrimaryButton, zzzDbCustomId("zzzlayer", gameMode, pageRaw, zoneIdRaw, layerIdRaw, ""))
+	buttons[0] = newButton(fmt.Sprintf("Layer %d", layer.Id), discordgo.PrimaryButton, zzzDbCustomId("zzzlayer", ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, ""))
 	for i, room := range layer.Rooms {
 		roomIndex := strconv.Itoa(i)
-		buttons[i+1] = newButton(fmt.Sprintf("Room %d", room.Id), discordgo.PrimaryButton, zzzDbCustomId("zzzroom", gameMode, pageRaw, zoneIdRaw, layerIdRaw, roomIndex))
+		buttons[i+1] = newButton(fmt.Sprintf("Room %d", room.Id), discordgo.PrimaryButton, zzzDbCustomId("zzzroom", ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, roomIndex))
 	}
-	buttons[len(buttons)-1] = newButton("Back", discordgo.SecondaryButton, zzzDbCustomId("zzzzone", gameMode, pageRaw, zoneIdRaw, "", ""))
+	buttons[len(buttons)-1] = newButton("Back", discordgo.SecondaryButton, zzzDbCustomId("zzzzone", ownerId, gameMode, pageRaw, zoneIdRaw, "", ""))
 	return buttons
 }
 
-func zzzDbCustomId(action, mode, page, zone, layer, room string) string {
-	return strings.Join([]string{action, mode, page, zone, layer, room}, buttonCustomIdSeparator)
+func zzzDbCustomId(action, ownerId, mode, page, zone, layer, room string) string {
+	return strings.Join([]string{action, ownerId, mode, page, zone, layer, room}, buttonCustomIdSeparator)
 }

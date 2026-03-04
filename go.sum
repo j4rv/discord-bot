@@ -23,6 +23,8 @@ github.com/j4rv/genshinartis v0.0.0-20240510155157-e4a2078f376f h1:Qkb60dXQpQFeb
 github.com/j4rv/genshinartis v0.0.0-20240510155157-e4a2078f376f/go.mod h1:6XYkTXc4nhiZmc3caNnjmE8TaWLAwKtRXiK/VdTAuUI=
 github.com/j4rv/rollssim v0.0.0-20240816172414-ef8ab34e52a8 h1:UObrMf/hmM55QchJRbN3X7sXjC4xwmy2i3ewaFjH6GQ=
 github.com/j4rv/rollssim v0.0.0-20240816172414-ef8ab34e52a8/go.mod h1:giZ+GfPdq1sGjpWZHM5YSQ7Pfz2/doB9I2uSUXl/ZxU=
+github.com/j4rv/rollssim v0.0.0-20250320222945-e961377986b9 h1:/MQDJZweW2DTJLaVirhQ74DK1zRV0KFAqUdZnkmbd8A=
+github.com/j4rv/rollssim v0.0.0-20250320222945-e961377986b9/go.mod h1:giZ+GfPdq1sGjpWZHM5YSQ7Pfz2/doB9I2uSUXl/ZxU=
 github.com/j4rv/zenless-scrapper v0.0.0-20260302194214-ee2dbbdd1a57 h1:pb44KQiefNHY80q/THqyVClSr7nT8SuGtQvjvtVJLu0=
 github.com/j4rv/zenless-scrapper v0.0.0-20260302194214-ee2dbbdd1a57/go.mod h1:0gBAS0qRzIaCWi39eDs8ym2XgonR8JlyImXlAjSJhzQ=
 github.com/j4rv/zenless-scrapper v0.0.0-20260302230337-26a4e7e960a5 h1:N4V0YCyUjAA4OzUYt5by9nQ6LG/Fk9I8PdvwjxdlGwQ=

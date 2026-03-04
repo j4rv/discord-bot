@@ -37,6 +37,7 @@ func buttonCustomIdReducer(ds *discordgo.Session, ic *discordgo.InteractionCreat
 		}
 		return fmt.Errorf("could not find a button reducer for %s", reducerId)
 	}
+	log.Println("Executing button reducer", id)
 	return reducer(ds, ic, parts)
 }
 
@@ -87,13 +88,6 @@ func newButton(label string, style discordgo.ButtonStyle, customID string) *disc
 		Style:    style,
 		CustomID: customID,
 	}
-}
-
-func sendMessageWithButtons(ds *discordgo.Session, channelId, content string, buttons []*discordgo.Button) (*discordgo.Message, error) {
-	return ds.ChannelMessageSendComplex(channelId, &discordgo.MessageSend{
-		Content:    content,
-		Components: *buildButtonComponents(buttons),
-	})
 }
 
 func buildButtonComponents(buttons []*discordgo.Button) *[]discordgo.MessageComponent {

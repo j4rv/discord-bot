@@ -49,6 +49,8 @@ github.com/j4rv/zenless-scrapper v0.0.0-20260304210453-7e402ccd4bad h1:IZ+HPJh76
 github.com/j4rv/zenless-scrapper v0.0.0-20260304210453-7e402ccd4bad/go.mod h1:0gBAS0qRzIaCWi39eDs8ym2XgonR8JlyImXlAjSJhzQ=
 github.com/j4rv/zenless-scrapper v0.0.0-20260304214045-faf188b6ecdb h1:aX9f58tS/n8QL1gUb2fJyzOX2YBkWuuh5eao1xHzw28=
 github.com/j4rv/zenless-scrapper v0.0.0-20260304214045-faf188b6ecdb/go.mod h1:0gBAS0qRzIaCWi39eDs8ym2XgonR8JlyImXlAjSJhzQ=
+github.com/j4rv/zenless-scrapper v0.0.0-20260304214422-d4446798b927 h1:F/seMvLP6FGr6xJOkH4p3lAG+r3BNO2gOZVqc+UBbkA=
+github.com/j4rv/zenless-scrapper v0.0.0-20260304214422-d4446798b927/go.mod h1:0gBAS0qRzIaCWi39eDs8ym2XgonR8JlyImXlAjSJhzQ=
 github.com/jessevdk/go-flags v1.6.1 h1:Cvu5U8UGrLay1rZfv/zP7iLpSHGUZ/Ou68T0iX1bBK4=
 github.com/jessevdk/go-flags v1.6.1/go.mod h1:Mk8T1hIAWpOiJiHa9rJASDK2UGWji0EuPGBnNLMooyc=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=

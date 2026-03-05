@@ -9,7 +9,7 @@ require (
 	github.com/heathcliff26/go-minesweeper v0.9.9
 	github.com/j4rv/genshinartis v0.0.0-20240510155157-e4a2078f376f
 	github.com/j4rv/rollssim v0.0.0-20240816172414-ef8ab34e52a8
-	github.com/j4rv/zenless-scrapper v0.0.0-20260304214549-660ac56615b4
+	github.com/j4rv/zenless-scrapper v0.0.0-20260305121508-038fcc7668e7
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/kylelemons/godebug v1.1.0
@@ -18,6 +18,8 @@ require (
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/yeka/zip v0.0.0-20231116150916-03d6312748a9
 )
+
+require github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 
 require (
 	github.com/google/uuid v1.6.0

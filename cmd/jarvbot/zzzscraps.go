@@ -8,7 +8,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -19,7 +18,6 @@ import (
 )
 
 func init() {
-	zzzscraps.RepopulateDb = true
 	zzzscraps.InitDb()
 	zzzscraps.InitLevelCurves()
 	commands["!zzzcredits"] = simpleTextResponse("Thank you to Leifa, Hawichii (and indirectly Dimbreath)")
@@ -30,6 +28,7 @@ func init() {
 	buttonReducerMap["zzzzone"] = handleZzzZoneBtn
 	buttonReducerMap["zzzlayer"] = handleZzzLayerDescriptionBtn
 	buttonReducerMap["zzzroom"] = handleZzzRoomBtn
+	buttonReducerMap["zzzenemy"] = handleZzzEnemyBtn
 }
 
 // Command answers
@@ -37,8 +36,8 @@ func init() {
 func answerZzzDb(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	buttons := make([]*discordgo.Button, 0, 3)
 	buttons = append(buttons,
-		newButton("Deadly Assault", discordgo.PrimaryButton, zzzDbCustomId("zzzzonelist", mc.Author.ID, "DA", "0", "", "", "")),
-		newButton("Shiyu Defense", discordgo.PrimaryButton, zzzDbCustomId("zzzzonelist", mc.Author.ID, "SD", "0", "", "", "")),
+		newButton("Deadly Assault", discordgo.PrimaryButton, zzzDbCustomId("zzzzonelist", mc.Author.ID, "DA", "0", "", "", "", "")),
+		newButton("Shiyu Defense", discordgo.PrimaryButton, zzzDbCustomId("zzzzonelist", mc.Author.ID, "SD", "0", "", "", "", "")),
 	)
 
 	_, err := ds.ChannelMessageSendComplex(mc.ChannelID, &discordgo.MessageSend{
@@ -56,6 +55,11 @@ func answerZzzDbUpdate(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 	cmd.Dir = zzzscraps.BaseDataFolder
 	out, err := cmd.CombinedOutput()
 	adminNotifyIfErr(fmt.Sprintf("git pull failed:\n%s", string(out)), err, ds)
+
+	if err == nil {
+		zzzscraps.RebuildDb()
+	}
+	ds.ChannelMessageSend(mc.ChannelID, string(out))
 	return err != nil
 }
 
@@ -113,29 +117,24 @@ func handleZzzZoneListBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate
 	buttons := make([]*discordgo.Button, 0, len(zones))
 	for _, id := range zones {
 		idStr := strconv.Itoa(id)
-		buttons = append(buttons, newButton(fmt.Sprintf("Zone %s", idStr), discordgo.PrimaryButton, zzzDbCustomId("zzzzone", ownerId, gameMode, pageRaw, idStr, "", "")))
+		buttons = append(buttons, newButton(fmt.Sprintf("Zone %s", idStr), discordgo.PrimaryButton, zzzDbCustomId("zzzzone", ownerId, gameMode, pageRaw, idStr, "", "", "")))
 	}
 	buttons = append(buttons, newButtonWithEnabled("Older Zones", discordgo.SecondaryButton,
-		zzzDbCustomId("zzzzonelist", ownerId, gameMode, strconv.Itoa(page+1), "", "", ""),
+		zzzDbCustomId("zzzzonelist", ownerId, gameMode, strconv.Itoa(page+1), "", "", "", ""),
 		len(zones) == 10))
 	buttons = append(buttons, newButtonWithEnabled("Newer Zones", discordgo.SecondaryButton,
-		zzzDbCustomId("zzzzonelist", ownerId, gameMode, strconv.Itoa(page-1), "", "", ""),
+		zzzDbCustomId("zzzzonelist", ownerId, gameMode, strconv.Itoa(page-1), "", "", "", ""),
 		page != 0))
 
 	if gameMode != "SD" {
-		buttons = append(buttons, newButton("Shiyu Defense", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "SD", "0", "", "", "")))
+		buttons = append(buttons, newButton("Shiyu Defense", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "SD", "0", "", "", "", "")))
 	}
 	if gameMode != "DA" {
-		buttons = append(buttons, newButton("Deadly Assault", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "DA", "0", "", "", "")))
+		buttons = append(buttons, newButton("Deadly Assault", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "DA", "0", "", "", "", "")))
 	}
 	/*if gameMode != "TS" {
 		buttons = append(buttons, newButton("Threshold Simulation", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, "TS", "0", "", "", "")))
 	}*/
-
-	// testing
-	for _, b := range buttons {
-		log.Println("btn id", b.CustomID)
-	}
 
 	editInteractionMessage(ds, ic, content, buttons)
 	return nil
@@ -169,9 +168,9 @@ func handleZzzZoneBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, da
 			continue
 		}
 		layerID := strconv.Itoa(z.LayerInfoId)
-		buttons = append(buttons, newButton(z.Name, discordgo.PrimaryButton, zzzDbCustomId("zzzlayer", ownerId, gameMode, pageRaw, zoneIdRaw, layerID, "")))
+		buttons = append(buttons, newButton(z.Name, discordgo.PrimaryButton, zzzDbCustomId("zzzlayer", ownerId, gameMode, pageRaw, zoneIdRaw, layerID, "", "")))
 	}
-	buttons = append(buttons, newButton("Back", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, gameMode, pageRaw, "", "", "")))
+	buttons = append(buttons, newButton("Back", discordgo.SecondaryButton, zzzDbCustomId("zzzzonelist", ownerId, gameMode, pageRaw, "", "", "", "")))
 
 	content := fmt.Sprintf("**Showing Zone %d**\n", zoneId)
 	editInteractionMessage(ds, ic, content, buttons)
@@ -231,9 +230,48 @@ func handleZzzRoomBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, da
 	}
 	room := layer.Rooms[roomIndex]
 
-	buttons := buildLayerButtons(layer, ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw)
+	buttons := buildRoomButtons(layer, ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, roomIndex)
 
 	content := layerRoomResponse(layer, room)
+	editInteractionMessage(ds, ic, content, buttons)
+	return nil
+}
+
+func handleZzzEnemyBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	if !isValidInteractionUser(ds, ic) {
+		return nil
+	}
+	ackInteraction(ds, ic)
+
+	ownerId := data[1]
+	gameMode := data[2]
+	pageRaw := data[3]
+	zoneIdRaw := data[4]
+	layerIdRaw := data[5]
+	roomIndexRaw := data[6]
+	enemyIndexRaw := data[7]
+	layerId, err := strconv.Atoi(layerIdRaw)
+	if err != nil {
+		return err
+	}
+	roomIndex, err := strconv.Atoi(roomIndexRaw)
+	if err != nil {
+		return err
+	}
+	enemyIndex, err := strconv.Atoi(enemyIndexRaw)
+	if err != nil {
+		return err
+	}
+	layer, err := zzzscraps.GetLayerById(layerId)
+	if err != nil {
+		return err
+	}
+	room := layer.Rooms[roomIndex]
+	enemy := room.Enemies[enemyIndex]
+
+	lvlAdjustMap := zzzscraps.GetLevelAdjustMap(layer)
+	content := detailedEnemyResponse(enemy, layer.EnemyLevel, lvlAdjustMap, room.IsDeadlyAssault() || room.IsThresholdSimulation())
+	buttons := buildRoomButtons(layer, ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, roomIndex)
 	editInteractionMessage(ds, ic, content, buttons)
 	return nil
 }
@@ -320,6 +358,119 @@ func enemiesResponse(enemies []*zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzs
 	return response.String()
 }
 
+func enemyResponse(enemy *zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isMultiHpBars bool) string {
+	var response strings.Builder
+	p := message.NewPrinter(message.MatchLanguage("en"))
+
+	fmt.Fprintf(&response, "**%s**", enemy.CardConfig.BriefName)
+	response.WriteRune('\n')
+
+	if isMultiHpBars {
+		hp, _ := zzzscraps.CalcEnemyHp(enemy, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
+		response.WriteString("**HP for 60k DMG Score:** ")
+		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault65kDmgScoreHpMult)
+		response.WriteString("**HP for 20k DMG Score:** ")
+		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault20kDmgScoreHpMult)
+		response.WriteString("**HP for 15k DMG Score:** ")
+		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault15kDmgScoreHpMult)
+
+	} else {
+		response.WriteString("**HP:** ")
+		hp, _ := zzzscraps.CalcEnemyHp(enemy, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
+		p.Fprintf(&response, "%.1f\n", hp)
+	}
+
+	response.WriteString("**DEF:** ")
+	def, _ := zzzscraps.CalcEnemyDef(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDefLevelCurve)
+	p.Fprintf(&response, "%.1f\n", def)
+
+	response.WriteString("**Daze:** ")
+	daze, _ := zzzscraps.CalcEnemyDazeBar(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDazeLevelCurve)
+	p.Fprintf(&response, "%.1f\n", daze)
+
+	//response.WriteString("**Buildup:** ")
+	//buildup, _ := zzzscraps.CalcEnemyBuildupBar(e, lvl, lvlAdjust, *zzzscraps.EndgameBuildupLevelCurve)
+	//fmt.Fprintf(&response, "%.1f\n", buildup)
+
+	response.WriteRune('\n')
+	return response.String()
+}
+
+func detailedEnemyResponse(enemy *zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isMultiHpBars bool) string {
+	var response strings.Builder
+	p := message.NewPrinter(message.MatchLanguage("en"))
+
+	fmt.Fprintf(&response, "# **%s**\n", enemy.CardConfig.BriefName)
+	fmt.Fprintf(&response, "-# %s\n", enemy.CardConfig.SkillDesc)
+	fmt.Fprintf(&response, "-# Group: %s\n", enemy.CardConfig.GroupDesc)
+	fmt.Fprintf(&response, "-# Tags: %s\n", enemy.Tags)
+
+	response.WriteRune('\n')
+
+	if isMultiHpBars {
+		hp, _ := zzzscraps.CalcEnemyHp(enemy, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
+		response.WriteString("**HP for 60k DMG Score:** ")
+		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault65kDmgScoreHpMult)
+		response.WriteString("**HP for 20k DMG Score:** ")
+		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault20kDmgScoreHpMult)
+		response.WriteString("**HP for 15k DMG Score:** ")
+		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault15kDmgScoreHpMult)
+
+	} else {
+		response.WriteString("**HP:** ")
+		hp, _ := zzzscraps.CalcEnemyHp(enemy, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
+		p.Fprintf(&response, "%.1f\n", hp)
+	}
+
+	response.WriteString("**DEF:** ")
+	def, _ := zzzscraps.CalcEnemyDef(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDefLevelCurve)
+	p.Fprintf(&response, "%.1f\n", def)
+
+	response.WriteString("**ATK:** ")
+	atk, _ := zzzscraps.CalcEnemyAtk(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDefLevelCurve)
+	p.Fprintf(&response, "%.1f\n", atk)
+
+	response.WriteRune('\n')
+
+	response.WriteString("**Daze:** ")
+	daze, _ := zzzscraps.CalcEnemyDazeBar(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDazeLevelCurve)
+	p.Fprintf(&response, "%.1f\n", daze)
+
+	response.WriteString("**Stun multiplier:** ")
+	stunMult := zzzscraps.CalcEnemyStunMultAsPct(enemy)
+	p.Fprintf(&response, "%.0f%%\n", stunMult)
+
+	response.WriteString("**Stun duration:** ")
+	stunSecs := zzzscraps.CalcEnemyStunDurationInSecs(enemy)
+	p.Fprintf(&response, "%.1fs\n", stunSecs)
+
+	response.WriteRune('\n')
+
+	dmgRes := zzzscraps.CalcEnemyResAsPct(enemy)
+	dazeRes := zzzscraps.CalcEnemyDazeResAsPct(enemy)
+	buildupRes := zzzscraps.CalcEnemyBuildupResAsPct(enemy)
+
+	for _, elemName := range zzzscraps.ElementList {
+		elemDmgRes := dmgRes[elemName]
+		elemDazeRes := dazeRes[elemName]
+		elemBuildupRes := buildupRes[elemName]
+		if elemDmgRes == 0 && elemDazeRes == 0 && elemBuildupRes == 0 {
+			continue
+		}
+		p.Fprintf(&response, "**%s DMG Res:** %.0f%%\n", elemName, elemDmgRes)
+		p.Fprintf(&response, "**%s Daze Res:** %.0f%%\n", elemName, elemDazeRes)
+		p.Fprintf(&response, "**%s Buildup Res:** %.0f%%\n", elemName, elemBuildupRes)
+		response.WriteRune('\n')
+	}
+
+	//response.WriteString("**Buildup:** ")
+	//buildup, _ := zzzscraps.CalcEnemyBuildupBar(e, lvl, lvlAdjust, *zzzscraps.EndgameBuildupLevelCurve)
+	//fmt.Fprintf(&response, "%.1f\n", buildup)
+
+	response.WriteRune('\n')
+	return response.String()
+}
+
 func layerResponse(l *zzzscraps.LayerInfo) string {
 	var response strings.Builder
 	fmt.Fprintf(&response, "**Showing Layer:** %d \n", l.Id)
@@ -348,15 +499,29 @@ func levelAbilitiesResponse(l []*zzzscraps.LevelAbility) string {
 
 func buildLayerButtons(layer *zzzscraps.LayerInfo, ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw string) []*discordgo.Button {
 	buttons := make([]*discordgo.Button, len(layer.Rooms)+2)
-	buttons[0] = newButton(fmt.Sprintf("Layer %d", layer.Id), discordgo.PrimaryButton, zzzDbCustomId("zzzlayer", ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, ""))
-	for i, room := range layer.Rooms {
+	buttons[0] = newButton("Layer info", discordgo.PrimaryButton, zzzDbCustomId("zzzlayer", ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, "", ""))
+	for i := range layer.Rooms {
 		roomIndex := strconv.Itoa(i)
-		buttons[i+1] = newButton(fmt.Sprintf("Room %d", room.Id), discordgo.PrimaryButton, zzzDbCustomId("zzzroom", ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, roomIndex))
+		buttons[i+1] = newButton(fmt.Sprintf("Side %d", i+1), discordgo.PrimaryButton, zzzDbCustomId("zzzroom", ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, roomIndex, ""))
 	}
-	buttons[len(buttons)-1] = newButton("Back", discordgo.SecondaryButton, zzzDbCustomId("zzzzone", ownerId, gameMode, pageRaw, zoneIdRaw, "", ""))
+	buttons[len(buttons)-1] = newButton("Back", discordgo.SecondaryButton, zzzDbCustomId("zzzzone", ownerId, gameMode, pageRaw, zoneIdRaw, "", "", ""))
 	return buttons
 }
 
-func zzzDbCustomId(action, ownerId, mode, page, zone, layer, room string) string {
-	return strings.Join([]string{action, ownerId, mode, page, zone, layer, room}, buttonCustomIdSeparator)
+func buildRoomButtons(layer *zzzscraps.LayerInfo, ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw string, roomIndex int) []*discordgo.Button {
+	room := layer.Rooms[roomIndex]
+	roomIndexStr := strconv.Itoa(roomIndex)
+	buttons := make([]*discordgo.Button, len(room.Enemies)+3)
+	buttons[0] = newButton("Layer info", discordgo.PrimaryButton, zzzDbCustomId("zzzlayer", ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, "", ""))
+	buttons[1] = newButton(fmt.Sprintf("Side %d", roomIndex+1), discordgo.PrimaryButton, zzzDbCustomId("zzzroom", ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, roomIndexStr, ""))
+	for i, enemy := range layer.Rooms[roomIndex].Enemies {
+		enemyIndexStr := strconv.Itoa(i)
+		buttons[i+2] = newButton(fmt.Sprint(enemy.CardConfig.BriefName), discordgo.PrimaryButton, zzzDbCustomId("zzzenemy", ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, roomIndexStr, enemyIndexStr))
+	}
+	buttons[len(buttons)-1] = newButton("Back", discordgo.SecondaryButton, zzzDbCustomId("zzzzone", ownerId, gameMode, pageRaw, zoneIdRaw, "", "", ""))
+	return buttons
+}
+
+func zzzDbCustomId(action, ownerId, mode, page, zone, layer, room, enemy string) string {
+	return strings.Join([]string{action, ownerId, mode, page, zone, layer, room, enemy}, buttonCustomIdSeparator)
 }

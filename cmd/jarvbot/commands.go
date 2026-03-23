@@ -132,6 +132,7 @@ var commands = map[string]command{
 	"!checkmines":           guildOnly(modOnly(answerCheckMines)),
 	"!removemines":          guildOnly(modOnly(answerRemoveMines)),
 	"!removeservermines":    guildOnly(modOnly(answerRemoveGuildMines)),
+	"!findcommand":          guildOnly(modOnly(answerFindCommand)),
 	// only available for the bot owner
 	//"!setserverprop":       adminOnly(answerSetServerProp),
 	"!nuketest":            guildOnly(adminOnly(answerForceNuke)),
@@ -139,7 +140,6 @@ var commands = map[string]command{
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!deleteglobalcommand": adminOnly(answerRemoveGlobalCommand),
-	"!findcommand":         adminOnly(answerFindCommand),
 	"!announce":            adminOnly(answerAnnounce),
 	"!dbbackup":            adminOnly(answerDbBackup),
 	"!runtimestats":        adminOnly(answerRuntimeStats),

@@ -54,12 +54,17 @@ func answerZzzDbUpdate(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 	cmd := exec.Command("git", "pull")
 	cmd.Dir = zzzscraps.BaseDataFolder
 	out, err := cmd.CombinedOutput()
-	adminNotifyIfErr(fmt.Sprintf("git pull failed:\n%s", string(out)), err, ds)
 
+	adminNotifyIfErr(fmt.Sprintf("git pull failed:\n%s", string(out)), err, ds)
 	if err == nil {
 		zzzscraps.RebuildDb()
+		if len(out) != 0 {
+			ds.ChannelMessageSend(mc.ChannelID, string(out))
+		} else {
+			ds.ChannelMessageSend(mc.ChannelID, commandSuccessMessage)
+		}
 	}
-	ds.ChannelMessageSend(mc.ChannelID, string(out))
+
 	return err != nil
 }
 

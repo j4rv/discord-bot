@@ -29,14 +29,19 @@ func isMod(ds *discordgo.Session, userID, channelID string) bool {
 		return true
 	}
 
-	perms, err := ds.UserChannelPermissions(userID, channelID)
+	channel, err := ds.Channel(channelID)
+	if channel == nil || err != nil {
+		adminNotifyIfErr(fmt.Sprintf("ERROR isMod failed when retrieving channel %s\n", channelID), err, ds)
+		return false
+	}
+
+	perms, err := ds.State.UserChannelPermissions(userID, channelID)
 	if err != nil {
-		adminNotifyIfErr(fmt.Sprintf("ERROR isMod failed for user %s in channel %s\n", userID, channelID), err, ds)
+		serverNotifyIfErr(fmt.Sprintf("ERROR isMod failed for user %s in channel %s\n", userID, channelID), err, channel.GuildID, ds)
 	} else if perms&discordgo.PermissionAdministrator != 0 {
 		return true
 	}
 
-	channel, err := ds.Channel(channelID)
 	if channel == nil || err != nil {
 		adminNotifyIfErr(fmt.Sprintf("ERROR isMod failed when retrieving channel %s\n", channelID), err, ds)
 		return false

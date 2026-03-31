@@ -48,8 +48,10 @@ const serverPropNo = "N"
 const serverPropMods = "mod_user_ids"
 
 const defaultTimeoutRoleName = "Shadow Realm"
+const shootCritChance = 0.05
 const shootMisfireChance = 0.2
 const timeoutDurationWhenShot = 4 * time.Minute
+const timeoutDurationWhenCritShot = 15 * time.Minute
 const timeoutDurationWhenMisfire = 8 * time.Minute
 const timeoutDurationWhenNuclearCatastrophe = 2 * time.Minute
 const nuclearCatastropheChance = 0.006

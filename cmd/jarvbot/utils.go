@@ -161,7 +161,7 @@ func divideToFloat(a, b int) float64 {
 
 // ==================== DATES ====================
 
-func IsAprilFools() bool {
+func isAprilFools() bool {
 	now := time.Now()
 	return now.Month() == time.April && now.Day() == 1
 }

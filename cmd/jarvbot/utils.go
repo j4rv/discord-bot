@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/shlex"
@@ -156,6 +157,13 @@ func cleanMessageContent(content string) string {
 
 func divideToFloat(a, b int) float64 {
 	return float64(a) / float64(b)
+}
+
+// ==================== DATES ====================
+
+func IsAprilFools() bool {
+	now := time.Now()
+	return now.Month() == time.April && now.Day() == 1
 }
 
 // ==================== ROLES ====================

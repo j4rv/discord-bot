@@ -149,13 +149,21 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 		return nil
 	}
 
+	aprilFoolsMultiplier := float32(1)
+
 	// Nuke logic
-	if rand.Float32() <= nuclearCatastropheChance {
+	if isAprilFools() {
+		aprilFoolsMultiplier = float32(10)
+	}
+	if rand.Float32() <= nuclearCatastropheChance*aprilFoolsMultiplier {
 		return handleNuke(ds, channelID, guildID, timeoutRoleID, nuclearCatastropheResponse)
 	}
 
 	// Miss logic
-	if rand.Float32() <= shootMisfireChance || target.User.Bot {
+	if isAprilFools() {
+		aprilFoolsMultiplier = float32(3)
+	}
+	if rand.Float32() <= shootMisfireChance*aprilFoolsMultiplier || target.User.Bot {
 		ds.ChannelMessageSend(channelID, "OOPS! You missed :3c")
 		err := ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID)
 		if err == nil {

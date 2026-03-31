@@ -162,22 +162,22 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 		return handleNuke(ds, channelID, guildID, timeoutRoleID, nuclearCatastropheResponse)
 	}
 
-	// Miss logic
-	if rand.Float32() <= shootMisfireChance*shootAFMultiplier || target.User.Bot {
-		ds.ChannelMessageSend(channelID, "OOPS! You missed :3c")
-		err := ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID)
-		if err == nil {
-			removeShadowRealmRoleAfterDuration(guildID, shooter.User.ID, timeoutRoleID, timeoutDurationWhenMisfire)
-		}
-		return nil
-	}
-
 	// Crit shot
 	if rand.Float32() <= shootCritChance*shootAFMultiplier {
 		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got shot!! Critical Hit!!", target.User.Mention()))
 		err := ds.GuildMemberRoleAdd(guildID, target.User.ID, timeoutRoleID)
 		if err == nil {
 			removeShadowRealmRoleAfterDuration(guildID, target.User.ID, timeoutRoleID, timeoutDurationWhenCritShot)
+		}
+		return nil
+	}
+
+	// Miss logic
+	if rand.Float32() <= shootMisfireChance*shootAFMultiplier || target.User.Bot {
+		ds.ChannelMessageSend(channelID, "OOPS! You missed :3c")
+		err := ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID)
+		if err == nil {
+			removeShadowRealmRoleAfterDuration(guildID, shooter.User.ID, timeoutRoleID, timeoutDurationWhenMisfire)
 		}
 		return nil
 	}

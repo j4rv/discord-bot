@@ -97,6 +97,7 @@ var badEmbedDomainReplacements = map[*regexp.Regexp]string{
 	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`): "https://vxtwitter.com",
 	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?pixiv\.net\b`):         "https://phixiv.net",
 	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?bilibili\.com\b`):      "https://vxbilibili.com",
+	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?reddit\.com\b`):        "https://rxddit.com",
 }
 
 var trackingParamsByDomain = map[string][]string{
@@ -107,6 +108,7 @@ var trackingParamsByDomain = map[string][]string{
 	"music.youtube.com": {"si", "is"},
 	"open.spotify.com":  {"si", "is"},
 	"bilibili.com":      {"vd_source", "spm_id_from", "share_source"},
+	"reddit.com":        {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "context", "share_id"},
 	"*":                 {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid", "igshid"},
 }
 

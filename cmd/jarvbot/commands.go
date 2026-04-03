@@ -117,9 +117,9 @@ var commands = map[string]command{
 	"!removecommand":        guildOnly(modOnly(answerRemoveCommand)),
 	"!deletecommand":        guildOnly(modOnly(answerRemoveCommand)),
 	"!commandcreator":       guildOnly(modOnly(answerCommandCreator)),
-	"!listcommands":         modOnly(answerListCommands),
-	"!listservercommands":   guildOnly(modOnly(answerListGuildCommands)),
-	"!listglobalcommands":   modOnly(answerListGlobalCommands),
+	"!listservercommands":   guildOnly(notSpammable(answerListGuildCommands)),
+	"!listcommands":         notSpammable(answerListCommands),
+	"!listglobalcommands":   notSpammable(answerListGlobalCommands),
 	"!allowspamming":        guildOnly(modOnly(answerAllowSpamming)),
 	"!preventspamming":      guildOnly(modOnly(answerPreventSpamming)),
 	"!setcustomtimeoutrole": guildOnly(modOnly(answerSetCustomTimeoutRole)),
@@ -828,6 +828,16 @@ func modOnly(wrapped command) command {
 	}
 }
 
+func modOrDmOnly(wrapped command) command {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		if !(isAdmin(mc.Author.ID) || mc.GuildID == "" || isMod(ds, mc.Author.ID, mc.ChannelID)) {
+			ds.ChannelMessageSend(mc.ChannelID, userMustBeModMessage)
+			return false
+		}
+		return wrapped(ds, mc, ctx)
+	}
+}
+
 func guildOnly(wrapped command) command {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 		if mc.GuildID == globalGuildID {
@@ -840,7 +850,7 @@ func guildOnly(wrapped command) command {
 
 func notSpammable(wrapped command) command {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-		if !isAdmin(mc.Author.ID) {
+		if !isAdmin(mc.Author.ID) && mc.GuildID != "" {
 			channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
 			adminNotifyIfErr("notSpammable::isChannelSpammable", err, ds)
 			if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {

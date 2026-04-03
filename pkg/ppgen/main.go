@@ -2,6 +2,7 @@ package ppgen
 
 import (
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/j4rv/discord-bot/pkg/rngx"
@@ -331,17 +332,18 @@ func newPenisFacingLeft(rng *rand.Rand) string {
 	bodyEmoji := bodyEmojis.Random(rng)
 	rightEmoji := rightEmojis.Random(rng)
 
-	penis := leftEmoji + head
+	var penis strings.Builder
+	penis.WriteString(leftEmoji + head)
 	mid := length / 2
-	for i := 0; i < length; i++ {
+	for i := range length {
 		if i == mid {
-			penis += bodyEmoji
+			penis.WriteString(bodyEmoji)
 		}
-		penis += body
+		penis.WriteString(body)
 	}
-	penis += balls + rightEmoji
+	penis.WriteString(balls + rightEmoji)
 
-	return penis
+	return penis.String()
 }
 
 func newPenisFacingRight(rng *rand.Rand) string {
@@ -353,15 +355,16 @@ func newPenisFacingRight(rng *rand.Rand) string {
 	bodyEmoji := bodyEmojis.Random(rng)
 	rightEmoji := rightEmojis.Random(rng)
 
-	penis := leftEmoji + balls
+	var penis strings.Builder
+	penis.WriteString(leftEmoji + balls)
 	mid := length / 2
-	for i := 0; i < length; i++ {
+	for i := range length {
 		if i == mid {
-			penis += bodyEmoji
+			penis.WriteString(bodyEmoji)
 		}
-		penis += body
+		penis.WriteString(body)
 	}
-	penis += head + rightEmoji
+	penis.WriteString(head + rightEmoji)
 
-	return penis
+	return penis.String()
 }

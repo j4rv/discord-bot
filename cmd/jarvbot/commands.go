@@ -37,13 +37,11 @@ var supportedDomainsRegex = regexp.MustCompile(
 		`|\bhttps?:\/\/(?:open\.)?spotify\.com\/\S+`,
 )
 
-var messageLinkFixToOgAuthorId = map[*discordgo.Message]string{}
-
 type command func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool
 
 type paginatedQueryInput struct {
-	Page  int    `short:"p" long:"page" default:"1"`
-	Query string `short:"q" long:"query"`
+	Page  int    `short:"p" long:"page" default:"1" description:"Page index, starting at 1."`
+	Query string `short:"q" long:"query" description:"Only show commands that contain this text in its name."`
 }
 
 func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *discordgo.MessageCreate) {
@@ -82,7 +80,7 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 // the command key must be lowercased
 var commands = map[string]command{
 	// public
-	"!version":                   simpleTextResponse("v3.10.3"),
+	"!version":                   simpleTextResponse("v3.10.5"),
 	"!source":                    simpleTextResponse("Source code: https://github.com/j4rv/discord-bot"),
 	"!mihoyodailycheckin":        answerGenshinDailyCheckIn,
 	"!mihoyodailycheckinstop":    answerGenshinDailyCheckInStop,
@@ -92,7 +90,6 @@ var commands = map[string]command{
 	"!parametrictransformerstop": answerParametricTransformerStop,
 	"!playstore":                 answerPlayStore,
 	"!playstorestop":             answerPlayStoreStop,
-	"!randomabysslineup":         notSpammable(answerRandomAbyssLineup),
 	"!randomartifact":            notSpammable(answerRandomArtifact),
 	"!randomartifactset":         notSpammable(answerRandomArtifactSet),
 	"!randomdomainrun":           notSpammable(answerRandomDomainRun),
@@ -101,6 +98,8 @@ var commands = map[string]command{
 	"!shoot":                     notSpammable(answerShoot),
 	"!pp":                        notSpammable(answerPP),
 	"!qr":                        notSpammable(answerQR),
+	"!minesweeper":               notSpammable(answerMinesweeper),
+	"!minesweepercredits":        notSpammable(simpleTextResponse("Credits to @heathcliff26: https://github.com/heathcliff26/go-minesweeper")),
 	// hidden or easter eggs
 	"!hello":        notSpammable(answerHello),
 	"!liquid":       notSpammable(answerLiquid),
@@ -133,6 +132,7 @@ var commands = map[string]command{
 	"!checkmines":           guildOnly(modOnly(answerCheckMines)),
 	"!removemines":          guildOnly(modOnly(answerRemoveMines)),
 	"!removeservermines":    guildOnly(modOnly(answerRemoveGuildMines)),
+	"!findcommand":          guildOnly(modOnly(answerFindCommand)),
 	// only available for the bot owner
 	//"!setserverprop":       adminOnly(answerSetServerProp),
 	"!nuketest":            guildOnly(adminOnly(answerForceNuke)),
@@ -140,7 +140,6 @@ var commands = map[string]command{
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
 	"!removeglobalcommand": adminOnly(answerRemoveGlobalCommand),
 	"!deleteglobalcommand": adminOnly(answerRemoveGlobalCommand),
-	"!findcommand":         adminOnly(answerFindCommand),
 	"!announce":            adminOnly(answerAnnounce),
 	"!dbbackup":            adminOnly(answerDbBackup),
 	"!runtimestats":        adminOnly(answerRuntimeStats),
@@ -196,11 +195,9 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 
 func processBotMention(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
 	lowercaseContent := strings.ToLower(mc.Content)
-
 	if !strings.Contains(lowercaseContent, "?") {
 		return
 	}
-
 	ds.ChannelMessageSend(mc.ChannelID, eightball.Response())
 }
 
@@ -288,8 +285,23 @@ func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	}
 
 	timeToWait, reminderBody := processTimedCommand(mc.Content)
-	ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("Gotcha! will remind you in `%s` with the message ```\n%s```", humanDurationString(timeToWait), reminderBody))
-	err := schedulerDS.addScheduledActionAfterDuration(timeToWait, mc.Author.ID, targetTypeUser, actionTypeReminder, reminderBody)
+	if timeToWait == 0 {
+		ds.ChannelMessageSend(mc.ChannelID, "Please provide a time. For example: 1d, or 4h, or 8h 35m...")
+		return false
+
+	}
+
+	if strings.TrimSpace(reminderBody) == "" {
+		reminderBody = "Reminder to do something!"
+	}
+
+	_, err := sendDirectMessage(mc.Author.ID, fmt.Sprintf("Gotcha! will remind you in `%s` with the message ```\n%s```", humanDurationString(timeToWait), reminderBody), ds)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "I can't DM you u_u")
+		return false
+	}
+
+	err = schedulerDS.addScheduledActionAfterDuration(timeToWait, mc.Author.ID, targetTypeUser, actionTypeReminder, reminderBody)
 	return err == nil
 }
 
@@ -400,7 +412,7 @@ func processMessageWithBadEmbedLinks(ds *discordgo.Session, mc *discordgo.Messag
 		serverNotifyIfErr("processMessageWithBadEmbedLinks::sendAsUser", err, mc.GuildID, ds)
 		return
 	}
-	messageLinkFixToOgAuthorId[fixedMsg] = mc.Author.ID
+	rememberMessageWithBadEmbedAuthor(ds, mc, fixedMsg)
 
 	ds.State.MessageRemove(mc.Message)
 	err = ds.ChannelMessageDelete(mc.ChannelID, mc.ID)
@@ -410,35 +422,52 @@ func processMessageWithBadEmbedLinks(ds *discordgo.Session, mc *discordgo.Messag
 	}
 }
 
-func answerDeleteLinkFixMessage(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	interactionUserId := interactionUser(ic).ID
-	ogAuthorId, ok := messageLinkFixToOgAuthorId[ic.Message]
-	if !ok && !isAdmin(interactionUserId) {
-		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Could not find original author, only a mod can delete that message",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
+func rememberMessageWithBadEmbedAuthor(ds *discordgo.Session, mc *discordgo.MessageCreate, new *discordgo.Message) {
+	if mc == nil || new == nil {
+		adminNotifyIfErr("rememberMessageWithBadEmbedAuthor", errors.New("nil arguments"), ds)
 		return
 	}
+	deletionTime := time.Now().Add(actionFixedMessageAuthorTTL)
+	err := schedulerDS.addScheduledAction(deletionTime, new.ID, targetTypeMessage, actionTypeFixedMessageAuthor, mc.Author.ID)
+	serverNotifyIfErr("rememberMessageWithBadEmbedAuthor", err, mc.GuildID, ds)
+}
 
-	// Check if the user can delete the message
-	if interactionUserId != ogAuthorId || !isAdmin(interactionUserId) {
-		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "You did not send that message",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-		return
+func answerDeleteLinkFixMessage(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+	interactionUserId := interactionUser(ic).ID
+	messageId := ic.ApplicationCommandData().TargetID
+	scheduledActionId := -1
+
+	if !isAdmin(interactionUserId) {
+		// Find the original author
+		authorData, err := schedulerDS.getScheduledActionsByTargetIDAndActionType(messageId, actionTypeFixedMessageAuthor)
+		if err != nil || len(authorData) == 0 {
+			ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Could not find original author, only a mod can delete that message",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
+		author := authorData[0].ActionData
+		scheduledActionId = authorData[0].ID
+
+		// Check if the user is the author
+		if interactionUserId != author {
+			ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "You did not send that message!!!",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
 	}
 
 	// Try to delete and respond if it was successful
-	fixedMsgID := ic.ApplicationCommandData().TargetID
-	err := ds.ChannelMessageDelete(ic.ChannelID, fixedMsgID)
+	err := ds.ChannelMessageDelete(ic.ChannelID, messageId)
 	serverNotifyIfErr("answerDeleteLinkFixMessage::ChannelMessageDelete", err, ic.GuildID, ds)
 	if err != nil {
 		ds.InteractionRespond(ic.Interaction, &discordgo.InteractionResponse{
@@ -457,6 +486,7 @@ func answerDeleteLinkFixMessage(ds *discordgo.Session, ic *discordgo.Interaction
 			Flags:   discordgo.MessageFlagsEphemeral,
 		},
 	})
+	schedulerDS.removeScheduledAction(scheduledActionId)
 }
 
 func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
@@ -470,9 +500,8 @@ func answerMessageLogs(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 
 func answerCommandStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	var input paginatedQueryInput
-	err := parseCommandArgs(&input, mc.Content)
-	if err != nil {
-		serverNotifyIfErr("answerCommandStats: parseCommandArgs", err, mc.GuildID, ds)
+	if err := parseCommandArgs(&input, mc.Content); err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, err.Error())
 		return false
 	}
 
@@ -739,9 +768,8 @@ func answerRuntimeStats(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx 
 
 func genericListCommands(ds *discordgo.Session, mc *discordgo.MessageCreate, onlyGlobal, includeGlobal bool, responseTitle string) bool {
 	var input paginatedQueryInput
-	err := parseCommandArgs(&input, mc.Content)
-	if err != nil {
-		serverNotifyIfErr("genericListCommands: parseCommandArgs", err, mc.GuildID, ds)
+	if err := parseCommandArgs(&input, mc.Content); err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, err.Error())
 		return false
 	}
 
@@ -850,15 +878,20 @@ func guildOnly(wrapped command) command {
 
 func notSpammable(wrapped command) command {
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-		if !isAdmin(mc.Author.ID) && mc.GuildID != "" {
-			channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
-			adminNotifyIfErr("notSpammable::isChannelSpammable", err, ds)
-			if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {
-				sendDirectMessage(mc.Author.ID, "Pls don't spam the bot commands uwu", ds)
-				ds.MessageReactionAdd(mc.ChannelID, mc.Message.ID, "❌")
-				return false
-			}
+		if mc.GuildID == "" {
+			return wrapped(ds, mc, ctx)
 		}
+		if isMod(ds, mc.Author.ID, mc.ChannelID) {
+			return wrapped(ds, mc, ctx)
+		}
+
+		channelIsSpammable, err := commandDS.isChannelSpammable(mc.ChannelID)
+		adminNotifyIfErr("notSpammable::isChannelSpammable", err, ds)
+		if !channelIsSpammable && isUserOnCooldown(mc.Author.ID) {
+			ds.MessageReactionAdd(mc.ChannelID, mc.Message.ID, "❌")
+			return false
+		}
+
 		return wrapped(ds, mc, ctx)
 	}
 }

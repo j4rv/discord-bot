@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"net/http"
 	_ "net/http/pprof"
 
 	"github.com/bwmarrin/discordgo"
@@ -24,15 +23,13 @@ var adminID string
 var backupPassword string
 var noSlashCommands bool
 
-const discordMaxMessageLength = 2000
-
 var abortChannel chan os.Signal
 
 func main() {
 	// for pprof
-	go func() {
-		log.Println(http.ListenAndServe("127.0.0.1:6060", nil))
-	}()
+	// go func() {
+	// 	   log.Println(http.ListenAndServe("127.0.0.1:6060", nil))
+	// }()
 
 	initFlags()
 	initDB()
@@ -50,7 +47,7 @@ func main() {
 	log.Println("Press Ctrl+C to exit")
 	<-abortChannel
 
-	if !noSlashCommands {
+	if removeSlashCommands != nil {
 		removeSlashCommands()
 	}
 	ds.Close()
@@ -99,6 +96,7 @@ func initDiscordSession() *discordgo.Session {
 	ds.AddHandler(onMessageDeleted(backgroundCtx))
 	ds.AddHandler(onMessageReacted(backgroundCtx))
 	ds.AddHandler(onMessageUnreacted(backgroundCtx))
+	ds.AddHandler(onInteractionCreate(backgroundCtx))
 
 	ds.Identify.Intents |= discordgo.IntentGuilds
 	ds.Identify.Intents |= discordgo.IntentGuildMembers
@@ -179,6 +177,8 @@ func executeScheduledAction(ds *discordgo.Session, action ScheduledAction) error
 		roleID := split[1]
 		err = ds.GuildMemberRoleRemove(guildID, action.TargetID, roleID)
 		serverNotifyIfErr(fmt.Sprintf("Couldn't remove role from user <@%s>", action.TargetID), err, guildID, ds)
+	case actionTypeFixedMessageAuthor:
+		schedulerDS.removeScheduledAction(action.ID)
 	}
 
 	schedulerDS.removeScheduledAction(action.ID)
@@ -188,8 +188,11 @@ func executeScheduledAction(ds *discordgo.Session, action ScheduledAction) error
 // initSlashCommands returns a function to remove the registered slash commands for graceful shutdowns
 func initSlashCommands(ds *discordgo.Session) func() {
 	ds.AddHandler(func(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
+		if ic.Type != discordgo.InteractionApplicationCommand {
+			return
+		}
 		if h, ok := slashHandlers[ic.ApplicationCommandData().Name]; ok {
-			h(ds, ic)
+			go h(ds, ic)
 		} else {
 			adminNotifyIfErr("Slash command not found:"+ic.ApplicationCommandData().Name, nil, ds)
 		}
@@ -229,11 +232,6 @@ func cleanStateMessagesCRONFunc(ds *discordgo.Session) func() {
 		for _, gc := range ds.State.Guilds {
 			for _, gc := range gc.Channels {
 				cleanStateMessagesInChannel(ds, gc)
-			}
-		}
-		for m := range messageLinkFixToOgAuthorId {
-			if messagePastLifetime(m) {
-				delete(messageLinkFixToOgAuthorId, m)
 			}
 		}
 	}

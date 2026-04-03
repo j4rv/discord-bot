@@ -11,7 +11,7 @@ import (
 )
 
 func reboot() error {
-	cmd := exec.Command("sudo", "reboot")
+	cmd := exec.Command("reboot")
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not reboot linux: %w", err)
@@ -20,7 +20,7 @@ func reboot() error {
 }
 
 func shutdown(t time.Duration) error {
-	cmd := exec.Command("sudo", "shutdown", "+"+strconv.Itoa(int(t.Minutes())))
+	cmd := exec.Command("shutdown", "+"+strconv.Itoa(int(t.Minutes())))
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not shutdown linux: %w", err)
@@ -29,7 +29,7 @@ func shutdown(t time.Duration) error {
 }
 
 func abortShutdown() error {
-	cmd := exec.Command("sudo", "shutdown", "-c")
+	cmd := exec.Command("shutdown", "-c")
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not abort linux shutdown: %w", err)

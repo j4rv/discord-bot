@@ -25,10 +25,7 @@ func isAdmin(userID string) bool {
 // isMod first checks if the user has the "Administrator" permission,
 // if not, it checks if they are a Mod for the server in the bot's DB
 func isMod(ds *discordgo.Session, userID, channelID string) bool {
-	perms, err := ds.UserChannelPermissions(userID, channelID)
-	if err != nil {
-		adminNotifyIfErr(fmt.Sprintf("ERROR isMod failed for user %s in channel %s\n", userID, channelID), err, ds)
-	} else if perms&discordgo.PermissionAdministrator != 0 {
+	if userID == adminID {
 		return true
 	}
 
@@ -36,6 +33,14 @@ func isMod(ds *discordgo.Session, userID, channelID string) bool {
 	if channel == nil || err != nil {
 		adminNotifyIfErr(fmt.Sprintf("ERROR isMod failed when retrieving channel %s\n", channelID), err, ds)
 		return false
+	}
+
+	perms, err := ds.UserChannelPermissions(userID, channelID)
+	if err != nil {
+		adminNotifyIfErr(fmt.Sprintf("ERROR isMod failed for user %s in channel %s and guild %s\n", userID, channelID, channel.GuildID), err, ds)
+		serverNotifyIfErr(fmt.Sprintf("ERROR isMod failed for user %s in channel %s\n", userID, channelID), err, channel.GuildID, ds)
+	} else if perms&discordgo.PermissionAdministrator != 0 {
+		return true
 	}
 
 	isMod, err := serverDS.ListPropertyContains(channel.GuildID, serverPropMods, userID, serverPropListSeparator)

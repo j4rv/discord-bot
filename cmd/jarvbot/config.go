@@ -20,10 +20,11 @@ var discordMessageMaxLength = 1900
 var commandKeyMaxLength = 32
 var maxServerUserMods = 15
 
+const discordMaxMessageLength = 2000
 const avatarTargetSize = "1024"
 
 const cleanStateMessagesCRON = "0 * * * *"
-const stateMessageMaxLifetime = 24 * time.Hour
+const stateMessageMaxLifetime = 2 * 24 * time.Hour
 const maxMessageCount = 100
 const expensiveOperationCooldown = 15 * time.Second
 const commandCooldown = time.Minute * 15
@@ -31,7 +32,9 @@ const commandCooldown = time.Minute * 15
 // https://discord.com/branding
 const colorBlue = 0x5865F2
 const colorYellow = 0xFEE75C
-const colorRed = 0xED4245
+const colorRed = 0xD22D39
+const colorGreen = 0x008545
+const colorBlack = 0x242428
 
 const serverPropListSeparator = ";"
 const serverPropCustomTimeoutRoleName = "custom_timeout_role_name"
@@ -45,8 +48,10 @@ const serverPropNo = "N"
 const serverPropMods = "mod_user_ids"
 
 const defaultTimeoutRoleName = "Shadow Realm"
+const shootCritChance = 0.05
 const shootMisfireChance = 0.2
 const timeoutDurationWhenShot = 4 * time.Minute
+const timeoutDurationWhenCritShot = 15 * time.Minute
 const timeoutDurationWhenMisfire = 8 * time.Minute
 const timeoutDurationWhenNuclearCatastrophe = 2 * time.Minute
 const nuclearCatastropheChance = 0.006
@@ -58,21 +63,31 @@ const nuclearCatastropheResponse = "https://c.tenor.com/fxSZIUDpQIMAAAAC/explosi
 const actionSchedulerInterval = 5 * time.Second
 const actionSchedulerMaxBatch = 500
 const actionReminderMaxPerUser = 10
+const actionFixedMessageAuthorTTL = 7 * 24 * time.Hour
 const actionTypeMessage = "MESSAGE"
 const actionTypeReminder = "REMINDER"
 const actionTypeRemoveRole = "REMOVE_ROLE"
+const actionTypeFixedMessageAuthor = "FIX_MSG_AUTHOR"
 const targetTypeUser = "USER"
 const targetTypeChannel = "CHANNEL"
+const targetTypeMessage = "MESSAGE"
 
 const minesMaxSetsPerGuild = 10
 const minesMaxAmount = 100
 const minesMaxDurationSeconds = 24 * 60 * 60
+const minesMaxCustomMessageLength = 200
 const minesMinChance = 0.000001
 const minesMaxChance = 1.0
-const minesMaxCustomMessageLength = 200
+const minesMinTriggerTextChance = 0.2
+const minesMaxTriggerTextChance = 1.0
 const minesMaxTriggerTextLength = 60
 const minesNukeChance = 0.006
 const minesNukeResponse = "https://tenor.com/e7oFJluWQlO.gif"
+
+const interactionDataOriginalMessageId = 1
+const interactionDataZzzScrapsObj = 100
+const interactionDataZzzRoomIndex = 101
+const buttonCustomIdSeparator = ";"
 
 const backupCRON = "0 0 * * 1"
 const dailyCheckInReminderCRON = "CRON_TZ=Asia/Shanghai 0 0 * * *"

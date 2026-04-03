@@ -149,13 +149,31 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 		return nil
 	}
 
+	isAF := isAprilFools()
+	var nukeAFMultiplier float32 = 1
+	var shootAFMultiplier float32 = 1
+	if isAF {
+		nukeAFMultiplier = 10
+		shootAFMultiplier = 3
+	}
+
 	// Nuke logic
-	if rand.Float32() <= nuclearCatastropheChance {
+	if rand.Float32() <= nuclearCatastropheChance*nukeAFMultiplier {
 		return handleNuke(ds, channelID, guildID, timeoutRoleID, nuclearCatastropheResponse)
 	}
 
+	// Crit shot
+	if rand.Float32() <= shootCritChance*shootAFMultiplier {
+		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got shot!! Critical Hit!!", target.User.Mention()))
+		err := ds.GuildMemberRoleAdd(guildID, target.User.ID, timeoutRoleID)
+		if err == nil {
+			removeShadowRealmRoleAfterDuration(guildID, target.User.ID, timeoutRoleID, timeoutDurationWhenCritShot)
+		}
+		return nil
+	}
+
 	// Miss logic
-	if rand.Float32() <= shootMisfireChance || target.User.Bot {
+	if rand.Float32() <= shootMisfireChance*shootAFMultiplier || target.User.Bot {
 		ds.ChannelMessageSend(channelID, "OOPS! You missed :3c")
 		err := ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID)
 		if err == nil {

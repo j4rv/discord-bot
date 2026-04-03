@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/shlex"
@@ -18,7 +20,8 @@ import (
 
 // ==================== STRINGS ====================
 
-func parseCommandArgs(opts any, input string) error {
+// If an error is returned, it will be wrapped in ``` because it will be shown to the user.
+func parseCommandArgs(data any, input string) error {
 	args, err := shlex.Split(input)
 	if err != nil {
 		return err
@@ -28,8 +31,11 @@ func parseCommandArgs(opts any, input string) error {
 		args = args[1:]
 	}
 
-	_, err = flags.ParseArgs(opts, args)
-	return err
+	parser := flags.NewParser(data, flags.HelpFlag|flags.PassDoubleDash)
+	if _, err = parser.ParseArgs(args); err != nil {
+		return errors.New("```\n" + err.Error() + "\n```")
+	}
+	return nil
 }
 
 // if leftToRight is false, it will make the table topToBottom
@@ -88,19 +94,21 @@ func truncateString(s string, n int) string {
 }
 
 var badEmbedDomainReplacements = map[*regexp.Regexp]string{
-	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`): "https://fxtwitter.com",
+	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`): "https://vxtwitter.com",
 	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?pixiv\.net\b`):         "https://phixiv.net",
 	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?bilibili\.com\b`):      "https://vxbilibili.com",
+	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?reddit\.com\b`):        "https://rxddit.com",
 }
 
 var trackingParamsByDomain = map[string][]string{
 	"twitter.com":       {"t", "s"},
 	"x.com":             {"t", "s"},
-	"youtu.be":          {"si"},
-	"youtube.com":       {"si"},
-	"music.youtube.com": {"si"},
-	"open.spotify.com":  {"si"},
+	"youtu.be":          {"si", "is"},
+	"youtube.com":       {"si", "is"},
+	"music.youtube.com": {"si", "is"},
+	"open.spotify.com":  {"si", "is"},
 	"bilibili.com":      {"vd_source", "spm_id_from", "share_source"},
+	"reddit.com":        {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "context", "share_id"},
 	"*":                 {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid", "igshid"},
 }
 
@@ -153,11 +161,11 @@ func divideToFloat(a, b int) float64 {
 	return float64(a) / float64(b)
 }
 
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+// ==================== DATES ====================
+
+func isAprilFools() bool {
+	now := time.Now()
+	return now.Month() == time.April && now.Day() == 1
 }
 
 // ==================== ROLES ====================

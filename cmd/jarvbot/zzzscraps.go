@@ -17,6 +17,8 @@ import (
 	"golang.org/x/text/message"
 )
 
+var enPrinter = message.NewPrinter(message.MatchLanguage("en"))
+
 func init() {
 	zzzscraps.InitDb()
 	zzzscraps.InitLevelCurves()
@@ -325,7 +327,7 @@ func roomStageEffectsResponse(r *zzzscraps.RoomInfo) string {
 
 func enemiesResponse(enemies []*zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isMultiHpBars bool) string {
 	var response strings.Builder
-	p := message.NewPrinter(message.MatchLanguage("en"))
+	p := enPrinter
 
 	for _, e := range enemies {
 		fmt.Fprintf(&response, "**%s**", e.CardConfig.BriefName)
@@ -365,7 +367,7 @@ func enemiesResponse(enemies []*zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzs
 
 func enemyResponse(enemy *zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isMultiHpBars bool) string {
 	var response strings.Builder
-	p := message.NewPrinter(message.MatchLanguage("en"))
+	p := enPrinter
 
 	fmt.Fprintf(&response, "**%s**", enemy.CardConfig.BriefName)
 	response.WriteRune('\n')
@@ -403,7 +405,7 @@ func enemyResponse(enemy *zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.
 
 func detailedEnemyResponse(enemy *zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isMultiHpBars bool) string {
 	var response strings.Builder
-	p := message.NewPrinter(message.MatchLanguage("en"))
+	p := enPrinter
 
 	fmt.Fprintf(&response, "# **%s**\n", enemy.CardConfig.BriefName)
 	fmt.Fprintf(&response, "-# %s\n", enemy.CardConfig.SkillDesc)

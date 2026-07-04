@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,6 +13,22 @@ import (
 
 const bunkerServerID = "807055417120129085"
 const bunkerGeneralChannelID = "828303425414365214"
+
+var commandShootRegex = regexp.MustCompile(
+	`^!shoot\s*(?:<@!?(\d+)>|(everyone|@everyone|here|@here))$`,
+)
+
+var shootEveryoneDodgeMessages = []string{
+	"<user> dodged the bullets!",
+	"<user> hid in time.",
+	"<user> somehow survived the chaos.",
+	"<user> got lucky.",
+}
+
+var shootEveryoneResponses = []string{
+	"https://gif.fxtwitter.com/tweet_video/HMRq6rma4AAniOp.webp",
+	"https://klipy.com/gifs/nichijou-misato-2",
+}
 
 // Command Answers
 
@@ -43,8 +60,8 @@ func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.C
 }
 
 func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
-	match := commandWithMention.FindStringSubmatch(mc.Content)
-	if match == nil || len(match) != 2 {
+	match := commandShootRegex.FindStringSubmatch(mc.Content)
+	if match == nil {
 		ds.ChannelMessageSend(mc.ChannelID, commandWithMentionError)
 		return false
 	}
@@ -61,6 +78,18 @@ func answerShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	if err != nil {
 		ds.ChannelMessageSend(mc.ChannelID, "Could not find you in this server, maybe I'm missing permissions u_u")
 		return false
+	}
+
+	if isMemberInRole(shooter, timeoutRole.ID) {
+		ds.ChannelMessageSend(mc.ChannelID, "Shadow Realmed people can't shoot dummy")
+		return false
+	}
+
+	// Special case for @everyone/@here.
+	if match[2] != "" {
+		err = shootEveryone(ds, mc.ChannelID, mc.GuildID, shooter, timeoutRole.ID)
+		serverNotifyIfErr("answerShoot: shoot everyone", err, mc.GuildID, ds)
+		return err == nil
 	}
 
 	target, err := ds.GuildMember(mc.GuildID, match[1])
@@ -139,11 +168,6 @@ func setCustomTimeoutRole(ds *discordgo.Session, guildID string, roleName string
 // Internal functions
 
 func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *discordgo.Member, target *discordgo.Member, timeoutRoleID string) error {
-	if isMemberInRole(shooter, timeoutRoleID) {
-		ds.ChannelMessageSend(channelID, "Shadow Realmed people can't shoot dummy")
-		return nil
-	}
-
 	if isMemberInRole(target, timeoutRoleID) {
 		ds.ChannelMessageSend(channelID, "https://giphy.com/gifs/the-simpsons-stop-hes-already-dead-JCAZQKoMefkoX6TyTb")
 		return nil
@@ -188,6 +212,48 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 	if err == nil {
 		removeShadowRealmRoleAfterDuration(guildID, target.User.ID, timeoutRoleID, timeoutDurationWhenShot)
 	}
+	return nil
+}
+
+func shootEveryone(ds *discordgo.Session, channelID, guildID string, shooter *discordgo.Member, timeoutRoleID string) error {
+	if value, _ := serverDS.getServerProperty(guildID, serverPropShadowFeatureMassShootings); value != serverPropYes {
+		ds.ChannelMessageSend(channelID, "Mass shootings are not allowed in this server! :<")
+		return nil
+	}
+
+	ds.ChannelMessageSend(channelID, shootEveryoneResponses[rand.Intn(len(shootEveryoneResponses))])
+
+	activeUsers, err := activeChannelMembers(ds, channelID, false)
+	if err != nil {
+		return fmt.Errorf("could not fetch active users: %w", err)
+	}
+
+	if len(activeUsers) == 0 {
+		return fmt.Errorf("no active users found in the channel")
+	}
+
+	for _, user := range activeUsers {
+		member, err := ds.GuildMember(guildID, user.ID)
+		if err != nil {
+			continue
+		}
+		if member.User.ID == shooter.User.ID || isMemberInRole(member, timeoutRoleID) {
+			continue
+		}
+
+		// dodge chance, same misfire chance
+		if rand.Float32() <= shootMisfireChance {
+			msg := shootEveryoneDodgeMessages[rand.Intn(len(shootEveryoneDodgeMessages))]
+			ds.ChannelMessageSend(channelID, strings.ReplaceAll(msg, "<user>", user.Mention()))
+			continue
+		}
+
+		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got shot!", user.Mention()))
+		if err := ds.GuildMemberRoleAdd(guildID, user.ID, timeoutRoleID); err == nil {
+			removeShadowRealmRoleAfterDuration(guildID, user.ID, timeoutRoleID, timeoutDurationWhenShotEveryone)
+		}
+	}
+
 	return nil
 }
 

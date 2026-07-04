@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"flag"
 	"fmt"
@@ -133,8 +134,9 @@ var commands = map[string]command{
 	"!removemines":          guildOnly(modOnly(answerRemoveMines)),
 	"!removeservermines":    guildOnly(modOnly(answerRemoveGuildMines)),
 	"!findcommand":          guildOnly(modOnly(answerFindCommand)),
+	"!togglemassshootings":  guildOnly(modOnly(toggleShadowFeature(serverPropShadowFeatureMassShootings, "Mass Shootings"))),
 	// only available for the bot owner
-	//"!setserverprop":       adminOnly(answerSetServerProp),
+	"!setserverprop":       adminOnly(answerSetServerProperty),
 	"!nuketest":            guildOnly(adminOnly(answerForceNuke)),
 	"!guildlist":           adminOnly(answerGuildList),
 	"!addglobalcommand":    adminOnly(answerAddGlobalCommand),
@@ -226,6 +228,37 @@ func simpleTextResponse(body string) func(*discordgo.Session, *discordgo.Message
 	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 		_, err := ds.ChannelMessageSend(mc.ChannelID, body)
 		return err == nil
+	}
+}
+
+func toggleShadowFeature(propertyKey, featureName string) func(*discordgo.Session, *discordgo.MessageCreate, context.Context) bool {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		current, err := serverDS.getServerProperty(mc.GuildID, propertyKey)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			serverNotifyIfErr("toggleShadowFeature: get "+propertyKey, err, mc.GuildID, ds)
+			return false
+		}
+
+		newValue := serverPropYes
+		enabled := true
+		if err == nil && current == serverPropYes {
+			newValue = serverPropNo
+			enabled = false
+		}
+
+		err = serverDS.setServerProperty(mc.GuildID, propertyKey, newValue)
+		serverNotifyIfErr("toggleShadowFeature: set "+propertyKey, err, mc.GuildID, ds)
+		if err != nil {
+			return false
+		}
+
+		if enabled {
+			ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%s enabled.", featureName))
+		} else {
+			ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%s disabled.", featureName))
+		}
+
+		return true
 	}
 }
 

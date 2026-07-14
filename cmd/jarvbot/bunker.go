@@ -254,6 +254,11 @@ func shootEveryone(ds *discordgo.Session, channelID, guildID string, shooter *di
 		}
 	}
 
+	if err := ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID); err == nil {
+		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got captured by the mod police!", shooter.Mention()))
+		removeShadowRealmRoleAfterDuration(guildID, shooter.User.ID, timeoutRoleID, timeoutDurationWhenEveryoneShooter)
+	}
+
 	return nil
 }
 

@@ -334,6 +334,7 @@ func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 		return false
 	}
 
+	ds.MessageReactionAdd(mc.ChannelID, mc.ID, "✅")
 	err = schedulerDS.addScheduledActionAfterDuration(timeToWait, mc.Author.ID, targetTypeUser, actionTypeReminder, reminderBody)
 	return err == nil
 }

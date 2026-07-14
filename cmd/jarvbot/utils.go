@@ -94,7 +94,7 @@ func truncateString(s string, n int) string {
 }
 
 var badEmbedDomainReplacements = map[*regexp.Regexp]string{
-	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`): "https://vxtwitter.com",
+	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?(?:twitter|x)\.com\b`): "https://fxtwitter.com",
 	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?pixiv\.net\b`):         "https://phixiv.net",
 	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?bilibili\.com\b`):      "https://vxbilibili.com",
 	regexp.MustCompile(`\b(?:https?://)?(?:www\.)?reddit\.com\b`):        "https://rxddit.com",

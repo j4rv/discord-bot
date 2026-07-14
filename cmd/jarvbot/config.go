@@ -56,6 +56,7 @@ const timeoutDurationWhenCritShot = 15 * time.Minute
 const timeoutDurationWhenMisfire = 8 * time.Minute
 const timeoutDurationWhenNuclearCatastrophe = 2 * time.Minute
 const timeoutDurationWhenShotEveryone = 4 * time.Minute
+const timeoutDurationWhenEveryoneShooter = 7 * 24 * time.Hour
 const nuclearCatastropheChance = 0.006
 const nuclearCatastropheRandomCommandChance = 0.001
 const nuclearCatastropheMinDeaths = 5

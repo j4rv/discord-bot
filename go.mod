@@ -9,7 +9,7 @@ require (
 	github.com/heathcliff26/go-minesweeper v0.9.13
 	github.com/j4rv/genshinartis v0.0.0-20240510155157-e4a2078f376f
 	github.com/j4rv/rollssim v0.0.0-20240816172414-ef8ab34e52a8
-	github.com/j4rv/zenless-scrapper v0.0.0-20260323180213-ef2a051d5319
+	github.com/j4rv/zenless-scrapper v0.0.0-20260721162429-ad259955130d
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/kylelemons/godebug v1.1.0

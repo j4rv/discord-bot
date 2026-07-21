@@ -1,12 +1,13 @@
 //go:build zzzscraps
 
 // Optional commands that require a private dependency
-// Note to self: Use `export GOPRIVATE=github.com/j4rv/*` first
+// Note to self: Use `export GOPRIVATE=github.com/j4rv/zenless-scrapper` first
 
 package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -24,18 +25,21 @@ func init() {
 	zzzscraps.InitLevelCurves()
 	commands["!zzzcredits"] = simpleTextResponse("Thank you to Leifa, Hawichii (and indirectly Dimbreath)")
 	commands["!zzzdbupdate"] = answerZzzDbUpdate
-	commands["!zzzdb"] = answerZzzDb
+	commands["!zzzdb"] = answerZzzDbEndgame
+	commands["!zzzendgame"] = answerZzzDbEndgame
+	commands["!zzzenemy"] = answerZzzDbEnemySearch
 
 	buttonReducerMap["zzzzonelist"] = handleZzzZoneListBtn
 	buttonReducerMap["zzzzone"] = handleZzzZoneBtn
 	buttonReducerMap["zzzlayer"] = handleZzzLayerDescriptionBtn
 	buttonReducerMap["zzzroom"] = handleZzzRoomBtn
-	buttonReducerMap["zzzenemy"] = handleZzzEnemyBtn
+	buttonReducerMap["zzzenemy"] = handleZzzRoomEnemyBtn
+	buttonReducerMap["zzzenemycard"] = handleZzzEnemySearchCardBtn
 }
 
 // Command answers
 
-func answerZzzDb(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+func answerZzzDbEndgame(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
 	buttons := make([]*discordgo.Button, 0, 3)
 	buttons = append(buttons,
 		newButton("Deadly Assault", discordgo.PrimaryButton, zzzDbCustomId("zzzzonelist", mc.Author.ID, "DA", "0", "", "", "", "")),
@@ -49,6 +53,29 @@ func answerZzzDb(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context
 	})
 
 	serverNotifyIfErr("answerZenlessZone couldn't respond", err, mc.GuildID, ds)
+	return err != nil
+}
+
+func answerZzzDbEnemySearch(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	textSearch := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+	if len(textSearch) > 100 {
+		ds.ChannelMessageSend(mc.ChannelID, "Error: Text too large")
+		return false
+	}
+
+	buttons, err := buildEnemySearchButtons(textSearch, mc.Author.ID)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, err.Error())
+		return true
+	}
+
+	_, err = ds.ChannelMessageSendComplex(mc.ChannelID, &discordgo.MessageSend{
+		Content:    fmt.Sprintf("Found %d enemies", len(buttons)),
+		Components: *buildButtonComponents(buttons),
+		Reference:  &discordgo.MessageReference{MessageID: mc.ID, ChannelID: mc.ChannelID, GuildID: mc.GuildID},
+	})
+
+	adminNotifyIfErr("answerZenlessZone couldn't respond", err, ds)
 	return err != nil
 }
 
@@ -244,7 +271,7 @@ func handleZzzRoomBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, da
 	return nil
 }
 
-func handleZzzEnemyBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+func handleZzzRoomEnemyBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
 	if !isValidInteractionUser(ds, ic) {
 		return nil
 	}
@@ -281,6 +308,51 @@ func handleZzzEnemyBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, d
 	buttons := buildRoomButtons(layer, ownerId, gameMode, pageRaw, zoneIdRaw, layerIdRaw, roomIndex)
 	editInteractionMessage(ds, ic, content, buttons)
 	return nil
+}
+
+func handleZzzEnemySearchCardBtn(ds *discordgo.Session, ic *discordgo.InteractionCreate, data []string) error {
+	if !isValidInteractionUser(ds, ic) {
+		return nil
+	}
+	ackInteraction(ds, ic)
+
+	ownerId := data[1]
+	textSearch := data[2]
+	cardIdStr := data[3]
+	enemyIdStr := data[4]
+
+	cardId, err := strconv.Atoi(cardIdStr)
+	if err != nil {
+		return err
+	}
+
+	var enemy *zzzscraps.Enemy
+	if enemyIdStr == "" {
+		enemies, err := zzzscraps.GetEnemiesByCardId(cardId)
+		if err != nil {
+			return err
+		}
+		enemy = enemies[0]
+	} else {
+		enemyId, err := strconv.Atoi(enemyIdStr)
+		if err != nil {
+			return err
+		}
+		enemy, err = zzzscraps.GetEnemyById(enemyId)
+		if err != nil {
+			return err
+		}
+	}
+
+	buttons, err := buildEnemySearchEnemyCardButtons(textSearch, ownerId, cardId)
+	if err != nil {
+		return err
+	}
+
+	content := detailedEnemyResponse(enemy, 70, nil, false)
+	editInteractionMessage(ds, ic, content, buttons)
+	return nil
+
 }
 
 // Text response formatters
@@ -327,79 +399,23 @@ func roomStageEffectsResponse(r *zzzscraps.RoomInfo) string {
 
 func enemiesResponse(enemies []*zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isMultiHpBars bool) string {
 	var response strings.Builder
-	p := enPrinter
 
-	for _, e := range enemies {
-		fmt.Fprintf(&response, "**%s**", e.CardConfig.BriefName)
-		response.WriteRune('\n')
-
-		if isMultiHpBars {
-			hp, _ := zzzscraps.CalcEnemyHp(e, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
-			response.WriteString("**HP for 60k DMG Score:** ")
-			p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault65kDmgScoreHpMult)
-			response.WriteString("**HP for 20k DMG Score:** ")
-			p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault20kDmgScoreHpMult)
-			response.WriteString("**HP for 15k DMG Score:** ")
-			p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault15kDmgScoreHpMult)
-
-		} else {
-			response.WriteString("**HP:** ")
-			hp, _ := zzzscraps.CalcEnemyHp(e, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
-			p.Fprintf(&response, "%.1f\n", hp)
-		}
-
-		response.WriteString("**DEF:** ")
-		def, _ := zzzscraps.CalcEnemyDef(e, lvl, lvlAdjust, *zzzscraps.EndgameDefLevelCurve)
-		p.Fprintf(&response, "%.1f\n", def)
-
-		response.WriteString("**Daze:** ")
-		daze, _ := zzzscraps.CalcEnemyDazeBar(e, lvl, lvlAdjust, *zzzscraps.EndgameDazeLevelCurve)
-		p.Fprintf(&response, "%.1f\n", daze)
-
-		//response.WriteString("**Buildup:** ")
-		//buildup, _ := zzzscraps.CalcEnemyBuildupBar(e, lvl, lvlAdjust, *zzzscraps.EndgameBuildupLevelCurve)
-		//fmt.Fprintf(&response, "%.1f\n", buildup)
-
+	for _, enemy := range enemies {
+		fmt.Fprintf(&response, "**%s**\n", enemy.CardConfig.BriefName)
+		writeEnemyStats(&response, enemy, lvl, lvlAdjust, isMultiHpBars)
 		response.WriteRune('\n')
 	}
+
 	return response.String()
 }
 
 func enemyResponse(enemy *zzzscraps.Enemy, lvl int, lvlAdjust map[int]zzzscraps.EnemyLevelAdjust, isMultiHpBars bool) string {
 	var response strings.Builder
-	p := enPrinter
 
-	fmt.Fprintf(&response, "**%s**", enemy.CardConfig.BriefName)
+	fmt.Fprintf(&response, "**%s**\n", enemy.CardConfig.BriefName)
+	writeEnemyStats(&response, enemy, lvl, lvlAdjust, isMultiHpBars)
 	response.WriteRune('\n')
 
-	if isMultiHpBars {
-		hp, _ := zzzscraps.CalcEnemyHp(enemy, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
-		response.WriteString("**HP for 60k DMG Score:** ")
-		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault65kDmgScoreHpMult)
-		response.WriteString("**HP for 20k DMG Score:** ")
-		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault20kDmgScoreHpMult)
-		response.WriteString("**HP for 15k DMG Score:** ")
-		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault15kDmgScoreHpMult)
-
-	} else {
-		response.WriteString("**HP:** ")
-		hp, _ := zzzscraps.CalcEnemyHp(enemy, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
-		p.Fprintf(&response, "%.1f\n", hp)
-	}
-
-	response.WriteString("**DEF:** ")
-	def, _ := zzzscraps.CalcEnemyDef(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDefLevelCurve)
-	p.Fprintf(&response, "%.1f\n", def)
-
-	response.WriteString("**Daze:** ")
-	daze, _ := zzzscraps.CalcEnemyDazeBar(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDazeLevelCurve)
-	p.Fprintf(&response, "%.1f\n", daze)
-
-	//response.WriteString("**Buildup:** ")
-	//buildup, _ := zzzscraps.CalcEnemyBuildupBar(e, lvl, lvlAdjust, *zzzscraps.EndgameBuildupLevelCurve)
-	//fmt.Fprintf(&response, "%.1f\n", buildup)
-
-	response.WriteRune('\n')
 	return response.String()
 }
 
@@ -408,48 +424,22 @@ func detailedEnemyResponse(enemy *zzzscraps.Enemy, lvl int, lvlAdjust map[int]zz
 	p := enPrinter
 
 	fmt.Fprintf(&response, "# **%s**\n", enemy.CardConfig.BriefName)
+	fmt.Fprintf(&response, "-# Id: %d\n", enemy.Id)
 	fmt.Fprintf(&response, "-# %s\n", enemy.CardConfig.SkillDesc)
 	fmt.Fprintf(&response, "-# Group: %s\n", enemy.CardConfig.GroupDesc)
-	fmt.Fprintf(&response, "-# Tags: %s\n", enemy.Tags)
+	fmt.Fprintf(&response, "-# Tags: %s\n\n", enemy.Tags)
 
-	response.WriteRune('\n')
-
-	if isMultiHpBars {
-		hp, _ := zzzscraps.CalcEnemyHp(enemy, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
-		response.WriteString("**HP for 60k DMG Score:** ")
-		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault65kDmgScoreHpMult)
-		response.WriteString("**HP for 20k DMG Score:** ")
-		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault20kDmgScoreHpMult)
-		response.WriteString("**HP for 15k DMG Score:** ")
-		p.Fprintf(&response, "%.1f\n", hp*zzzscraps.DeadlyAssault15kDmgScoreHpMult)
-
-	} else {
-		response.WriteString("**HP:** ")
-		hp, _ := zzzscraps.CalcEnemyHp(enemy, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
-		p.Fprintf(&response, "%.1f\n", hp)
-	}
-
-	response.WriteString("**DEF:** ")
-	def, _ := zzzscraps.CalcEnemyDef(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDefLevelCurve)
-	p.Fprintf(&response, "%.1f\n", def)
+	writeEnemyStats(&response, enemy, lvl, lvlAdjust, isMultiHpBars)
 
 	response.WriteString("**ATK:** ")
 	atk, _ := zzzscraps.CalcEnemyAtk(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDefLevelCurve)
-	p.Fprintf(&response, "%.1f\n", atk)
-
-	response.WriteRune('\n')
-
-	response.WriteString("**Daze:** ")
-	daze, _ := zzzscraps.CalcEnemyDazeBar(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDazeLevelCurve)
-	p.Fprintf(&response, "%.1f\n", daze)
+	p.Fprintf(&response, "%.1f\n\n", atk)
 
 	response.WriteString("**Stun multiplier:** ")
-	stunMult := zzzscraps.CalcEnemyStunMultAsPct(enemy)
-	p.Fprintf(&response, "%.0f%%\n", stunMult)
+	p.Fprintf(&response, "%.0f%%\n", zzzscraps.CalcEnemyStunMultAsPct(enemy))
 
 	response.WriteString("**Stun duration:** ")
-	stunSecs := zzzscraps.CalcEnemyStunDurationInSecs(enemy)
-	p.Fprintf(&response, "%.1fs\n", stunSecs)
+	p.Fprintf(&response, "%.1fs\n\n", zzzscraps.CalcEnemyStunDurationInSecs(enemy))
 
 	response.WriteRune('\n')
 
@@ -529,6 +519,105 @@ func buildRoomButtons(layer *zzzscraps.LayerInfo, ownerId, gameMode, pageRaw, zo
 	return buttons
 }
 
+func buildEnemySearchButtons(textSearch, ownerId string) ([]*discordgo.Button, error) {
+	cards, err := zzzscraps.SearchEnemyCardsByName(textSearch)
+	if err != nil {
+		return nil, err
+	}
+	if len(cards) == 0 {
+		return nil, errors.New("No enemies found")
+	}
+
+	buttons := make([]*discordgo.Button, 0, 3)
+	for i, enemyCard := range cards {
+		if i >= 5 {
+			break
+		}
+		cardIdStr := strconv.Itoa(enemyCard.Id)
+		buttons = append(buttons,
+			newButton(enemyCard.BriefName, discordgo.PrimaryButton, zzzDbCustomId("zzzenemycard", ownerId, textSearch, cardIdStr, "", "", "", "")),
+		)
+	}
+
+	return buttons, nil
+}
+
+func buildEnemySearchEnemyCardButtons(textSearch, ownerId string, enemyCardId int) ([]*discordgo.Button, error) {
+	cards, err := zzzscraps.SearchEnemyCardsByName(textSearch)
+	if err != nil {
+		return nil, err
+	}
+	if len(cards) == 0 {
+		return nil, errors.New("No enemies found")
+	}
+	var selectedCard *zzzscraps.EnemyCard
+
+	enemies, err := zzzscraps.GetEnemiesByCardId(enemyCardId)
+	if err != nil {
+		return nil, err
+	}
+
+	buttons := make([]*discordgo.Button, 0, 3)
+	for i, enemyCard := range cards {
+		if i >= 5 {
+			break
+		}
+		if enemyCard.Id == enemyCardId {
+			selectedCard = enemyCard
+		}
+		cardIdStr := strconv.Itoa(enemyCard.Id)
+		buttons = append(buttons,
+			newButton(enemyCard.BriefName, discordgo.PrimaryButton, zzzDbCustomId("zzzenemycard", ownerId, textSearch, cardIdStr, "", "", "", "")),
+		)
+	}
+	for _, enemy := range enemies {
+		cardIdStr := strconv.Itoa(selectedCard.Id)
+		enemyIdStr := strconv.Itoa(enemy.Id)
+		buttons = append(buttons,
+			newButton(fmt.Sprintf("%s (%d)", selectedCard.BriefName, enemy.Id),
+				discordgo.PrimaryButton, zzzDbCustomId("zzzenemycard", ownerId, textSearch, cardIdStr, enemyIdStr, "", "", ""),
+			),
+		)
+	}
+
+	return buttons, nil
+}
+
 func zzzDbCustomId(action, ownerId, mode, page, zone, layer, room, enemy string) string {
 	return strings.Join([]string{action, ownerId, mode, page, zone, layer, room, enemy}, buttonCustomIdSeparator)
+}
+
+func writeEnemyStats(
+	w *strings.Builder,
+	enemy *zzzscraps.Enemy,
+	lvl int,
+	lvlAdjust map[int]zzzscraps.EnemyLevelAdjust,
+	isMultiHpBars bool,
+) {
+	p := enPrinter
+
+	w.WriteString("**Level:** ")
+	p.Fprintf(w, "%d\n", lvl)
+
+	hp, _ := zzzscraps.CalcEnemyHp(enemy, lvl, lvlAdjust, *zzzscraps.EndgameHpLevelCurve)
+
+	if isMultiHpBars {
+		w.WriteString("**HP for 60k DMG Score:** ")
+		p.Fprintf(w, "%.1f\n", hp*zzzscraps.DeadlyAssault60kDmgScoreHpMult)
+		w.WriteString("**HP for 20k DMG Score:** ")
+		p.Fprintf(w, "%.1f\n", hp*zzzscraps.DeadlyAssault20kDmgScoreHpMult)
+		w.WriteString("**HP for 15k DMG Score:** ")
+		p.Fprintf(w, "%.1f\n", hp*zzzscraps.DeadlyAssault15kDmgScoreHpMult)
+	} else {
+		w.WriteString("**HP:** ")
+		p.Fprintf(w, "%.1f\n", hp)
+	}
+
+	w.WriteString("**DEF:** ")
+	def, _ := zzzscraps.CalcEnemyDef(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDefLevelCurve)
+	p.Fprintf(w, "%.1f\n", def)
+
+	w.WriteString("**Daze:** ")
+	daze, _ := zzzscraps.CalcEnemyDazeBar(enemy, lvl, lvlAdjust, *zzzscraps.EndgameDazeLevelCurve)
+	p.Fprintf(w, "%.1f\n", daze)
 }

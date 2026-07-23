@@ -18,11 +18,16 @@ import (
 	"golang.org/x/text/message"
 )
 
+const zzzDbHelpResponse = `Available ZZZ DB Commands:
+- !zzzendgame - To get information about Deadly Assault, Shiyu Defense...
+- !zzzenemy name - To search an enemy by name, and check its stats`
+
 var enPrinter = message.NewPrinter(message.MatchLanguage("en"))
 
 func init() {
 	zzzscraps.InitDb()
 	zzzscraps.InitLevelCurves()
+	commands["!zzzdbhelp"] = simpleTextResponse(zzzDbHelpResponse)
 	commands["!zzzcredits"] = simpleTextResponse("Thank you to Leifa, Hawichii (and indirectly Dimbreath)")
 	commands["!zzzdbupdate"] = answerZzzDbUpdate
 	commands["!zzzdb"] = answerZzzDbEndgame

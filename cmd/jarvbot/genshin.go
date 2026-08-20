@@ -8,6 +8,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/j4rv/discord-bot/pkg/genshinchargen"
+	"github.com/j4rv/discord-bot/pkg/zzzchargen"
 	artis "github.com/j4rv/genshinartis"
 	"github.com/j4rv/rollssim"
 )
@@ -321,8 +322,14 @@ func answerStrongbox(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 }
 
 func answerCharacter(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
-	name := ic.ApplicationCommandData().Options[0].StringValue()
-	textRespond(ds, ic, genshinchargen.NewChar(name, unixDay()).PrettyString())
+	game := ic.ApplicationCommandData().Options[0].StringValue()
+	name := ic.ApplicationCommandData().Options[1].StringValue()
+	switch game {
+	case "zzz":
+		textRespond(ds, ic, zzzchargen.NewChar(name, unixDay()).PrettyString())
+	case "genshin":
+		textRespond(ds, ic, genshinchargen.NewChar(name, unixDay()).PrettyString())
+	}
 }
 
 // CRONs

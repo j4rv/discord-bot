@@ -233,8 +233,24 @@ var slashCommands = []*discordgo.ApplicationCommand{
 	},
 	{
 		Name:        "character",
-		Description: "Generate a Genshin Impact character",
+		Description: "Generate a character",
 		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "game",
+				Description: "Choose the game",
+				Required:    true,
+				Choices: []*discordgo.ApplicationCommandOptionChoice{
+					{
+						Name:  "Zenless Zone Zero",
+						Value: "zzz",
+					},
+					{
+						Name:  "Genshin Impact",
+						Value: "genshin",
+					},
+				},
+			},
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "name",

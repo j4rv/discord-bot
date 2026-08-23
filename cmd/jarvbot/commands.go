@@ -100,7 +100,6 @@ var commands = map[string]command{
 	"!pp":                        notSpammable(answerPP),
 	"!qr":                        notSpammable(answerQR),
 	"!minesweeper":               notSpammable(answerMinesweeper),
-	"!trivia":                    notSpammable(answerTrivia),
 	"!minesweepercredits":        notSpammable(simpleTextResponse("Credits to @heathcliff26: https://github.com/heathcliff26/go-minesweeper")),
 	// hidden or easter eggs
 	"!hello":        notSpammable(answerHello),

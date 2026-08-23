@@ -151,6 +151,11 @@ var triviaCategories = map[string]triviaCategory{
 	},
 }
 
+func init() {
+	commands["!trivia"] = notSpammable(answerTrivia)
+	commands["!triviacredits"] = simpleTextResponse("Open Trivia DB: https://opentdb.com/")
+}
+
 type triviaQueryInput struct {
 	Category   string `short:"c" long:"category" default:"" description:"Trivia category, or empty for any"`
 	Difficulty string `short:"d" long:"difficulty" default:"" description:"Question difficulty: easy, medium, hard, or empty for any"`

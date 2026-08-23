@@ -254,14 +254,21 @@ func answerTrivia(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx contex
 	}
 
 	correctAnswer := 0
-	rand.Shuffle(len(answers), func(i, j int) {
-		answers[i], answers[j] = answers[j], answers[i]
-		if i == correctAnswer {
-			correctAnswer = j
-		} else if j == correctAnswer {
-			correctAnswer = i
+	if question.Type == "boolean" {
+		if answers[0] == "False" {
+			answers[0], answers[1] = answers[1], answers[0]
+			correctAnswer = 1
 		}
-	})
+	} else {
+		rand.Shuffle(len(answers), func(i, j int) {
+			answers[i], answers[j] = answers[j], answers[i]
+			if i == correctAnswer {
+				correctAnswer = j
+			} else if j == correctAnswer {
+				correctAnswer = i
+			}
+		})
+	}
 
 	var answersFormatted []string
 	for i, answer := range answers {

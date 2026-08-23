@@ -78,6 +78,7 @@ func initDB() {
 	moddingDS = moddingDataStore{db}
 	serverDS = serverDataStore{db}
 	schedulerDS = scheduledActionsDataStore{db}
+	triviaDS = triviaDataStore{db}
 	dbMaintenance = dbMaintenanceService{db}
 }
 

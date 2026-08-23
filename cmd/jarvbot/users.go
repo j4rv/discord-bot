@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -102,4 +103,12 @@ func activeChannelMembers(ds *discordgo.Session, channelID string, keepBots bool
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+func userListToMentions(users []*discordgo.User) string {
+	mentions := make([]string, len(users))
+	for i, user := range users {
+		mentions[i] = user.Mention()
+	}
+	return strings.Join(mentions, " ")
 }

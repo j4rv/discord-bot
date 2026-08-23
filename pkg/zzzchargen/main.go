@@ -255,6 +255,8 @@ var strengths = rngx.NewWeightedSlice(map[string]int{
 	"has good Attribute Anomaly buildup":  10,
 	"buffs Disorder damage":               10,
 	"has very high personal damage":       10,
+	"has powerful Aftershocks":            10,
+	"has Ether Veils":                     10,
 	"has strong team buffs":               8,
 	"has strong grouping":                 5,
 	"has great mobility":                  5,

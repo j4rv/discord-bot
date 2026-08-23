@@ -28,6 +28,7 @@ var genshinDS genshinDataStore
 var commandDS commandDataStore
 var serverDS serverDataStore
 var schedulerDS scheduledActionsDataStore
+var triviaDS triviaDataStore
 var dbMaintenance dbMaintenanceService
 
 var errZeroRowsAffected = errors.New("zero rows were affected")
@@ -45,6 +46,7 @@ func createTables(db *sqlx.DB) {
 	createTableServerProperties(db)
 	createTableScheduledActions(db)
 	createTableMines(db)
+	createTableTriviaQuestion(db)
 }
 
 func createTableDailyCheckInReminder(db *sqlx.DB) {
@@ -161,6 +163,22 @@ func createTableMines(db *sqlx.DB) {
 	}, db)
 	createIndex("Mines", "GuildID", db)
 	createIndex("Mines", "ChannelID", db)
+}
+
+func createTableTriviaQuestion(db *sqlx.DB) {
+	createTable("TriviaQuestion", []string{
+		"Category TEXT NOT NULL",
+		"Type TEXT NOT NULL",
+		"Difficulty TEXT NOT NULL",
+		"Question TEXT NOT NULL",
+		"CorrectAnswer TEXT NOT NULL",
+		"IncorrectAnswer1 TEXT NOT NULL",
+		"IncorrectAnswer2 TEXT",
+		"IncorrectAnswer3 TEXT",
+		"TimesUsed INTEGER NOT NULL DEFAULT 0",
+		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+		"UNIQUE(Question)",
+	}, db)
 }
 
 // commands
@@ -598,6 +616,66 @@ func (s serverDataStore) removeAllGuildMines(guildID string) error {
 		return errZeroRowsAffected
 	}
 	return nil
+}
+
+// trivia
+
+type triviaDataStore struct {
+	db *sqlx.DB
+}
+
+type TriviaQuestion struct {
+	ID               int       `db:"TriviaQuestion"`
+	Category         string    `db:"Category"`
+	Type             string    `db:"Type"`
+	Difficulty       string    `db:"Difficulty"`
+	Question         string    `db:"Question"`
+	CorrectAnswer    string    `db:"CorrectAnswer"`
+	IncorrectAnswer1 string    `db:"IncorrectAnswer1"`
+	IncorrectAnswer2 *string   `db:"IncorrectAnswer2"`
+	IncorrectAnswer3 *string   `db:"IncorrectAnswer3"`
+	TimesUsed        int       `db:"TimesUsed"`
+	CreatedAt        time.Time `db:"CreatedAt"`
+}
+
+func (s triviaDataStore) addTriviaQuestion(question openTDBQuestion) error {
+	var answer2 *string
+	var answer3 *string
+	if len(question.IncorrectAnswers) > 1 {
+		answer2 = &question.IncorrectAnswers[1]
+	}
+	if len(question.IncorrectAnswers) > 2 {
+		answer3 = &question.IncorrectAnswers[2]
+	}
+	_, err := s.db.Exec(`
+		INSERT OR IGNORE INTO TriviaQuestion (Category, Type, Difficulty, Question, CorrectAnswer, IncorrectAnswer1, IncorrectAnswer2, IncorrectAnswer3)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		question.Category, question.Type, question.Difficulty, question.Question,
+		question.CorrectAnswer, question.IncorrectAnswers[0], answer2, answer3,
+	)
+	return err
+}
+
+func (s triviaDataStore) incrementTriviaQuestionTimesUsed(id int) error {
+	_, err := s.db.Exec(`UPDATE TriviaQuestion SET TimesUsed = TimesUsed + 1 WHERE TriviaQuestion = ?`, id)
+	return err
+}
+
+func (s triviaDataStore) getLeastUsedTriviaQuestion(category string, questionType string, difficulty string) (*TriviaQuestion, error) {
+	var questions []TriviaQuestion
+	err := s.db.Select(&questions, `SELECT TriviaQuestion, Category, Type, Difficulty, Question, CorrectAnswer, IncorrectAnswer1, IncorrectAnswer2, IncorrectAnswer3, TimesUsed, CreatedAt
+		FROM TriviaQuestion
+		WHERE (? = '' OR Category = ?) AND (? = '' OR Type = ?) AND (? = '' OR Difficulty = ?)
+		ORDER BY TimesUsed ASC, RANDOM()
+		LIMIT 1`, category, category, questionType, questionType, difficulty, difficulty)
+
+	if err != nil {
+		return nil, err
+	}
+	if len(questions) == 0 {
+		return nil, nil
+	}
+	return &questions[0], nil
 }
 
 // scheduled actions

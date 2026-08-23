@@ -442,11 +442,7 @@ func fetchTriviaQuestions(ctx context.Context, input validatedTriviaInput) ([]op
 	params.Set("encode", "url3986")
 
 	if input.Category != "" {
-		category, ok := triviaCategories[input.Category]
-		if !ok {
-			return nil, fmt.Errorf("unknown trivia category: %s", input.Category)
-		}
-		params.Set("category", strconv.Itoa(category.ID))
+		params.Set("category", strconv.Itoa(input.CategoryID))
 	}
 	if input.Difficulty != "" {
 		params.Set("difficulty", input.Difficulty)

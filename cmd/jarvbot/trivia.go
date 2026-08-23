@@ -15,8 +15,12 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+const triviaBatchSize = "50"
 const triviaTimeToWait = 15 * time.Second
 const maxWinnersOnMessageLimitReached = 25
+const triviaRateLimitCooldown = 30 * time.Second
+
+var triviaRateLimitedUntil time.Time
 
 // Distinct fruits for colour-blind friendlyness
 var triviaAnswerEmojis = []string{
@@ -191,7 +195,7 @@ func parseAndValidateTriviaInput(mc *discordgo.MessageCreate) (*validatedTriviaI
 	}
 
 	category := strings.ToLower(strings.TrimSpace(input.Category))
-	var categoryID int
+	categoryName, categoryID := "", 0
 	if category != "" {
 		triviaCategory, ok := triviaCategories[category]
 		if !ok {
@@ -202,6 +206,7 @@ func parseAndValidateTriviaInput(mc *discordgo.MessageCreate) (*validatedTriviaI
 			sort.Strings(categories)
 			return nil, fmt.Sprintf("Unknown trivia category: %s\nValid categories: %s", input.Category, strings.Join(categories, ", "))
 		}
+		categoryName = triviaCategory.Name
 		categoryID = triviaCategory.ID
 	}
 
@@ -220,7 +225,7 @@ func parseAndValidateTriviaInput(mc *discordgo.MessageCreate) (*validatedTriviaI
 	}
 
 	return &validatedTriviaInput{
-		Category:   category,
+		Category:   categoryName,
 		CategoryID: categoryID,
 		Difficulty: difficulty,
 		Type:       questionType,
@@ -428,8 +433,12 @@ func getTriviaQuestion(ctx context.Context, input validatedTriviaInput) (*Trivia
 }
 
 func fetchTriviaQuestions(ctx context.Context, input validatedTriviaInput) ([]openTDBQuestion, error) {
+	if time.Now().Before(triviaRateLimitedUntil) {
+		return nil, fmt.Errorf("OpenTDB rate limit active, try again later")
+	}
+
 	params := url.Values{}
-	params.Set("amount", "50")
+	params.Set("amount", triviaBatchSize)
 	params.Set("encode", "url3986")
 
 	if input.Category != "" {
@@ -457,6 +466,11 @@ func fetchTriviaQuestions(ctx context.Context, input validatedTriviaInput) ([]op
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		triviaRateLimitedUntil = time.Now().Add(triviaRateLimitCooldown)
+		return nil, fmt.Errorf("OpenTDB rate limit exceeded")
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("OpenTDB returned HTTP status %d", resp.StatusCode)

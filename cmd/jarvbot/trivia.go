@@ -15,7 +15,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-const triviaTimeToWait = 10 * time.Second
+const triviaTimeToWait = 15 * time.Second
 const maxWinnersOnMessageLimitReached = 25
 
 // Distinct fruits for colour-blind friendlyness
@@ -259,12 +259,11 @@ func answerTrivia(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx contex
 	})
 
 	var answersFormatted []string
-
 	for i, answer := range answers {
 		answersFormatted = append(answersFormatted, fmt.Sprintf("%s %s", triviaAnswerEmojis[i], answer))
 	}
 
-	message := fmt.Sprintf("## %s\n```%s```", question.Question, formatInColumns(answersFormatted, 2, true))
+	message := fmt.Sprintf("## %s\n```%s```", question.Question, strings.Join(answersFormatted, "\n"))
 	sentMessage, err := ds.ChannelMessageSend(mc.ChannelID, message)
 	if err != nil {
 		serverNotifyIfErr("Trivia message could not be sent", err, mc.GuildID, ds)

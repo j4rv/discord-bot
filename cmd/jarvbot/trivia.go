@@ -58,31 +58,31 @@ var triviaCategories = map[string]triviaCategory{
 	},
 	"books": {
 		ID:   10,
-		Name: "Books",
+		Name: "Entertainment: Books",
 	},
 	"film": {
 		ID:   11,
-		Name: "Film",
+		Name: "Entertainment: Film",
 	},
 	"music": {
 		ID:   12,
-		Name: "Music",
+		Name: "Entertainment: Music",
 	},
 	"musicals": {
 		ID:   13,
-		Name: "Musicals & Theatres",
+		Name: "Entertainment: Musicals & Theatres",
 	},
 	"tv": {
 		ID:   14,
-		Name: "Television",
+		Name: "Entertainment: Television",
 	},
 	"video_games": {
 		ID:   15,
-		Name: "Video Games",
+		Name: "Entertainment: Video Games",
 	},
 	"board_games": {
 		ID:   16,
-		Name: "Board Games",
+		Name: "Entertainment: Board Games",
 	},
 	"science": {
 		ID:   17,
@@ -90,11 +90,11 @@ var triviaCategories = map[string]triviaCategory{
 	},
 	"computers": {
 		ID:   18,
-		Name: "Computers",
+		Name: "Science: Computers",
 	},
 	"math": {
 		ID:   19,
-		Name: "Math",
+		Name: "Science: Mathematics",
 	},
 	"mythology": {
 		ID:   20,
@@ -134,19 +134,19 @@ var triviaCategories = map[string]triviaCategory{
 	},
 	"comics": {
 		ID:   29,
-		Name: "Comics",
+		Name: "Entertainment: Comics",
 	},
 	"gadgets": {
 		ID:   30,
-		Name: "Gadgets",
+		Name: "Science: Gadgets",
 	},
 	"anime": {
 		ID:   31,
-		Name: "Animanga",
+		Name: "Entertainment: Japanese Anime & Manga",
 	},
 	"cartoons": {
 		ID:   32,
-		Name: "Cartoons",
+		Name: "Entertainment: Cartoon & Animations",
 	},
 }
 

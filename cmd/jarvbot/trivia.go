@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -76,11 +77,11 @@ var triviaCategories = map[string]triviaCategory{
 		ID:   14,
 		Name: "Entertainment: Television",
 	},
-	"video_games": {
+	"videogames": {
 		ID:   15,
 		Name: "Entertainment: Video Games",
 	},
-	"board_games": {
+	"boardgames": {
 		ID:   16,
 		Name: "Entertainment: Board Games",
 	},
@@ -185,19 +186,17 @@ func parseAndValidateTriviaInput(mc *discordgo.MessageCreate) (*validatedTriviaI
 	}
 
 	category := strings.ToLower(strings.TrimSpace(input.Category))
-	category = strings.ReplaceAll(category, "-", "_")
-	category = strings.ReplaceAll(category, " ", "_")
-
 	var categoryID int
 	if category != "" {
 		triviaCategory, ok := triviaCategories[category]
 		if !ok {
-			return nil, fmt.Sprintf(
-				"Unknown trivia category: %s",
-				input.Category,
-			)
+			categories := make([]string, 0, len(triviaCategories))
+			for name := range triviaCategories {
+				categories = append(categories, name)
+			}
+			sort.Strings(categories)
+			return nil, fmt.Sprintf("Unknown trivia category: %s\nValid categories: %s", input.Category, strings.Join(categories, ", "))
 		}
-
 		categoryID = triviaCategory.ID
 	}
 

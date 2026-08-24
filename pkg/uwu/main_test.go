@@ -15,7 +15,7 @@ func TestUwuify(t *testing.T) {
 	u.emoteChance = 1
 	u.suffixChance = 1
 
-	input := "Really lovely people are here"
+	input := "Really lovely people are here, right <@10971289071>?"
 	output := u.UwUify(input)
 
 	t.Logf("input:  %s", input)
@@ -31,7 +31,7 @@ func TestUwuify(t *testing.T) {
 }
 
 func TestUwuify2(t *testing.T) {
-	input := "Really lovely people are here, and they are looking forward to having a wonderful conversation with everyone!"
+	input := "Really lovely people are here, and they are looking forward to having a wonderful conversation with everyone, specially <@10971289071>!"
 	baseSeed := int64(12345)
 
 	for i := int64(0); i < 8; i++ {

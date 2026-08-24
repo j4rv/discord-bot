@@ -1,10 +1,15 @@
 package uwu
 
 import (
+	"fmt"
 	"math/rand"
+	"regexp"
 	"strings"
 	"unicode"
 )
+
+var discordMentionRegex = regexp.MustCompile(`<@!?(\d+)>`)
+var discordProtectedRegex = regexp.MustCompile(`<@!?\d+>|<a?:[a-zA-Z0-9_]+:\d+>|https?://[^\s]+`)
 
 type uwuifier struct {
 	stutterChance float64
@@ -13,6 +18,7 @@ type uwuifier struct {
 	suffixChance  float64
 	emotes        []string
 	suffixes      []string
+	honorifics    []string
 }
 
 func NewUwuifier() *uwuifier {
@@ -53,6 +59,15 @@ func NewUwuifier() *uwuifier {
 			"nya~",
 			" rawr~",
 		},
+		honorifics: []string{
+			"-chan",
+			"-kun",
+			"-san",
+			"-sama",
+			"-senpai",
+			"-sensei",
+			"-nyan",
+		},
 	}
 }
 
@@ -60,6 +75,16 @@ func (u *uwuifier) UwUify(input string) string {
 	if input == "" {
 		return input
 	}
+
+	protected := make([]string, 0)
+	input = discordProtectedRegex.ReplaceAllStringFunc(input, func(value string) string {
+		if strings.HasPrefix(value, "<@") && len(u.honorifics) > 0 {
+			value += u.honorifics[rand.Intn(len(u.honorifics))]
+		}
+
+		protected = append(protected, value)
+		return fmt.Sprintf("__$%%&$%%&_%d__", len(protected)-1)
+	})
 
 	output := u.replaceLetters(input)
 	output = u.addRandomSuffixes(output)
@@ -74,6 +99,10 @@ func (u *uwuifier) UwUify(input string) string {
 
 	if rand.Float64() < u.emoteChance && len(u.emotes) > 0 {
 		output += " " + u.emotes[rand.Intn(len(u.emotes))]
+	}
+
+	for i, value := range protected {
+		output = strings.Replace(output, fmt.Sprintf("__$%%&$%%&_%d__", i), value, 1)
 	}
 
 	return output

@@ -65,11 +65,14 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			return
 		}
 
-		go newMessageUwuCheck(ds, mc)
-
 		// Process Bot mentions
 		if strings.Contains(mc.Content, ds.State.User.Mention()) || strings.Contains(mc.Content, "@jrok") {
 			processBotMention(ds, mc, ctx)
+		}
+
+		if newMessageUwuCheck(ds, mc) {
+			// if a message get uwufied, dont continue (to prevent double msgs in some cases)
+			return
 		}
 
 		// Twitter links replacement

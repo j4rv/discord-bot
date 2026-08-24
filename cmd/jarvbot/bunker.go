@@ -336,12 +336,12 @@ func answerUwuRelease(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx co
 	return true
 }
 
-func newMessageUwuCheck(ds *discordgo.Session, mc *discordgo.MessageCreate) {
+func newMessageUwuCheck(ds *discordgo.Session, mc *discordgo.MessageCreate) bool {
 	value, ok := uwuJailedUsers.Get(mc.GuildID)
 	if !ok {
 		uwufiedUserId, err := serverDS.getServerProperty(mc.GuildID, serverPropUwuJailedUser)
 		if err != nil {
-			return
+			return false
 		}
 
 		uwuJailedUsers.Set(mc.GuildID, uwufiedUserId, cache.NoExpiration)
@@ -350,19 +350,21 @@ func newMessageUwuCheck(ds *discordgo.Session, mc *discordgo.MessageCreate) {
 
 	uwufiedUserId := value.(string)
 	if uwufiedUserId == "" || mc.Author.ID != uwufiedUserId {
-		return
+		return false
 	}
 
 	_, err := sendAsUser(ds, mc.Author, mc.ChannelID, uwuifier.UwUify(mc.Content), mc.ReferencedMessage)
 	if err != nil {
 		serverNotifyIfErr("newMessageUwuCheck::sendAsUser", err, mc.GuildID, ds)
-		return
+		return false
 	}
 
 	ds.State.MessageRemove(mc.Message)
 	err = ds.ChannelMessageDelete(mc.ChannelID, mc.ID)
 	if err != nil {
 		serverNotifyIfErr("newMessageUwuCheck::ds.ChannelMessageDelete", err, mc.GuildID, ds)
-		return
+		return false
 	}
+
+	return true
 }

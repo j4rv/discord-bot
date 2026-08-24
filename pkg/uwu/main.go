@@ -113,9 +113,9 @@ func (u *uwuifier) replaceLetters(input string) string {
 
 	for _, char := range input {
 		switch char {
-		case 'r', 'l':
+		case 'r':
 			builder.WriteRune('w')
-		case 'R', 'L':
+		case 'R':
 			builder.WriteRune('W')
 		case '!', '?':
 			builder.WriteRune(char)

@@ -65,6 +65,8 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 			return
 		}
 
+		go newMessageUwuCheck(ds, mc)
+
 		// Process Bot mentions
 		if strings.Contains(mc.Content, ds.State.User.Mention()) || strings.Contains(mc.Content, "@jrok") {
 			processBotMention(ds, mc, ctx)
@@ -135,6 +137,8 @@ var commands = map[string]command{
 	"!removeservermines":    guildOnly(modOnly(answerRemoveGuildMines)),
 	"!findcommand":          guildOnly(modOnly(answerFindCommand)),
 	"!togglemassshootings":  guildOnly(modOnly(toggleShadowFeature(serverPropShadowFeatureMassShootings, "Mass Shootings"))),
+	"!uwujail":              guildOnly(modOnly(answerUwuJail)),
+	"!uwurelease":           guildOnly(modOnly(answerUwuRelease)),
 	// only available for the bot owner
 	"!setserverprop":       adminOnly(answerSetServerProperty),
 	"!nuketest":            guildOnly(adminOnly(answerForceNuke)),

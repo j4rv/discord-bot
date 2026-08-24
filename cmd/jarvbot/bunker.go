@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/j4rv/discord-bot/pkg/uwu"
+	"github.com/patrickmn/go-cache"
 )
 
 const bunkerServerID = "807055417120129085"
@@ -295,4 +297,72 @@ func handleNuke(ds *discordgo.Session, channelID, guildID, timeoutRoleID, firstR
 	}
 
 	return nil
+}
+
+// uwu
+
+var uwuifier = uwu.NewUwuifier()
+var uwuJailedUsers = cache.New(cache.NoExpiration, 0)
+
+func answerUwuJail(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	match := commandWithMention.FindStringSubmatch(mc.Content)
+	if match == nil || len(match) != 2 {
+		ds.ChannelMessageSend(mc.ChannelID, commandWithMentionError)
+		return false
+	}
+
+	targetID := match[1]
+
+	err := serverDS.setServerProperty(mc.GuildID, serverPropUwuJailedUser, targetID)
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "I could not uwu jail them :( sowwy")
+		return false
+	}
+
+	uwuJailedUsers.Set(mc.GuildID, targetID, cache.NoExpiration)
+	ds.ChannelMessageSend(mc.ChannelID, "UwU Jailed!! >:3c")
+	return true
+}
+
+func answerUwuRelease(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	err := serverDS.setServerProperty(mc.GuildID, serverPropUwuJailedUser, "")
+	if err != nil {
+		ds.ChannelMessageSend(mc.ChannelID, "I could not uwu release them :( sowwy")
+		return false
+	}
+
+	uwuJailedUsers.Delete(mc.GuildID)
+	ds.ChannelMessageSend(mc.ChannelID, "The uwu prisoner has been released~")
+	return true
+}
+
+func newMessageUwuCheck(ds *discordgo.Session, mc *discordgo.MessageCreate) {
+	value, ok := uwuJailedUsers.Get(mc.GuildID)
+	if !ok {
+		uwufiedUserId, err := serverDS.getServerProperty(mc.GuildID, serverPropUwuJailedUser)
+		if err != nil {
+			return
+		}
+
+		uwuJailedUsers.Set(mc.GuildID, uwufiedUserId, cache.NoExpiration)
+		value = uwufiedUserId
+	}
+
+	uwufiedUserId := value.(string)
+	if uwufiedUserId == "" || mc.Author.ID != uwufiedUserId {
+		return
+	}
+
+	_, err := sendAsUser(ds, mc.Author, mc.ChannelID, uwuifier.UwUify(mc.Content), mc.ReferencedMessage)
+	if err != nil {
+		serverNotifyIfErr("newMessageUwuCheck::sendAsUser", err, mc.GuildID, ds)
+		return
+	}
+
+	ds.State.MessageRemove(mc.Message)
+	err = ds.ChannelMessageDelete(mc.ChannelID, mc.ID)
+	if err != nil {
+		serverNotifyIfErr("newMessageUwuCheck::ds.ChannelMessageDelete", err, mc.GuildID, ds)
+		return
+	}
 }

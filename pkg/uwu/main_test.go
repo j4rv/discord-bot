@@ -34,16 +34,16 @@ func TestUwuify2(t *testing.T) {
 	input := "Really lovely people are here, and they are looking forward to having a wonderful conversation with everyone, specially <@10971289071>!"
 	baseSeed := int64(12345)
 
-	for i := int64(0); i < 8; i++ {
+	for i := int64(0); i < 20; i++ {
 		seed := baseSeed + i
 		rand.Seed(seed)
 
 		u := NewUwuifier()
 		output := u.UwUify(input)
 
-		t.Logf("seed: %d", seed)
-		t.Logf("input:  %s", input)
-		t.Logf("output: %s", output)
+		//t.Logf("seed: %d", seed)
+		//t.Logf("input:  %s", input)
+		t.Logf("%s", output)
 	}
 }
 

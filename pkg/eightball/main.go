@@ -21,6 +21,8 @@ var yesResponses = []string{
 	"*nods*",
 	"Yes, yes, yes, yes!",
 	"Yes... eventually.",
+	"The spreadsheet says yes.",
+	"Shockingly, yes.",
 }
 
 var noResponses = []string{
@@ -42,6 +44,8 @@ var noResponses = []string{
 	"How can I say this... No.",
 	"No, no, no, no!",
 	"Calculating chance... updating weather patterns... checking the Shadow Realm...\nOutcome: 0% chance.",
+	"That ship has sailed.",
+	"Yeah... no.",
 }
 
 var neutralResponses = []string{
@@ -56,6 +60,7 @@ var neutralResponses = []string{
 	"It is fifty fifty.",
 	"That depends.",
 	"I don't get paid enough to answer that.",
+	"That's above my pay grade.",
 	"Fuck you.",
 	"Cu... come again?",
 	"Please stop pinging me",
@@ -66,6 +71,8 @@ var neutralResponses = []string{
 	"For legal reasons, I refuse to answer that question.",
 	"404 Answer Not Found.",
 	"¯\\_(ツ)_/¯",
+	"Ask me after the next lunar eclipse.",
+	"I need a minute.",
 }
 
 func Response() string {

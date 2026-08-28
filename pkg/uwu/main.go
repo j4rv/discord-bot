@@ -8,7 +8,6 @@ import (
 	"unicode"
 )
 
-var discordMentionRegex = regexp.MustCompile(`<@!?(\d+)>`)
 var discordProtectedRegex = regexp.MustCompile(`<@!?\d+>|<a?:[a-zA-Z0-9_]+:\d+>|https?://[^\s]+`)
 
 type uwuifier struct {
@@ -31,17 +30,22 @@ func NewUwuifier() *uwuifier {
 			"(≧◡≦)",
 			"(⁄ ⁄•⁄ω⁄•⁄ ⁄)",
 			"(・`ω´・)",
+			"(｡•̀⩊•́｡)",
 			"(｡♥‿♥｡)",
 			"(✿◠‿◠)",
 			"(◕‿◕✿)",
 			"(ᵕ•̤ᴗ•̤ᵕ)",
 			"(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧",
+			"(づ￣ ³￣)づ",
 			"(≧ω≦)",
 			"(UwU)",
 			"(>w<)",
+			"(˘▾˘)",
 			"(˶ᵔ ᵕ ᵔ˶)",
 			"(´｡• ᵕ •｡`)",
 			"(๑˃ᴗ˂)ﻭ",
+			"(⁄˃ᆺ˂)⁄",
+			"(ᓀ‸ᓂ)",
 			"(owo)",
 			"owo",
 			"OwO",
@@ -51,13 +55,22 @@ func NewUwuifier() *uwuifier {
 			":3c",
 			"(blushes)",
 			"(faints)",
+			"(hisses)",
 			"(wiggling my tail)",
+			"(pounces on you)",
+			"(climbs on your lap)",
+			"(bites you)",
+			"(licking myself)",
 		},
 		suffixes: []string{
 			"~",
 			"~~",
 			"nya~",
 			" rawr~",
+			" meow~",
+			" boop~",
+			" ehehe~",
+			" purrr~",
 		},
 		honorifics: []string{
 			"-chan",

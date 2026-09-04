@@ -100,6 +100,7 @@ var commands = map[string]command{
 	"!randomartifactset":         notSpammable(answerRandomArtifactSet),
 	"!randomdomainrun":           notSpammable(answerRandomDomainRun),
 	"!remindme":                  notSpammable(answerRemindme),
+	"!remindmein":                notSpammable(answerRemindme),
 	"!roll":                      notSpammable(answerRoll),
 	"!shoot":                     notSpammable(answerShoot),
 	"!pp":                        notSpammable(answerPP),
@@ -331,7 +332,7 @@ func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	}
 
 	if strings.TrimSpace(reminderBody) == "" {
-		reminderBody = "Reminder to do something!"
+		reminderBody = "Reminder to do... something!"
 	}
 
 	_, err := sendDirectMessage(mc.Author.ID, fmt.Sprintf("Gotcha! will remind you in `%s` with the message ```\n%s```", humanDurationString(timeToWait), reminderBody), ds)

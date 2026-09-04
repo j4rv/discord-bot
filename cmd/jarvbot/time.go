@@ -10,10 +10,11 @@ import (
 	"unicode"
 )
 
+var timedCommandInPrefixRegex = regexp.MustCompile(`(?i)^in\s+`)
 var stringDaysRegex = regexp.MustCompile(`(?i)^(\d{1,3})\s*(?:days?|d)`)
-var stringHoursRegex = regexp.MustCompile(`(?i)^(\d{1,2})\s*(?:hours?|h)`)
-var stringMinsRegex = regexp.MustCompile(`(?i)^(\d{1,2})\s*(?:minutes?|m)`)
-var stringSecsRegex = regexp.MustCompile(`(?i)^(\d{1,2})\s*(?:seconds?|s)`)
+var stringHoursRegex = regexp.MustCompile(`(?i)^(\d{1,4})\s*(?:hours?|h)`)
+var stringMinsRegex = regexp.MustCompile(`(?i)^(\d{1,5})\s*(?:minutes?|m)`)
+var stringSecsRegex = regexp.MustCompile(`(?i)^(\d{1,6})\s*(?:seconds?|s)`)
 
 const secondsInADay = 60 * 60 * 24
 
@@ -66,6 +67,7 @@ func userExecutedExpensiveOperation(userID string) {
 func processTimedCommand(commandBody string) (time.Duration, string) {
 	var result time.Duration
 	commandBody = commandPrefixRegex.ReplaceAllString(commandBody, "")
+	commandBody = timedCommandInPrefixRegex.ReplaceAllString(commandBody, "")
 
 	n, commandBody := extractTimeUnit(commandBody, stringDaysRegex)
 	result += time.Duration(n) * time.Hour * 24

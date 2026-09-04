@@ -157,11 +157,15 @@ func (u *uwuifier) addStutter(input string) string {
 }
 
 func (u *uwuifier) stretchRandomWord(input string) string {
-	words := strings.Fields(input)
+	parts := regexp.MustCompile(`\S+|\s+`).FindAllString(input, -1)
 
 	var candidates []int
-	for i, word := range words {
-		runes := []rune(word)
+	for i, part := range parts {
+		if strings.TrimSpace(part) == "" {
+			continue
+		}
+
+		runes := []rune(part)
 		if len(runes) < 2 {
 			continue
 		}
@@ -177,37 +181,37 @@ func (u *uwuifier) stretchRandomWord(input string) string {
 	}
 
 	index := candidates[rand.Intn(len(candidates))]
-	runes := []rune(words[index])
+	runes := []rune(parts[index])
 	last := runes[len(runes)-1]
-
-	words[index] += strings.Repeat(string(last), rand.Intn(3)+1)
-
-	return strings.Join(words, " ")
+	parts[index] += strings.Repeat(string(last), rand.Intn(3)+1)
+	return strings.Join(parts, "")
 }
 
 func (u *uwuifier) addRandomSuffixes(input string) string {
-	words := strings.Fields(input)
+	parts := regexp.MustCompile(`\S+|\s+`).FindAllString(input, -1)
 
-	for i, word := range words {
-		// dont add suffix to very short words
-		if len([]rune(word)) <= 4 || rand.Float64() >= u.suffixChance || len(u.suffixes) == 0 {
+	for i, part := range parts {
+		if strings.TrimSpace(part) == "" {
+			continue
+		}
+
+		if len([]rune(part)) <= 4 || rand.Float64() >= u.suffixChance || len(u.suffixes) == 0 {
 			continue
 		}
 
 		suffix := u.suffixes[rand.Intn(len(u.suffixes))]
 
-		// Put the suffix before trailing punctuation.
-		end := len(word)
+		end := len(part)
 		for end > 0 {
-			last := word[end-1]
+			last := part[end-1]
 			if last != '!' && last != '?' && last != '.' && last != ',' {
 				break
 			}
 			end--
 		}
 
-		words[i] = word[:end] + suffix + word[end:]
+		parts[i] = part[:end] + suffix + part[end:]
 	}
 
-	return strings.Join(words, " ")
+	return strings.Join(parts, "")
 }

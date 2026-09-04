@@ -31,8 +31,8 @@ func TestUwuify(t *testing.T) {
 }
 
 func TestUwuify2(t *testing.T) {
-	input := "Really lovely people are here, and they are looking forward to having a wonderful conversation with everyone, specially <@10971289071>!"
-	baseSeed := int64(12345)
+	input := "Really lovely people are here,\nand they are looking forward to having a wonderful conversation with everyone,\nspecially <@10971289071>!"
+	baseSeed := int64(1234)
 
 	for i := int64(0); i < 20; i++ {
 		seed := baseSeed + i

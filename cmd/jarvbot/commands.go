@@ -326,9 +326,8 @@ func answerRemindme(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 
 	timeToWait, reminderBody := processTimedCommand(mc.Content)
 	if timeToWait == 0 {
-		ds.ChannelMessageSend(mc.ChannelID, "Please provide a time. For example: 1d, or 4h, or 8h 35m...")
+		ds.ChannelMessageSend(mc.ChannelID, "Please provide a time. For example: 365d, or 4h, or 8h 35m...")
 		return false
-
 	}
 
 	if strings.TrimSpace(reminderBody) == "" {

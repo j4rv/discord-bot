@@ -7,12 +7,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
-var stringDaysRegex = regexp.MustCompile(`^(\d{1,2})d`)
-var stringHoursRegex = regexp.MustCompile(`^(\d{1,2})h`)
-var stringMinsRegex = regexp.MustCompile(`^(\d{1,2})m`)
-var stringSecsRegex = regexp.MustCompile(`^(\d{1,2})s`)
+var stringDaysRegex = regexp.MustCompile(`(?i)^(\d{1,3})\s*(?:days?|d)`)
+var stringHoursRegex = regexp.MustCompile(`(?i)^(\d{1,2})\s*(?:hours?|h)`)
+var stringMinsRegex = regexp.MustCompile(`(?i)^(\d{1,2})\s*(?:minutes?|m)`)
+var stringSecsRegex = regexp.MustCompile(`(?i)^(\d{1,2})\s*(?:seconds?|s)`)
 
 const secondsInADay = 60 * 60 * 24
 
@@ -59,7 +60,7 @@ func userExecutedExpensiveOperation(userID string) {
 	}()
 }
 
-// Format: "!<command> 99d 99h 99m 99s <body>"
+// Format: "!<command> 999d 99h 99m 99s <body>"
 // Returns: The duration and the body
 // TODO: Extract to an utilities library?
 func processTimedCommand(commandBody string) (time.Duration, string) {
@@ -103,7 +104,7 @@ func extractTimeUnit(s string, re *regexp.Regexp) (int, string) {
 		return 0, s
 	}
 	s = re.ReplaceAllString(s, "")
-	s = strings.TrimLeft(s, " ")
+	s = strings.TrimLeftFunc(s, unicode.IsSpace)
 	foundInt, _ := strconv.Atoi(found[1])
 	return foundInt, s
 }

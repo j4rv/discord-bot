@@ -255,7 +255,10 @@ func messagePastLifetime(msg *discordgo.Message) bool {
 }
 
 func sendAsUserWebhook(ds *discordgo.Session, channelID string) (*discordgo.Webhook, error) {
-	hooks, _ := ds.ChannelWebhooks(channelID)
+	hooks, err := ds.ChannelWebhooks(channelID)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, hook := range hooks {
 		if hook.Name == "SendAsUser" {
@@ -307,9 +310,14 @@ func sendAsUser(ds *discordgo.Session, user *discordgo.User, channelID string, c
 		})
 	}
 
+	username := user.GlobalName
+	if username == "" {
+		username = user.Username
+	}
+
 	return ds.WebhookExecute(webhook.ID, webhook.Token, true, &discordgo.WebhookParams{
 		Content:   content,
-		Username:  user.GlobalName,
+		Username:  username,
 		AvatarURL: user.AvatarURL(""),
 	})
 }

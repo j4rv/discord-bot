@@ -144,6 +144,9 @@ var commands = map[string]command{
 	"!uwujail":              guildOnly(modOnly(answerUwuJail)),
 	"!uwurelease":           guildOnly(modOnly(answerUwuRelease)),
 	// only available for the bot owner
+	"!dbadminselect":       adminOnly(answerAdminDb(dbAdmin.ExecuteSelect)),
+	"!dbadminupdate":       adminOnly(answerAdminDb(dbAdmin.ExecuteUpdate)),
+	"!dbadmindelete":       adminOnly(answerAdminDb(dbAdmin.ExecuteDelete)),
 	"!setserverprop":       adminOnly(answerSetServerProperty),
 	"!nuketest":            guildOnly(adminOnly(answerForceNuke)),
 	"!guildlist":           adminOnly(answerGuildList),
@@ -731,6 +734,34 @@ func answerFindCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 	}
 	ds.ChannelMessageSend(mc.ChannelID, key)
 	return true
+}
+
+type adminDbExecuteFunc func(userID, query string) (string, error)
+
+func answerAdminDb(
+	execute adminDbExecuteFunc,
+) func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	return func(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+		commandBody := strings.TrimSpace(commandPrefixRegex.ReplaceAllString(mc.Content, ""))
+		if commandBody == "" {
+			ds.ChannelMessageSend(mc.ChannelID, "Query cannot be empty.")
+			return false
+		}
+
+		response, err := execute(mc.Author.ID, commandBody)
+		if err != nil {
+			ds.ChannelMessageSend(mc.ChannelID, "Could not execute the query: "+err.Error())
+			return false
+		}
+
+		if len(response) > discordMessageMaxLength {
+			fileMessageSend(ds, mc.ChannelID, "Query result", "result.tsv", response)
+		} else {
+			ds.ChannelMessageSend(mc.ChannelID, response)
+		}
+
+		return true
+	}
 }
 
 func answerSetServerProperty(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {

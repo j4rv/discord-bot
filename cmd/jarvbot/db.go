@@ -30,6 +30,7 @@ var serverDS serverDataStore
 var schedulerDS scheduledActionsDataStore
 var triviaDS triviaDataStore
 var dbMaintenance dbMaintenanceService
+var dbAdmin dbAdminService
 
 var errZeroRowsAffected = errors.New("zero rows were affected")
 var errDuplicateCommand = errors.New("a command with the same name already exists in this server")
@@ -179,6 +180,77 @@ func createTableTriviaQuestion(db *sqlx.DB) {
 		"CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
 		"UNIQUE(Question)",
 	}, db)
+}
+
+// admin
+
+type dbAdminService struct {
+	db *sqlx.DB
+}
+
+func (s *dbAdminService) ExecuteSelect(userID, query string) (string, error) {
+	if userID != adminID {
+		return "", errors.New("unauthorized")
+	}
+	if err := validateSQLPrefix(query, "SELECT"); err != nil {
+		return "", err
+	}
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	return rowsToTsv(rows)
+}
+
+func (s *dbAdminService) ExecuteUpdate(userID, query string) (string, error) {
+	if userID != adminID {
+		return "", errors.New("unauthorized")
+	}
+	if err := validateSQLPrefix(query, "UPDATE"); err != nil {
+		return "", err
+	}
+
+	result, err := s.db.Exec(query)
+	if err != nil {
+		return "", err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return "Update executed successfully.", nil
+	}
+
+	return fmt.Sprintf("Update executed successfully. Rows affected: %d", rowsAffected), nil
+}
+
+func (s *dbAdminService) ExecuteDelete(userID, query string) (string, error) {
+	if userID != adminID {
+		return "", errors.New("unauthorized")
+	}
+	if err := validateSQLPrefix(query, "DELETE"); err != nil {
+		return "", err
+	}
+
+	result, err := s.db.Exec(query)
+	if err != nil {
+		return "", err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return "Delete executed successfully.", nil
+	}
+
+	return fmt.Sprintf("Delete executed successfully. Rows affected: %d", rowsAffected), nil
+}
+
+func validateSQLPrefix(query string, allowedPrefix string) error {
+	query = strings.TrimSpace(strings.ToUpper(query))
+	if !strings.HasPrefix(query, allowedPrefix) {
+		return fmt.Errorf("query must start with %s", allowedPrefix)
+	}
+	return nil
 }
 
 // commands
@@ -902,4 +974,40 @@ func createEncryptedZipReader(fileToZip *os.File, password string) (io.Reader, e
 	}
 
 	return &buf, nil
+}
+
+func rowsToTsv(rows *sql.Rows) (string, error) {
+	columns, err := rows.Columns()
+	if err != nil {
+		return "", err
+	}
+
+	var items []string
+	items = append(items, strings.Join(columns, "\t"))
+
+	for rows.Next() {
+		values := make([]any, len(columns))
+		pointers := make([]any, len(columns))
+
+		for i := range values {
+			pointers[i] = &values[i]
+		}
+
+		if err := rows.Scan(pointers...); err != nil {
+			return "", err
+		}
+
+		row := make([]string, len(values))
+		for i, value := range values {
+			row[i] = fmt.Sprint(value)
+		}
+
+		items = append(items, strings.Join(row, "\t"))
+	}
+
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+
+	return strings.Join(items, "\n"), nil
 }

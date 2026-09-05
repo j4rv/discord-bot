@@ -80,6 +80,7 @@ func initDB() {
 	schedulerDS = scheduledActionsDataStore{db}
 	triviaDS = triviaDataStore{db}
 	dbMaintenance = dbMaintenanceService{db}
+	dbAdmin = dbAdminService{db}
 }
 
 func initDiscordSession() *discordgo.Session {

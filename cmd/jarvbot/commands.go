@@ -145,8 +145,7 @@ var commands = map[string]command{
 	"!uwurelease":           guildOnly(modOnly(answerUwuRelease)),
 	// only available for the bot owner
 	"!dbadminselect":       adminOnly(answerAdminDb(dbAdmin.ExecuteSelect)),
-	"!dbadminupdate":       adminOnly(answerAdminDb(dbAdmin.ExecuteUpdate)),
-	"!dbadmindelete":       adminOnly(answerAdminDb(dbAdmin.ExecuteDelete)),
+	"!dbadminexec":         adminOnly(answerAdminDb(dbAdmin.ExecuteExec)),
 	"!setserverprop":       adminOnly(answerSetServerProperty),
 	"!nuketest":            guildOnly(adminOnly(answerForceNuke)),
 	"!guildlist":           adminOnly(answerGuildList),

@@ -205,11 +205,12 @@ func (s *dbAdminService) ExecuteSelect(userID, query string) (string, error) {
 	return rowsToTsv(rows)
 }
 
-func (s *dbAdminService) ExecuteUpdate(userID, query string) (string, error) {
+func (s *dbAdminService) ExecuteExec(userID, query string) (string, error) {
 	if userID != adminID {
 		return "", errors.New("unauthorized")
 	}
-	if err := validateSQLPrefix(query, "UPDATE"); err != nil {
+
+	if err := validateSQLPrefix(query, "INSERT", "UPDATE", "DELETE"); err != nil {
 		return "", err
 	}
 
@@ -217,40 +218,13 @@ func (s *dbAdminService) ExecuteUpdate(userID, query string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return "Update executed successfully.", nil
+		return "Query executed successfully.", nil
 	}
 
-	return fmt.Sprintf("Update executed successfully. Rows affected: %d", rowsAffected), nil
-}
-
-func (s *dbAdminService) ExecuteDelete(userID, query string) (string, error) {
-	if userID != adminID {
-		return "", errors.New("unauthorized")
-	}
-	if err := validateSQLPrefix(query, "DELETE"); err != nil {
-		return "", err
-	}
-
-	result, err := s.db.Exec(query)
-	if err != nil {
-		return "", err
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return "Delete executed successfully.", nil
-	}
-
-	return fmt.Sprintf("Delete executed successfully. Rows affected: %d", rowsAffected), nil
-}
-
-func validateSQLPrefix(query string, allowedPrefix string) error {
-	query = strings.TrimSpace(strings.ToUpper(query))
-	if !strings.HasPrefix(query, allowedPrefix) {
-		return fmt.Errorf("query must start with %s", allowedPrefix)
-	}
-	return nil
+	return fmt.Sprintf("Query executed successfully. Rows affected: %d", rowsAffected), nil
 }
 
 // commands
@@ -974,6 +948,18 @@ func createEncryptedZipReader(fileToZip *os.File, password string) (io.Reader, e
 	}
 
 	return &buf, nil
+}
+
+func validateSQLPrefix(query string, prefixes ...string) error {
+	query = strings.TrimSpace(strings.ToUpper(query))
+
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(query, prefix+" ") || query == prefix {
+			return nil
+		}
+	}
+
+	return errors.New("invalid SQL statement")
 }
 
 func rowsToTsv(rows *sql.Rows) (string, error) {

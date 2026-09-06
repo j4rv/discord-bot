@@ -61,8 +61,9 @@ func onMessageCreated(ctx context.Context) func(ds *discordgo.Session, mc *disco
 
 		// Process commands
 		if mc.Content[0] == '!' {
-			processCommand(ds, mc, ctx)
-			return
+			if processCommand(ds, mc, ctx) {
+				return
+			}
 		}
 
 		// Process Bot mentions
@@ -163,10 +164,11 @@ var commands = map[string]command{
 	"!abortshutdown":       adminOnly(answerAbortShutdown),
 }
 
-func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
+func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) (handled bool) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("panic in processCommand: %s\n%s", r, string(debug.Stack()))
+			log.Printf("panic in processCommand: %v\n%s", r, debug.Stack())
+			handled = true
 		}
 	}()
 
@@ -179,30 +181,35 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 			onSuccessCommandCall(mc, lowercaseCommandKey)
 			log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
 		}
-		return
+		return true
 	}
 
 	if isRandomCommand(commandKey) {
-		// hardcoded nuke chance, blame Naz
 		if rand.Float32() <= nuclearCatastropheRandomCommandChance {
 			answerForceNuke(ds, mc, ctx)
-			return
+			return true
 		}
 		var err error
 		commandKey, err = commandDS.pickRandomCommand(commandKey, mc.GuildID)
 		if err != nil {
-			return
+			return true
 		}
 	}
+	commandKey = strings.ToLower(commandKey)
 
 	response, err := commandDS.simpleCommandResponse(commandKey, mc.GuildID)
-	adminNotifyIfErr("simpleCommandResponse", err, ds)
-	if err == nil {
-		if notSpammable(simpleTextResponse(response))(ds, mc, ctx) {
-			onSuccessCommandCall(mc, commandKey)
-			log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
-		}
+	if err != nil {
+		adminNotifyIfErr("simpleCommandResponse", err, ds)
+		return false
 	}
+
+	if notSpammable(simpleTextResponse(response))(ds, mc, ctx) {
+		onSuccessCommandCall(mc, commandKey)
+		log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
+		return true
+	}
+
+	return false
 }
 
 func processBotMention(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {

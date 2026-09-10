@@ -168,7 +168,7 @@ func isAprilFools() bool {
 	return now.Month() == time.April && now.Day() == 1
 }
 
-// ==================== ROLES ====================
+// ==================== DISCORD ====================
 
 func findRoleInSlice(roleID string, roles []*discordgo.Role) *discordgo.Role {
 	for _, r := range roles {
@@ -199,6 +199,11 @@ func isMemberInRole(member *discordgo.Member, roleID string) bool {
 		}
 	}
 	return false
+}
+
+func isShadowFeatureEnabled(guildID, property string) bool {
+	value, _ := serverDS.getServerProperty(guildID, property)
+	return value == serverPropYes
 }
 
 // ==================== CHANNELS ====================

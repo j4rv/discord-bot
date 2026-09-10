@@ -15,7 +15,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-const triviaBatchSize = "50"
+const triviaBatchSize = "40"
 const triviaTimeToWait = 15 * time.Second
 const maxWinnersOnMessageLimitReached = 25
 const triviaRateLimitCooldown = 30 * time.Second
@@ -298,11 +298,11 @@ func answerTrivia(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx contex
 		}
 	}
 
-	go waitForQuestionAnswersAndRespond(ds, mc.ChannelID, sentMessage.ID, correctAnswer)
+	go waitForQuestionAnswersAndRespond(ds, mc.GuildID, mc.ChannelID, sentMessage.ID, correctAnswer)
 	return true
 }
 
-func waitForQuestionAnswersAndRespond(ds *discordgo.Session, channelID string, messageID string, correctAnswer int) {
+func waitForQuestionAnswersAndRespond(ds *discordgo.Session, guildID, channelID string, messageID string, correctAnswer int) {
 	time.Sleep(triviaTimeToWait)
 	result := checkQuestionAnswers(ds, channelID, messageID, correctAnswer)
 
@@ -347,6 +347,15 @@ func waitForQuestionAnswersAndRespond(ds *discordgo.Session, channelID string, m
 	_, err = ds.ChannelMessageEdit(channelID, messageID, content)
 	if err != nil {
 		adminNotifyIfErr("waitForQuestionAnswersAndRespond", err, ds)
+	}
+
+	if isShadowFeatureEnabled(guildID, serverPropShadowFeatureTriviaRealm) {
+		for _, user := range result.IncorrectUsers {
+			shadowRealmUser(ds, guildID, user.ID, timeoutDurationWhenTriviaWrong)
+		}
+		for _, user := range result.MultipleAnswerUsers {
+			shadowRealmUser(ds, guildID, user.ID, timeoutDurationWhenTriviaWrong)
+		}
 	}
 }
 

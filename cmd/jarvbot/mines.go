@@ -277,10 +277,8 @@ func processMinesetTrigger(ds *discordgo.Session, mc *discordgo.MessageCreate, m
 	if mineset.DurationSeconds == 0 {
 		return
 	}
-	if err := ds.GuildMemberRoleAdd(mc.GuildID, mc.Author.ID, timeoutRole.ID); err == nil {
-		duration := time.Duration(mineset.DurationSeconds) * time.Second
-		removeShadowRealmRoleAfterDuration(mc.GuildID, mc.Author.ID, timeoutRole.ID, duration)
-	}
+
+	shadowRealmUser(ds, mc.GuildID, mc.Author.ID, time.Duration(mineset.DurationSeconds)*time.Second)
 }
 
 func buildMineMessage(ds *discordgo.Session, mc *discordgo.MessageCreate, mineset *MineSet) string {

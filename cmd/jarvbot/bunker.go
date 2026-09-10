@@ -51,12 +51,7 @@ func answerDon(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.C
 		return false
 	}
 
-	err = ds.GuildMemberRoleAdd(mc.GuildID, mc.Author.ID, timeoutRole.ID)
-	serverNotifyIfErr("answerDon, couldn't add timeoutRole", err, mc.GuildID, ds)
-	if err != nil {
-		return false
-	}
-	removeShadowRealmRoleAfterDuration(mc.GuildID, mc.Author.ID, timeoutRole.ID, 10*time.Minute)
+	shadowRealmUser(ds, mc.GuildID, mc.Author.ID, 10*time.Minute)
 	_, err = ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("To the Shadow Realm you go %s", mc.Author.Mention()))
 	return err == nil
 }
@@ -134,22 +129,15 @@ func answerSniperShoot(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 		return false
 	}
 
-	timeoutRole, err := getTimeoutRole(ds, bunkerServerID)
-	serverNotifyIfErr("answerSniperShoot: get timeout role", err, mc.GuildID, ds)
-	if err != nil {
-		return false
-	}
-
+	shadowRealmUser(ds, bunkerServerID, target.User.ID, timeoutDurationWhenShot)
 	ds.ChannelMessageSend(bunkerGeneralChannelID, fmt.Sprintf("%s got sniped by %s!", target.User.Mention(), mc.Author.Mention()))
-	ds.GuildMemberRoleAdd(bunkerServerID, target.User.ID, timeoutRole.ID)
-	removeShadowRealmRoleAfterDuration(bunkerServerID, target.User.ID, timeoutRole.ID, timeoutDurationWhenShot)
 	ds.ChannelMessageSend(mc.ChannelID, "https://tenor.com/view/gun-anime-sniper-scope-scoping-gif-17545837")
 	return true
 }
 
 func getTimeoutRole(ds *discordgo.Session, guildID string) (*discordgo.Role, error) {
 	customRoleName, err := serverDS.getServerProperty(guildID, serverPropCustomTimeoutRoleName)
-	if err != nil {
+	if err != nil || customRoleName == "" {
 		customRoleName = defaultTimeoutRoleName
 	}
 	return guildRoleByName(ds, guildID, customRoleName)
@@ -165,6 +153,30 @@ func getTimeoutRoleName(ds *discordgo.Session, guildID string) string {
 
 func setCustomTimeoutRole(ds *discordgo.Session, guildID string, roleName string) error {
 	return serverDS.setServerProperty(guildID, serverPropCustomTimeoutRoleName, roleName)
+}
+
+func shadowRealmUser(ds *discordgo.Session, guildID, userID string, duration time.Duration) bool {
+	if isShadowFeatureEnabled(guildID, serverPropShadowFeatureTimeoutRealm) {
+		until := time.Now().UTC().Add(duration)
+		err := ds.GuildMemberTimeout(guildID, userID, &until)
+		serverNotifyIfErr("could not timeout the user", err, guildID, ds)
+		return err == nil
+	}
+
+	timeoutRole, err := getTimeoutRole(ds, guildID)
+	serverNotifyIfErr("shadowRealmUser, couldn't find timeoutRole", err, guildID, ds)
+	if err != nil {
+		return false
+	}
+
+	err = ds.GuildMemberRoleAdd(guildID, userID, timeoutRole.ID)
+	if err != nil {
+		serverNotifyIfErr("shadowRealmUser, couldn't add timeoutRole", err, guildID, ds)
+		return false
+	}
+
+	removeShadowRealmRoleAfterDuration(guildID, userID, timeoutRole.ID, duration)
+	return true
 }
 
 // Internal functions
@@ -191,34 +203,25 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 	// Crit shot
 	if rand.Float32() <= shootCritChance*shootAFMultiplier {
 		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got shot!! Critical Hit!!", target.User.Mention()))
-		err := ds.GuildMemberRoleAdd(guildID, target.User.ID, timeoutRoleID)
-		if err == nil {
-			removeShadowRealmRoleAfterDuration(guildID, target.User.ID, timeoutRoleID, timeoutDurationWhenCritShot)
-		}
+		shadowRealmUser(ds, guildID, target.User.ID, timeoutDurationWhenCritShot)
 		return nil
 	}
 
 	// Miss logic
 	if rand.Float32() <= shootMisfireChance*shootAFMultiplier || target.User.Bot {
 		ds.ChannelMessageSend(channelID, "OOPS! You missed :3c")
-		err := ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID)
-		if err == nil {
-			removeShadowRealmRoleAfterDuration(guildID, shooter.User.ID, timeoutRoleID, timeoutDurationWhenMisfire)
-		}
+		shadowRealmUser(ds, guildID, shooter.User.ID, timeoutDurationWhenMisfire)
 		return nil
 	}
 
 	// Normal shot
 	ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got shot!", target.User.Mention()))
-	err := ds.GuildMemberRoleAdd(guildID, target.User.ID, timeoutRoleID)
-	if err == nil {
-		removeShadowRealmRoleAfterDuration(guildID, target.User.ID, timeoutRoleID, timeoutDurationWhenShot)
-	}
+	shadowRealmUser(ds, guildID, target.User.ID, timeoutDurationWhenShot)
 	return nil
 }
 
 func shootEveryone(ds *discordgo.Session, channelID, guildID string, shooter *discordgo.Member, timeoutRoleID string) error {
-	if value, _ := serverDS.getServerProperty(guildID, serverPropShadowFeatureMassShootings); value != serverPropYes {
+	if !isShadowFeatureEnabled(guildID, serverPropShadowFeatureMassShootings) {
 		ds.ChannelMessageSend(channelID, "Mass shootings are not allowed in this server! :<")
 		return nil
 	}
@@ -251,14 +254,12 @@ func shootEveryone(ds *discordgo.Session, channelID, guildID string, shooter *di
 		}
 
 		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got shot!", user.Mention()))
-		if err := ds.GuildMemberRoleAdd(guildID, user.ID, timeoutRoleID); err == nil {
-			removeShadowRealmRoleAfterDuration(guildID, user.ID, timeoutRoleID, timeoutDurationWhenShotEveryone)
-		}
+		shadowRealmUser(ds, guildID, user.ID, timeoutDurationWhenShotEveryone)
 	}
 
 	if err := ds.GuildMemberRoleAdd(guildID, shooter.User.ID, timeoutRoleID); err == nil {
 		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s got captured by the mod police!", shooter.Mention()))
-		removeShadowRealmRoleAfterDuration(guildID, shooter.User.ID, timeoutRoleID, timeoutDurationWhenEveryoneShooter)
+		shadowRealmUser(ds, guildID, shooter.User.ID, timeoutDurationWhenEveryoneShooter)
 	}
 
 	return nil
@@ -291,9 +292,7 @@ func handleNuke(ds *discordgo.Session, channelID, guildID, timeoutRoleID, firstR
 
 	for _, user := range dead {
 		ds.ChannelMessageSend(channelID, fmt.Sprintf("%s died in the explosion!", user.Mention()))
-		if err := ds.GuildMemberRoleAdd(guildID, user.ID, timeoutRoleID); err == nil {
-			removeShadowRealmRoleAfterDuration(guildID, user.ID, timeoutRoleID, timeoutDurationWhenNuclearCatastrophe)
-		}
+		shadowRealmUser(ds, guildID, user.ID, timeoutDurationWhenNuclearCatastrophe)
 	}
 
 	return nil

@@ -142,6 +142,8 @@ var commands = map[string]command{
 	"!removeservermines":    guildOnly(modOnly(answerRemoveGuildMines)),
 	"!findcommand":          guildOnly(modOnly(answerFindCommand)),
 	"!togglemassshootings":  guildOnly(modOnly(toggleShadowFeature(serverPropShadowFeatureMassShootings, "Mass Shootings"))),
+	"!toggletriviarealm":    guildOnly(modOnly(toggleShadowFeature(serverPropShadowFeatureTriviaRealm, "Answering Trivia wrong Shadow Realms"))),
+	"!toggletimeoutrealm":   guildOnly(modOnly(toggleShadowFeature(serverPropShadowFeatureTimeoutRealm, "Users get timed out instead of Shadow Realmed"))),
 	"!uwujail":              guildOnly(modOnly(answerUwuJail)),
 	"!uwurelease":           guildOnly(modOnly(answerUwuRelease)),
 	// only available for the bot owner
@@ -270,9 +272,9 @@ func toggleShadowFeature(propertyKey, featureName string) func(*discordgo.Sessio
 		}
 
 		if enabled {
-			ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%s enabled.", featureName))
+			ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%s: enabled.", featureName))
 		} else {
-			ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%s disabled.", featureName))
+			ds.ChannelMessageSend(mc.ChannelID, fmt.Sprintf("%s: disabled.", featureName))
 		}
 
 		return true

@@ -144,6 +144,7 @@ var commands = map[string]command{
 	"!togglemassshootings":  guildOnly(modOnly(toggleShadowFeature(serverPropShadowFeatureMassShootings, "Mass Shootings"))),
 	"!toggletriviarealm":    guildOnly(modOnly(toggleShadowFeature(serverPropShadowFeatureTriviaRealm, "Answering Trivia wrong Shadow Realms"))),
 	"!toggletimeoutrealm":   guildOnly(modOnly(toggleShadowFeature(serverPropShadowFeatureTimeoutRealm, "Users get timed out instead of Shadow Realmed"))),
+	"!togglekickrealm":      guildOnly(modOnly(toggleShadowFeature(serverPropShadowFeatureKickLongRealms, "Users get kicked instead whenever they would get Realmed for over "+humanDurationString(timeoutDurationMinimumForKick)))),
 	"!uwujail":              guildOnly(modOnly(answerUwuJail)),
 	"!uwurelease":           guildOnly(modOnly(answerUwuRelease)),
 	// only available for the bot owner

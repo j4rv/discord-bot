@@ -156,10 +156,16 @@ func setCustomTimeoutRole(ds *discordgo.Session, guildID string, roleName string
 }
 
 func shadowRealmUser(ds *discordgo.Session, guildID, userID string, duration time.Duration) bool {
+	if isShadowFeatureEnabled(guildID, serverPropShadowFeatureKickLongRealms) && duration >= timeoutDurationMinimumForKick {
+		err := ds.GuildMemberDelete(guildID, userID)
+		serverNotifyIfErr(fmt.Sprintf("could not kick <@%s>", userID), err, guildID, ds)
+		return err == nil
+	}
+
 	if isShadowFeatureEnabled(guildID, serverPropShadowFeatureTimeoutRealm) {
 		until := time.Now().UTC().Add(duration)
 		err := ds.GuildMemberTimeout(guildID, userID, &until)
-		serverNotifyIfErr("could not timeout the user", err, guildID, ds)
+		serverNotifyIfErr(fmt.Sprintf("could not timeout <@%s>", userID), err, guildID, ds)
 		return err == nil
 	}
 

@@ -181,6 +181,7 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 
 	if ok {
 		if command(ds, mc, ctx) {
+			sendEvent(eventCommandCoded)
 			onSuccessCommandCall(mc, lowercaseCommandKey)
 			log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
 		}
@@ -188,6 +189,7 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	}
 
 	if isRandomCommand(commandKey) {
+		sendEvent(eventCommandRandom)
 		if rand.Float32() <= nuclearCatastropheRandomCommandChance {
 			answerForceNuke(ds, mc, ctx)
 			return true
@@ -207,6 +209,7 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	}
 
 	if notSpammable(simpleTextResponse(response))(ds, mc, ctx) {
+		sendEvent(eventCommandSimple)
 		onSuccessCommandCall(mc, commandKey)
 		log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
 		return true

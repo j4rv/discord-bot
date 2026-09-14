@@ -199,6 +199,7 @@ func initSlashCommands(ds *discordgo.Session) func() {
 			return
 		}
 		if h, ok := slashHandlers[ic.ApplicationCommandData().Name]; ok {
+			sendEvent(eventCommandSlash, userString(ic.User))
 			go h(ds, ic)
 		} else {
 			adminNotifyIfErr("Slash command not found:"+ic.ApplicationCommandData().Name, nil, ds)
@@ -360,10 +361,11 @@ func serverNotifyIfErr(context string, err error, serverID string, ds *discordgo
 	}
 }
 
-func sendEvent(event string) error {
+func sendEvent(event, context string) error {
 	payload := struct {
-		Event string `json:"event"`
-	}{Event: event}
+		Event   string `json:"event"`
+		Context string `json:"context"`
+	}{Event: event, Context: context}
 
 	body, err := json.Marshal(payload)
 	if err != nil {

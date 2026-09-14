@@ -170,6 +170,13 @@ func isAprilFools() bool {
 
 // ==================== DISCORD ====================
 
+func userString(u *discordgo.User) string {
+	if u == nil {
+		return "unknown"
+	}
+	return fmt.Sprintf("%s (%s)", u.DisplayName(), u.String())
+}
+
 func findRoleInSlice(roleID string, roles []*discordgo.Role) *discordgo.Role {
 	for _, r := range roles {
 		if r.ID == roleID {

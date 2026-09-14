@@ -188,7 +188,7 @@ func shadowRealmUser(ds *discordgo.Session, guildID, userID string, duration tim
 // Internal functions
 
 func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *discordgo.Member, target *discordgo.Member, timeoutRoleID string) error {
-	sendEvent(eventShoot)
+	sendEvent(eventShoot, userString(shooter.User))
 	if isMemberInRole(target, timeoutRoleID) {
 		ds.ChannelMessageSend(channelID, "https://giphy.com/gifs/the-simpsons-stop-hes-already-dead-JCAZQKoMefkoX6TyTb")
 		return nil
@@ -228,7 +228,7 @@ func shoot(ds *discordgo.Session, channelID string, guildID string, shooter *dis
 }
 
 func shootEveryone(ds *discordgo.Session, channelID, guildID string, shooter *discordgo.Member, timeoutRoleID string) error {
-	sendEvent(eventShootAll)
+	sendEvent(eventShootAll, userString(shooter.User))
 	if !isShadowFeatureEnabled(guildID, serverPropShadowFeatureMassShootings) {
 		ds.ChannelMessageSend(channelID, "Mass shootings are not allowed in this server! :<")
 		return nil
@@ -274,7 +274,7 @@ func shootEveryone(ds *discordgo.Session, channelID, guildID string, shooter *di
 }
 
 func handleNuke(ds *discordgo.Session, channelID, guildID, timeoutRoleID, firstResponse string) error {
-	sendEvent(eventNuke)
+	sendEvent(eventNuke, fmt.Sprintf("Channel %s Guild %s", channelID, guildID))
 	ds.ChannelMessageSend(channelID, firstResponse)
 
 	activeUsers, err := activeChannelMembers(ds, channelID, false)
@@ -360,6 +360,8 @@ func newMessageUwuCheck(ds *discordgo.Session, mc *discordgo.MessageCreate) bool
 	if uwufiedUserId == "" || mc.Author.ID != uwufiedUserId {
 		return false
 	}
+
+	sendEvent(eventUwu, userString(mc.Author))
 
 	_, err := sendAsUser(ds, mc.Author, mc.ChannelID, uwuifier.UwUify(mc.Content), mc.ReferencedMessage)
 	if err != nil {

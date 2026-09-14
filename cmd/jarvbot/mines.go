@@ -255,7 +255,7 @@ func newMessageMineCheck(ds *discordgo.Session, mc *discordgo.MessageCreate) {
 }
 
 func processMinesetTrigger(ds *discordgo.Session, mc *discordgo.MessageCreate, mineset *MineSet) {
-	sendEvent(eventMineExplosion)
+	sendEvent(eventMineExplosion, userString(mc.Author))
 	timeoutRole, err := getTimeoutRole(ds, mc.GuildID)
 	if err != nil {
 		serverNotifyIfErr("fetch timeout role", err, mc.GuildID, ds)

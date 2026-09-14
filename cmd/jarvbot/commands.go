@@ -181,7 +181,7 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 
 	if ok {
 		if command(ds, mc, ctx) {
-			sendEvent(eventCommandCoded)
+			sendEvent(eventCommandCoded, userString(mc.Author))
 			onSuccessCommandCall(mc, lowercaseCommandKey)
 			log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
 		}
@@ -189,7 +189,7 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	}
 
 	if isRandomCommand(commandKey) {
-		sendEvent(eventCommandRandom)
+		sendEvent(eventCommandRandom, userString(mc.Author))
 		if rand.Float32() <= nuclearCatastropheRandomCommandChance {
 			answerForceNuke(ds, mc, ctx)
 			return true
@@ -209,7 +209,7 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 	}
 
 	if notSpammable(simpleTextResponse(response))(ds, mc, ctx) {
-		sendEvent(eventCommandSimple)
+		sendEvent(eventCommandSimple, userString(mc.Author))
 		onSuccessCommandCall(mc, commandKey)
 		log.Printf("[%s] [%s] %s", mc.ChannelID, mc.Author.Username, commandKey)
 		return true
@@ -223,6 +223,7 @@ func processBotMention(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 	if !strings.Contains(lowercaseContent, "?") {
 		return
 	}
+	sendEvent(event8Ball, userString(mc.Author))
 	ds.ChannelMessageSend(mc.ChannelID, eightball.Response())
 }
 
@@ -462,6 +463,8 @@ func processMessageWithBadEmbedLinks(ds *discordgo.Session, mc *discordgo.Messag
 	if mc.Content == cleanedContent {
 		return
 	}
+
+	sendEvent(eventLinkFixed, userString(mc.Author))
 
 	fixedMsg, err := sendAsUser(ds, mc.Author, mc.ChannelID, cleanedContent, mc.ReferencedMessage)
 	if err != nil {

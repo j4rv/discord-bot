@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -10,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"net/http"
 	_ "net/http/pprof"
 
 	"github.com/bwmarrin/discordgo"
@@ -22,6 +25,7 @@ var token string
 var adminID string
 var backupPassword string
 var noSlashCommands bool
+var eventServer string
 
 var abortChannel chan os.Signal
 
@@ -57,6 +61,7 @@ func initFlags() {
 	flag.StringVar(&token, "token", "", "Bot Token")
 	flag.StringVar(&adminID, "adminID", "195538857675063298", "The ID of the bot's admin")
 	flag.StringVar(&backupPassword, "backupPassword", "changeme", "Password for periodic backups")
+	flag.StringVar(&eventServer, "eventServer", "http://192.168.1.253:20502/event", "Server for Events")
 	flag.BoolVar(&noSlashCommands, "noSlashCommands", false, "The bot will not init slash commands, boots faster.")
 	flag.Parse()
 	if token == "" {
@@ -353,4 +358,27 @@ func serverNotifyIfErr(context string, err error, serverID string, ds *discordgo
 		ds.ChannelMessageSend(channelID, msg)
 		log.Printf("%s (Server %s)", msg, serverID)
 	}
+}
+
+func sendEvent(event string) error {
+	payload := struct {
+		Event string `json:"event"`
+	}{Event: event}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(eventServer, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("event server returned HTTP %d", resp.StatusCode)
+	}
+
+	return nil
 }

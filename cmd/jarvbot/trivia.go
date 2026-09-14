@@ -233,6 +233,7 @@ func parseAndValidateTriviaInput(mc *discordgo.MessageCreate) (*validatedTriviaI
 }
 
 func answerTrivia(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) bool {
+	sendEvent(eventTrivia)
 	validInput, errMsg := parseAndValidateTriviaInput(mc)
 	if errMsg != "" {
 		ds.ChannelMessageSend(mc.ChannelID, errMsg)

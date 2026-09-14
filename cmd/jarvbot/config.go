@@ -53,6 +53,12 @@ const serverPropYes = "Y"
 const serverPropNo = "N"
 const serverPropMods = "mod_user_ids"
 
+const eventShoot = "shoot"
+const eventShootAll = "shoot-all"
+const eventNuke = "nuke"
+const eventMineExplosion = "mine"
+const eventTrivia = "trivia"
+
 const defaultTimeoutRoleName = "Shadow Realm"
 const shootCritChance = 0.05
 const shootMisfireChance = 0.2

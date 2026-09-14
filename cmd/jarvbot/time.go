@@ -28,7 +28,7 @@ func removeShadowRealmRoleAfterDuration(guildID, memberID, roleID string, durati
 
 	// If there exists a longer cooldown, just return
 	for _, o := range currentCooldowns {
-		if o.ScheduledFor.After(newTime) {
+		if !o.ScheduledFor.Before(newTime) {
 			return
 		}
 	}

@@ -6,7 +6,11 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/gif"
+	"image/jpeg"
+	"math"
+	"math/rand"
 	"net/url"
 	"regexp"
 	"strings"
@@ -161,6 +165,10 @@ func divideToFloat(a, b int) float64 {
 	return float64(a) / float64(b)
 }
 
+func clamp(value, min, max float64) float64 {
+	return math.Max(min, math.Min(max, value))
+}
+
 // ==================== DATES ====================
 
 func isAprilFools() bool {
@@ -231,6 +239,58 @@ func channelBelongsToGuild(ds *discordgo.Session, channelID, guildID string) boo
 }
 
 // ==================== IMAGES ====================
+
+func deepFryImage(src image.Image, noiseAmount, saturation float64, jpegQuality, iterations int) (image.Image, error) {
+	bounds := src.Bounds()
+	img := image.NewRGBA(bounds)
+
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			r, g, b, a := src.At(x, y).RGBA()
+
+			r8 := float64(r >> 8)
+			g8 := float64(g >> 8)
+			b8 := float64(b >> 8)
+
+			// Saturation
+			gray := 0.299*r8 + 0.587*g8 + 0.114*b8
+			r8 = gray + (r8-gray)*saturation
+			g8 = gray + (g8-gray)*saturation
+			b8 = gray + (b8-gray)*saturation
+
+			// Noise
+			r8 += (rand.Float64()*2 - 1) * noiseAmount
+			g8 += (rand.Float64()*2 - 1) * noiseAmount
+			b8 += (rand.Float64()*2 - 1) * noiseAmount
+
+			img.SetRGBA(x, y, color.RGBA{
+				R: uint8(clamp(r8, 0, 255)),
+				G: uint8(clamp(g8, 0, 255)),
+				B: uint8(clamp(b8, 0, 255)),
+				A: uint8(a >> 8),
+			})
+		}
+	}
+
+	// Repeated JPEG compression
+	for i := 0; i < iterations; i++ {
+		var buf bytes.Buffer
+
+		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: jpegQuality}); err != nil {
+			return nil, err
+		}
+
+		decoded, err := jpeg.Decode(&buf)
+		if err != nil {
+			return nil, err
+		}
+
+		img = image.NewRGBA(decoded.Bounds())
+		draw.Draw(img, img.Bounds(), decoded, decoded.Bounds().Min, draw.Src)
+	}
+
+	return img, nil
+}
 
 func GenerateQRImage(data string, border int) ([]byte, error) {
 	qr, err := qrcode.New(data, qrcode.Low)

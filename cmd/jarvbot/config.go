@@ -22,6 +22,8 @@ var maxServerUserMods = 15
 
 const discordMaxMessageLength = 2000
 const avatarTargetSize = "1024"
+const maxInputImagePixels = 8_000_000
+const maxInputImageSizeBytes = 20 * 1024 * 1024
 
 const cleanStateMessagesCRON = "0 * * * *"
 const stateMessageMaxLifetime = 2 * 24 * time.Hour

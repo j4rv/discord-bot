@@ -61,7 +61,7 @@ func initFlags() {
 	flag.StringVar(&token, "token", "", "Bot Token")
 	flag.StringVar(&adminID, "adminID", "195538857675063298", "The ID of the bot's admin")
 	flag.StringVar(&backupPassword, "backupPassword", "changeme", "Password for periodic backups")
-	flag.StringVar(&eventServer, "eventServer", "http://192.168.1.253:20502/event", "Server for Events")
+	flag.StringVar(&eventServer, "eventServer", "", "Server for Events")
 	flag.BoolVar(&noSlashCommands, "noSlashCommands", false, "The bot will not init slash commands, boots faster.")
 	flag.Parse()
 	if token == "" {
@@ -362,6 +362,10 @@ func serverNotifyIfErr(context string, err error, serverID string, ds *discordgo
 }
 
 func sendEvent(event, context string) error {
+	if eventServer == "" {
+		return nil
+	}
+
 	payload := struct {
 		Event   string `json:"event"`
 		Context string `json:"context"`

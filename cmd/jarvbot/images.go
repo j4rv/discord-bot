@@ -45,10 +45,10 @@ func answerQR(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Co
 }
 
 type deepFryQueryInput struct {
-	Noise      float64 `short:"n" long:"noise" default:"20" description:"Amount of image noise"`
-	Saturation float64 `short:"s" long:"saturation" default:"3" description:"Saturation multiplier"`
+	Noise      float64 `short:"n" long:"noise" default:"20" description:"Amount of image noise, 0-255""`
+	Saturation float64 `short:"s" long:"saturation" default:"3" description:"Saturation multiplier, 0-10"`
 	Quality    int     `short:"q" long:"quality" default:"2" description:"JPEG quality, 1-100"`
-	Iterations int     `short:"i" long:"iterations" default:"2" description:"Number of JPEG compression iterations"`
+	Iterations int     `short:"i" long:"iterations" default:"2" description:"Number of JPEG compression iterations, 1-10"`
 }
 
 type validatedDeepFryInput struct {

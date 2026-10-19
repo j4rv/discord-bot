@@ -17,7 +17,7 @@ const bunkerServerID = "807055417120129085"
 const bunkerGeneralChannelID = "828303425414365214"
 
 var commandShootRegex = regexp.MustCompile(
-	`^!shoot\s*(?:<@!?(\d+)>|(everyone|@everyone|here|@here))$`,
+	`(?i)^!shoot\s*(?:<@!?(\d+)>|(everyone|@everyone|here|@here))$`,
 )
 
 var shootEveryoneDodgeMessages = []string{

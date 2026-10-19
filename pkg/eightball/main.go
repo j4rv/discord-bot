@@ -1,6 +1,8 @@
 package eightball
 
-import "math/rand"
+import (
+	"math/rand"
+)
 
 var yesResponses = []string{
 	"Yes.",
@@ -75,7 +77,11 @@ var neutralResponses = []string{
 	"I need a minute.",
 }
 
-func Response() string {
+func Response(question string) string {
+	if isSingleWordQuestion(question) {
+		return singleWordQuestionResponse(question)
+	}
+
 	rng := rand.Float64()
 	neutralChance := 0.10
 	yesChance := 0.45

@@ -399,6 +399,6 @@ func answerAvatar(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 func answer8ball(ds *discordgo.Session, ic *discordgo.InteractionCreate) {
 	question := ic.ApplicationCommandData().Options[0].StringValue()
 	response := fmt.Sprintf("%s asked: %s\nThe 8 Ball says...\n'%s'",
-		interactionUser(ic).Mention(), question, eightball.Response())
+		interactionUser(ic).Mention(), question, eightball.Response(question))
 	textRespond(ds, ic, response)
 }

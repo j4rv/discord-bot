@@ -217,12 +217,18 @@ func processCommand(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx cont
 }
 
 func processBotMention(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx context.Context) {
-	lowercaseContent := strings.ToLower(mc.Content)
-	if !strings.Contains(lowercaseContent, "?") {
+	if !strings.Contains(mc.Content, "?") {
 		return
 	}
+
+	replacer := strings.NewReplacer(
+		fmt.Sprintf("<@%s>", ds.State.User.ID), "",
+		fmt.Sprintf("<@!%s>", ds.State.User.ID), "",
+	)
+	question := strings.TrimSpace(replacer.Replace(mc.Content))
+
 	sendEvent(event8Ball, userString(mc.Author))
-	ds.ChannelMessageSend(mc.ChannelID, eightball.Response())
+	ds.ChannelMessageSend(mc.ChannelID, eightball.Response(question))
 }
 
 // Checks if the message has the format !asdasd*. The "!" should have been checked previously

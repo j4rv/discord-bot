@@ -222,6 +222,7 @@ func processBotMention(ds *discordgo.Session, mc *discordgo.MessageCreate, ctx c
 	}
 
 	replacer := strings.NewReplacer(
+		"@jrok", "",
 		fmt.Sprintf("<@%s>", ds.State.User.ID), "",
 		fmt.Sprintf("<@!%s>", ds.State.User.ID), "",
 	)

@@ -21,7 +21,7 @@ Even the spirits can't help you with this one.`,
 
 	`I'm Jarv Bot, not a walking dictionary.
 Sigh, fine: https://dictionary.cambridge.org/dictionary/english/<word>
-Please allocate at least one more brain cell to this question.`,
+Please allocate at least one more brain cell for your next question.`,
 
 	`The 8-Ball has reviewed "<word>" and is disappointed.
 https://dictionary.cambridge.org/dictionary/english/<word>
@@ -75,7 +75,13 @@ https://dictionary.cambridge.org/dictionary/english/<word>`,
 
 func isSingleWordQuestion(question string) bool {
 	words := strings.Fields(question)
-	return len(words) == 1
+	count := 0
+	for _, word := range words {
+		if strings.ContainsFunc(word, unicode.IsLetter) {
+			count++
+		}
+	}
+	return count == 1
 }
 
 func singleWordQuestionResponse(word string) string {
@@ -85,6 +91,7 @@ func singleWordQuestionResponse(word string) string {
 		}
 		return r
 	}, word)
+	cleanedWord = strings.TrimSpace(cleanedWord)
 
 	if cleanedWord == "" {
 		return "You managed to send absolutely nothing. Honestly, impressive. That shouldn't even be possible :ohno:."

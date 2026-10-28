@@ -106,7 +106,6 @@ func initDiscordSession() *discordgo.Session {
 	ds.AddHandler(onInteractionCreate(backgroundCtx))
 
 	ds.Identify.Intents |= discordgo.IntentGuilds
-	ds.Identify.Intents |= discordgo.IntentGuildMembers
 	ds.Identify.Intents |= discordgo.IntentGuildMessages
 	ds.Identify.Intents |= discordgo.IntentGuildMessageReactions
 	ds.Identify.Intents |= discordgo.IntentDirectMessages

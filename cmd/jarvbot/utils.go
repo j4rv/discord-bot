@@ -105,8 +105,8 @@ var badEmbedDomainReplacements = map[*regexp.Regexp]string{
 }
 
 var trackingParamsByDomain = map[string][]string{
-	"twitter.com":       {"t", "s"},
-	"x.com":             {"t", "s"},
+	"twitter.com":       {"t", "s", "a"},
+	"x.com":             {"t", "s", "a"},
 	"youtu.be":          {"si", "is"},
 	"youtube.com":       {"si", "is"},
 	"music.youtube.com": {"si", "is"},
